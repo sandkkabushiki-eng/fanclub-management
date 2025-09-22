@@ -1,0 +1,11 @@
+日付,金額,手数料,種類,対象,購入者,対象URL,ユーザページURL,プラン解約日
+2024-01-15,5000,500,プラン購入,月額プラン,田中太郎,https://example.com,https://user.example.com,
+2024-01-16,3000,300,単品販売,写真集A,佐藤花子,https://example.com/photo,https://user.example.com,
+2024-01-17,2000,200,単品販売,動画コンテンツB,山田次郎,https://example.com/video,https://user.example.com,
+2024-01-18,5000,500,プラン購入,月額プラン,鈴木一郎,https://example.com,https://user.example.com,
+2024-01-19,1500,150,単品販売,音声コンテンツC,高橋美咲,https://example.com/audio,https://user.example.com,
+2024-01-20,5000,500,プラン購入,月額プラン,伊藤健太,https://example.com,https://user.example.com,
+2024-01-21,4000,400,単品販売,限定グッズD,渡辺さくら,https://example.com/goods,https://user.example.com,
+2024-01-22,5000,500,プラン購入,月額プラン,中村大輔,https://example.com,https://user.example.com,
+2024-01-23,2500,250,単品販売,デジタルコンテンツE,小林あい,https://example.com/digital,https://user.example.com,
+2024-01-24,5000,500,プラン購入,月額プラン,加藤雄一,https://example.com,https://user.example.com,
