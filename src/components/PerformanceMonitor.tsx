@@ -38,27 +38,6 @@ export default function PerformanceMonitor() {
 
   const [isMonitoring, setIsMonitoring] = useState(false);
 
-  useEffect(() => {
-    const cleanup = startMonitoring();
-    return () => {
-      stopMonitoring();
-      if (cleanup) cleanup();
-    };
-  }, []);
-
-  const startMonitoring = useCallback(() => {
-    setIsMonitoring(true);
-    updateMetrics();
-    
-    // 30秒ごとにメトリクスを更新
-    const interval = setInterval(updateMetrics, 30000);
-    return () => clearInterval(interval);
-  }, [updateMetrics]);
-
-  const stopMonitoring = useCallback(() => {
-    setIsMonitoring(false);
-  }, []);
-
   const updateMetrics = useCallback(() => {
     // ページロード時間の測定
     const pageLoadTime = performance.timing ? 
@@ -114,6 +93,27 @@ export default function PerformanceMonitor() {
     setMetrics(newMetrics);
     updateSystemHealth(newMetrics);
   }, []);
+
+  const startMonitoring = useCallback(() => {
+    setIsMonitoring(true);
+    updateMetrics();
+    
+    // 30秒ごとにメトリクスを更新
+    const interval = setInterval(updateMetrics, 30000);
+    return () => clearInterval(interval);
+  }, [updateMetrics]);
+
+  const stopMonitoring = useCallback(() => {
+    setIsMonitoring(false);
+  }, []);
+
+  useEffect(() => {
+    const cleanup = startMonitoring();
+    return () => {
+      stopMonitoring();
+      if (cleanup) cleanup();
+    };
+  }, [startMonitoring, stopMonitoring]);
 
   const updateSystemHealth = (metrics: PerformanceMetrics) => {
     const issues: string[] = [];
