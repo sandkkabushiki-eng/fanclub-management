@@ -1,23 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Upload,
   BarChart3,
   Users,
-  Share2,
-  Cloud
+  Share2
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels } from '@/utils/modelUtils';
-import { saveModelToSupabase, saveModelMonthlyDataToSupabase } from '@/utils/supabaseUtils';
+import { saveModelToSupabase, saveModelMonthlyDataToSupabase, getModelsFromSupabase, getModelMonthlyDataFromSupabase } from '@/utils/supabaseUtils';
 import CSVUploader from '@/components/CSVUploaderNew';
 import ModelManagement from '@/components/ModelManagement';
 import ModelDataManagement from '@/components/ModelDataManagement';
 import DataSharing from '@/components/DataSharing';
-import DataSync from '@/components/DataSync';
 
-type TabType = 'upload' | 'models' | 'management' | 'sharing' | 'sync';
+type TabType = 'upload' | 'models' | 'management' | 'sharing';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('upload');
@@ -26,6 +24,18 @@ export default function Home() {
   const handleDataLoaded = async (data: CSVData[], year: number, month: number, modelId: string) => {
     try {
       setError('');
+      
+      // まずクラウドから最新データを取得
+      try {
+        const cloudModels = await getModelsFromSupabase();
+        const cloudModelData = await getModelMonthlyDataFromSupabase();
+        
+        // ローカルストレージに最新データを保存
+        localStorage.setItem('fanclub-models', JSON.stringify(cloudModels));
+        localStorage.setItem('fanclub-model-data', JSON.stringify(cloudModelData));
+      } catch (cloudError) {
+        console.log('クラウドデータの取得に失敗しましたが、続行します:', cloudError);
+      }
       
       // ローカルストレージにデータを保存
       const model = getModels().find(m => m.id === modelId);
@@ -43,13 +53,13 @@ export default function Home() {
         // 月別データをクラウドに保存
         await saveModelMonthlyDataToSupabase(modelId, year, month, data as FanClubRevenueData[]);
         
-        setError('データが正常にアップロードされ、クラウドに同期されました！');
+        setError('データが正常にアップロードされ、全員に自動共有されました！');
       } catch (syncError) {
         console.error('クラウド同期エラー:', syncError);
-        setError('データは保存されましたが、クラウド同期に失敗しました。手動で同期してください。');
+        setError('データは保存されましたが、クラウド同期に失敗しました。');
       }
       
-      // 3秒後にメッセージをクリア
+      // 5秒後にメッセージをクリア
       setTimeout(() => setError(''), 5000);
       
       setActiveTab('models');
@@ -67,12 +77,29 @@ export default function Home() {
   const handleModelChange = () => {
   };
 
+  // アプリケーション起動時にクラウドからデータを取得
+  useEffect(() => {
+    const loadCloudData = async () => {
+      try {
+        const cloudModels = await getModelsFromSupabase();
+        const cloudModelData = await getModelMonthlyDataFromSupabase();
+        
+        // ローカルストレージに最新データを保存
+        localStorage.setItem('fanclub-models', JSON.stringify(cloudModels));
+        localStorage.setItem('fanclub-model-data', JSON.stringify(cloudModelData));
+      } catch (error) {
+        console.log('クラウドデータの取得に失敗しました:', error);
+      }
+    };
+
+    loadCloudData();
+  }, []);
+
   const tabs = [
     { id: 'upload', label: 'CSVアップロード', icon: Upload },
     { id: 'models', label: 'モデル管理', icon: Users },
     { id: 'management', label: 'データ管理・分析', icon: BarChart3 },
-    { id: 'sharing', label: 'データ共有', icon: Share2 },
-    { id: 'sync', label: 'クラウド同期', icon: Cloud }
+    { id: 'sharing', label: 'データ共有', icon: Share2 }
   ];
 
   return (
@@ -174,16 +201,6 @@ export default function Home() {
                 データ共有
               </h2>
               <DataSharing onDataChange={handleModelChange} />
-            </div>
-          )}
-
-          {activeTab === 'sync' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <Cloud className="h-6 w-6 mr-2" />
-                クラウド同期
-              </h2>
-              <DataSync onDataChange={handleModelChange} />
             </div>
           )}
 
