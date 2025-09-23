@@ -71,8 +71,10 @@ export const deleteModel = (id: string): boolean => {
   
   // 関連する売上データも削除
   const modelData = getModelMonthlyData();
-  const filteredData = modelData.filter(data => data.modelId !== id);
-  saveModelMonthlyData(filteredData);
+  if (Array.isArray(modelData)) {
+    const filteredData = modelData.filter(data => data.modelId !== id);
+    saveModelMonthlyData(filteredData);
+  }
   
   return true;
 };
@@ -83,7 +85,17 @@ export const getModelMonthlyData = (): ModelMonthlyData[] => {
   
   try {
     const stored = localStorage.getItem(MODEL_DATA_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) return [];
+    
+    const parsed = JSON.parse(stored);
+    
+    // 配列でない場合は空配列を返す
+    if (!Array.isArray(parsed)) {
+      console.warn('Model monthly data is not an array, returning empty array');
+      return [];
+    }
+    
+    return parsed;
   } catch (error) {
     console.error('Failed to load model monthly data:', error);
     return [];
@@ -102,6 +114,13 @@ export const saveModelMonthlyData = (data: ModelMonthlyData[]): void => {
 
 export const getModelMonthlyDataByModelAndMonth = (modelId: string, year: number, month: number): ModelMonthlyData | null => {
   const allData = getModelMonthlyData();
+  
+  // 配列でない場合はnullを返す
+  if (!Array.isArray(allData)) {
+    console.warn('All data is not an array, returning null');
+    return null;
+  }
+  
   return allData.find(data => data.modelId === modelId && data.year === year && data.month === month) || null;
 };
 
@@ -113,42 +132,53 @@ export const upsertModelMonthlyData = (
   csvData: FanClubRevenueData[]
 ): ModelMonthlyData => {
   const allData = getModelMonthlyData();
-  const existingIndex = allData.findIndex(data => data.modelId === modelId && data.year === year && data.month === month);
+  
+  // 配列でない場合は空配列として扱う
+  const safeAllData = Array.isArray(allData) ? allData : [];
+  
+  const existingIndex = safeAllData.findIndex(data => data.modelId === modelId && data.year === year && data.month === month);
   
   const analysis = analyzeFanClubRevenue(csvData);
   const now = new Date().toISOString();
   
   const modelMonthlyData: ModelMonthlyData = {
-    id: existingIndex >= 0 ? allData[existingIndex].id : Date.now().toString(),
+    id: existingIndex >= 0 ? safeAllData[existingIndex].id : Date.now().toString(),
     modelId,
     modelName,
     year,
     month,
     data: csvData,
     analysis,
-    uploadedAt: existingIndex >= 0 ? allData[existingIndex].uploadedAt : now,
+    uploadedAt: existingIndex >= 0 ? safeAllData[existingIndex].uploadedAt : now,
     lastModified: now
   };
   
   if (existingIndex >= 0) {
-    allData[existingIndex] = modelMonthlyData;
+    safeAllData[existingIndex] = modelMonthlyData;
   } else {
-    allData.push(modelMonthlyData);
+    safeAllData.push(modelMonthlyData);
   }
   
   // モデルID、年月でソート
-  allData.sort((a, b) => {
+  safeAllData.sort((a, b) => {
     if (a.modelId !== b.modelId) return a.modelId.localeCompare(b.modelId);
     if (a.year !== b.year) return b.year - a.year;
     return b.month - a.month;
   });
   
-  saveModelMonthlyData(allData);
+  saveModelMonthlyData(safeAllData);
   return modelMonthlyData;
 };
 
 export const deleteModelMonthlyData = (modelId: string, year: number, month: number): boolean => {
   const allData = getModelMonthlyData();
+  
+  // 配列でない場合はfalseを返す
+  if (!Array.isArray(allData)) {
+    console.warn('All data is not an array, cannot delete');
+    return false;
+  }
+  
   const filteredData = allData.filter(data => !(data.modelId === modelId && data.year === year && data.month === month));
   
   if (filteredData.length === allData.length) {
@@ -163,6 +193,12 @@ export const deleteModelMonthlyData = (modelId: string, year: number, month: num
 export const getModelRevenueSummaries = (): ModelRevenueSummary[] => {
   const models = getModels();
   const allData = getModelMonthlyData();
+  
+  // 配列でない場合は空配列を返す
+  if (!Array.isArray(allData)) {
+    console.warn('All data is not an array, returning empty summaries');
+    return [];
+  }
   
   return models.map(model => {
     const modelData = allData.filter(data => data.modelId === model.id);
@@ -205,6 +241,13 @@ export const getModelRevenueSummaries = (): ModelRevenueSummary[] => {
 // 特定のモデルの月別データを取得
 export const getModelMonthlyDataByModel = (modelId: string): ModelMonthlyData[] => {
   const allData = getModelMonthlyData();
+  
+  // 配列でない場合は空配列を返す
+  if (!Array.isArray(allData)) {
+    console.warn('All data is not an array, returning empty array');
+    return [];
+  }
+  
   return allData
     .filter(data => data.modelId === modelId)
     .sort((a, b) => {

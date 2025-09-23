@@ -95,7 +95,7 @@ export default function Home() {
         // 通知の生成
         try {
           const localMonthlyData = getModelMonthlyData();
-          if (localMonthlyData.length > 0) {
+          if (Array.isArray(localMonthlyData) && localMonthlyData.length > 0) {
             const latestData = localMonthlyData[0];
             const newNotifications = generateNotifications({
               totalRevenue: latestData.analysis?.totalRevenue || 0,
