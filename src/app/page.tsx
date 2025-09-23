@@ -8,11 +8,13 @@ import {
   Share2,
   Download,
   Database,
-  Activity
+  Activity,
+  RefreshCw
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData, Model } from '@/types/csv';
 import { upsertModelMonthlyData, getModels, getModelMonthlyData } from '@/utils/modelUtils';
 import { saveModelToSupabase, saveModelMonthlyDataToSupabase } from '@/utils/supabaseUtils';
+import { supabase } from '@/lib/supabase';
 import CSVUploader from '@/components/CSVUploaderNew';
 import ModelManagement from '@/components/ModelManagement';
 import ModelDataManagement from '@/components/ModelDataManagement';
@@ -32,23 +34,78 @@ export default function Home() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    // 初期データの読み込み
-    setModels(getModels());
-    const data = JSON.parse(localStorage.getItem('fanclub-model-data') || '{}') as Record<string, unknown>;
-    setModelData(data);
-    
-    // 通知の生成
-    const monthlyData = getModelMonthlyData();
-    if (monthlyData.length > 0) {
-      const latestData = monthlyData[0];
-      const newNotifications = generateNotifications({
-        totalRevenue: latestData.analysis?.totalRevenue || 0,
-        newCustomers: latestData.analysis?.totalCustomers || 0,
-        repeatRate: latestData.analysis?.repeatRate || 0,
-        averageTransactionValue: latestData.analysis?.averageTransactionValue || 0
-      });
-      setNotifications(newNotifications);
-    }
+    // 初期データの読み込み（Supabaseから）
+    const loadInitialData = async () => {
+      try {
+        // Supabaseからモデルデータを取得
+        const { data: modelsData, error: modelsError } = await supabase.from('models').select('*');
+        if (modelsError) {
+          console.error('Models fetch error:', modelsError);
+        } else if (modelsData && modelsData.length > 0) {
+          // Supabaseのデータをローカルストレージに保存
+          const formattedModels = modelsData.map(m => ({
+            id: m.id,
+            name: m.name,
+            displayName: m.display_name,
+            status: 'active' as const,
+            createdAt: m.created_at,
+            updatedAt: m.updated_at
+          }));
+          localStorage.setItem('fanclub-models', JSON.stringify(formattedModels));
+          setModels(formattedModels);
+        } else {
+          // Supabaseにデータがない場合はローカルストレージから読み込み
+          setModels(getModels());
+        }
+
+        // Supabaseから月別データを取得
+        const { data: monthlyData, error: monthlyError } = await supabase.from('monthly_data').select('*');
+        if (monthlyError) {
+          console.error('Monthly data fetch error:', monthlyError);
+        } else if (monthlyData && monthlyData.length > 0) {
+          // Supabaseのデータをローカルストレージ形式に変換
+          const formattedData: Record<string, Record<number, Record<number, FanClubRevenueData[]>>> = {};
+          
+          monthlyData.forEach((row: any) => {
+            if (!formattedData[row.model_id]) {
+              formattedData[row.model_id] = {};
+            }
+            if (!formattedData[row.model_id][row.year]) {
+              formattedData[row.model_id][row.year] = {};
+            }
+            formattedData[row.model_id][row.year][row.month] = row.data;
+          });
+          
+          localStorage.setItem('fanclub-model-data', JSON.stringify(formattedData));
+          setModelData(formattedData);
+        } else {
+          // Supabaseにデータがない場合はローカルストレージから読み込み
+          const data = JSON.parse(localStorage.getItem('fanclub-model-data') || '{}') as Record<string, unknown>;
+          setModelData(data);
+        }
+        
+        // 通知の生成
+        const monthlyData = getModelMonthlyData();
+        if (monthlyData.length > 0) {
+          const latestData = monthlyData[0];
+          const newNotifications = generateNotifications({
+            totalRevenue: latestData.analysis?.totalRevenue || 0,
+            newCustomers: latestData.analysis?.totalCustomers || 0,
+            repeatRate: latestData.analysis?.repeatRate || 0,
+            averageTransactionValue: latestData.analysis?.averageTransactionValue || 0
+          });
+          setNotifications(newNotifications);
+        }
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        // エラーの場合はローカルストレージから読み込み
+        setModels(getModels());
+        const data = JSON.parse(localStorage.getItem('fanclub-model-data') || '{}') as Record<string, unknown>;
+        setModelData(data);
+      }
+    };
+
+    loadInitialData();
   }, []);
 
   const handleDataLoaded = async (data: CSVData[], year: number, month: number, modelId: string) => {
@@ -122,6 +179,56 @@ export default function Home() {
     );
   };
 
+  const handleSyncData = async () => {
+    try {
+      setMessage('データを同期中...');
+      
+      // Supabaseから最新データを取得
+      const { data: modelsData, error: modelsError } = await supabase.from('models').select('*');
+      if (modelsError) {
+        console.error('Models fetch error:', modelsError);
+      } else if (modelsData && modelsData.length > 0) {
+        const formattedModels = modelsData.map(m => ({
+          id: m.id,
+          name: m.name,
+          displayName: m.display_name,
+          status: 'active' as const,
+          createdAt: m.created_at,
+          updatedAt: m.updated_at
+        }));
+        localStorage.setItem('fanclub-models', JSON.stringify(formattedModels));
+        setModels(formattedModels);
+      }
+
+      const { data: monthlyData, error: monthlyError } = await supabase.from('monthly_data').select('*');
+      if (monthlyError) {
+        console.error('Monthly data fetch error:', monthlyError);
+      } else if (monthlyData && monthlyData.length > 0) {
+        const formattedData: Record<string, Record<number, Record<number, FanClubRevenueData[]>>> = {};
+        
+        monthlyData.forEach((row: any) => {
+          if (!formattedData[row.model_id]) {
+            formattedData[row.model_id] = {};
+          }
+          if (!formattedData[row.model_id][row.year]) {
+            formattedData[row.model_id][row.year] = {};
+          }
+          formattedData[row.model_id][row.year][row.month] = row.data;
+        });
+        
+        localStorage.setItem('fanclub-model-data', JSON.stringify(formattedData));
+        setModelData(formattedData);
+      }
+
+      setMessage('✅ データの同期が完了しました！');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Sync error:', error);
+      setMessage('❌ データの同期中にエラーが発生しました。');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
   const tabs = [
     { id: 'upload' as TabType, label: 'CSVアップロード', icon: Upload },
     { id: 'models' as TabType, label: 'モデル管理', icon: Users },
@@ -146,12 +253,23 @@ export default function Home() {
             </p>
           </div>
           
-          {/* 通知システム */}
-          <NotificationSystem
-            notifications={notifications}
-            onMarkAsRead={handleMarkNotificationAsRead}
-            onClearAll={handleClearAllNotifications}
-          />
+          {/* データ同期ボタンと通知システム */}
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={handleSyncData}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              title="Supabaseから最新データを同期"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="hidden sm:inline">データ同期</span>
+            </button>
+            
+            <NotificationSystem
+              notifications={notifications}
+              onMarkAsRead={handleMarkNotificationAsRead}
+              onClearAll={handleClearAllNotifications}
+            />
+          </div>
         </div>
 
         {/* メッセージ表示 */}

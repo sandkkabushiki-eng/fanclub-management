@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Users, TrendingUp, Star, Repeat, Calendar, DollarSign, Target, BarChart3 } from 'lucide-react';
-import { ModelMonthlyData, CustomerAnalysis } from '@/types/csv';
+import { ModelMonthlyData, CustomerAnalysis, FanClubRevenueData } from '@/types/csv';
 import { getModelMonthlyData } from '@/utils/modelUtils';
+import { supabase } from '@/lib/supabase';
 import { analyzeCustomerData, formatCurrency } from '@/utils/csvUtils';
 
 interface CustomerAnalysisDashboardProps {
@@ -16,7 +17,39 @@ export default function CustomerAnalysisDashboard({ selectedModelId }: CustomerA
   const [activeTab, setActiveTab] = useState<'overview' | 'repeaters' | 'segments' | 'lifetime'>('overview');
 
   useEffect(() => {
-    setModelData(getModelMonthlyData());
+    const loadModelData = async () => {
+      try {
+        // Supabaseから月別データを取得
+        const { data: monthlyData, error } = await supabase.from('monthly_data').select('*');
+        if (error) {
+          console.error('Monthly data fetch error:', error);
+          setModelData(getModelMonthlyData());
+        } else if (monthlyData && monthlyData.length > 0) {
+          // Supabaseのデータをローカルストレージ形式に変換
+          const formattedData: Record<string, Record<number, Record<number, FanClubRevenueData[]>>> = {};
+          
+          monthlyData.forEach((row: any) => {
+            if (!formattedData[row.model_id]) {
+              formattedData[row.model_id] = {};
+            }
+            if (!formattedData[row.model_id][row.year]) {
+              formattedData[row.model_id][row.year] = {};
+            }
+            formattedData[row.model_id][row.year][row.month] = row.data;
+          });
+          
+          localStorage.setItem('fanclub-model-data', JSON.stringify(formattedData));
+          setModelData(getModelMonthlyData());
+        } else {
+          setModelData(getModelMonthlyData());
+        }
+      } catch (error) {
+        console.error('Error loading model data:', error);
+        setModelData(getModelMonthlyData());
+      }
+    };
+
+    loadModelData();
   }, []);
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, Edit, Trash2, User, BarChart3, Users, DollarSign } from 'lucide-react';
 import { Model, ModelMonthlyData, FanClubRevenueData } from '@/types/csv';
 import { getModels, getModelMonthlyDataByModel, deleteModelMonthlyData, formatYearMonth } from '@/utils/modelUtils';
+import { supabase } from '@/lib/supabase';
 // import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
 import CSVDataEditor from './CSVDataEditor';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
@@ -30,7 +31,34 @@ export default function ModelDataManagement() {
   } | null>(null);
 
   useEffect(() => {
-    setModels(getModels());
+    const loadModels = async () => {
+      try {
+        // Supabaseからモデルデータを取得
+        const { data: modelsData, error } = await supabase.from('models').select('*');
+        if (error) {
+          console.error('Models fetch error:', error);
+          setModels(getModels());
+        } else if (modelsData && modelsData.length > 0) {
+          const formattedModels = modelsData.map(m => ({
+            id: m.id,
+            name: m.name,
+            displayName: m.display_name,
+            status: 'active' as const,
+            createdAt: m.created_at,
+            updatedAt: m.updated_at
+          }));
+          localStorage.setItem('fanclub-models', JSON.stringify(formattedModels));
+          setModels(formattedModels);
+        } else {
+          setModels(getModels());
+        }
+      } catch (error) {
+        console.error('Error loading models:', error);
+        setModels(getModels());
+      }
+    };
+
+    loadModels();
   }, []);
 
   useEffect(() => {

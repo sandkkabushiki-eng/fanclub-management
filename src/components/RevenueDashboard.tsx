@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, Users, DollarSign, PieChart } from 'lucide-react';
 import { ModelMonthlyData, RevenueAnalysis } from '@/types/csv';
 import { getModelMonthlyData } from '@/utils/modelUtils';
+import { supabase } from '@/lib/supabase';
 import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
 import { PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
@@ -16,7 +17,39 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
   const [analysis, setAnalysis] = useState<RevenueAnalysis | null>(null);
 
   useEffect(() => {
-    setModelData(getModelMonthlyData());
+    const loadModelData = async () => {
+      try {
+        // Supabaseから月別データを取得
+        const { data: monthlyData, error } = await supabase.from('monthly_data').select('*');
+        if (error) {
+          console.error('Monthly data fetch error:', error);
+          setModelData(getModelMonthlyData());
+        } else if (monthlyData && monthlyData.length > 0) {
+          // Supabaseのデータをローカルストレージ形式に変換
+          const formattedData: Record<string, Record<number, Record<number, FanClubRevenueData[]>>> = {};
+          
+          monthlyData.forEach((row: any) => {
+            if (!formattedData[row.model_id]) {
+              formattedData[row.model_id] = {};
+            }
+            if (!formattedData[row.model_id][row.year]) {
+              formattedData[row.model_id][row.year] = {};
+            }
+            formattedData[row.model_id][row.year][row.month] = row.data;
+          });
+          
+          localStorage.setItem('fanclub-model-data', JSON.stringify(formattedData));
+          setModelData(getModelMonthlyData());
+        } else {
+          setModelData(getModelMonthlyData());
+        }
+      } catch (error) {
+        console.error('Error loading model data:', error);
+        setModelData(getModelMonthlyData());
+      }
+    };
+
+    loadModelData();
   }, []);
 
   useEffect(() => {
