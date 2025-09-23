@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Download, Upload, Clock, CheckCircle, AlertTriangle, Database, Cloud } from 'lucide-react';
+import { Save, Upload, Clock, AlertTriangle, Database, Cloud } from 'lucide-react';
 import { Model } from '@/types/csv';
 
 interface BackupSystemProps {
@@ -98,7 +98,7 @@ export default function BackupSystem({ models, modelData }: BackupSystemProps) {
     }
   };
 
-  const restoreBackup = async (backupId: string) => {
+  const restoreBackup = async (_backupId: string) => {
     setIsRestoring(true);
     
     try {

@@ -1,13 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, FileText, BarChart3, Calendar, Users, Settings, CheckCircle } from 'lucide-react';
+import { Download, Calendar, Users, Settings, CheckCircle } from 'lucide-react';
 import { FanClubRevenueData, Model } from '@/types/csv';
-import { formatCurrency } from '@/utils/csvUtils';
 
 interface AdvancedExportProps {
   models: Model[];
-  modelData: Record<string, Record<number, Record<number, FanClubRevenueData[]>>>;
+  modelData: Record<string, unknown>;
 }
 
 export default function AdvancedExport({ models, modelData }: AdvancedExportProps) {
@@ -83,7 +82,9 @@ export default function AdvancedExport({ models, modelData }: AdvancedExportProp
 
         selectedYears.forEach(year => {
           selectedMonths.forEach(month => {
-            const data = modelData[modelId]?.[year]?.[month];
+            const modelYearData = modelData[modelId] as Record<number, Record<number, FanClubRevenueData[]>> | undefined;
+            const yearData = modelYearData?.[year];
+            const data = yearData?.[month];
             if (data && data.length > 0) {
               data.forEach(record => {
                 exportData.push({
@@ -144,7 +145,7 @@ export default function AdvancedExport({ models, modelData }: AdvancedExportProp
     return generateCSV(data);
   };
 
-  const generatePDF = async (data: Record<string, unknown>[]): Promise<void> => {
+  const generatePDF = async (_data: Record<string, unknown>[]): Promise<void> => {
     // PDF生成の実装（実際の実装ではライブラリを使用）
     console.log('PDF generation not implemented yet');
   };

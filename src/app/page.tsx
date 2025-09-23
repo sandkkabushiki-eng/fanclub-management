@@ -8,8 +8,7 @@ import {
   Share2,
   Download,
   Database,
-  Activity,
-  Bell
+  Activity
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData, Model } from '@/types/csv';
 import { upsertModelMonthlyData, getModels, getModelMonthlyData } from '@/utils/modelUtils';

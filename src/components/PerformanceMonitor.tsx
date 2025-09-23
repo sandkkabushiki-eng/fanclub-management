@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Activity, TrendingUp, Clock, Database, Users, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface PerformanceMetrics {
@@ -44,22 +44,22 @@ export default function PerformanceMonitor() {
       stopMonitoring();
       if (cleanup) cleanup();
     };
-  }, []);
+  }, [startMonitoring, stopMonitoring]);
 
-  const startMonitoring = () => {
+  const startMonitoring = useCallback(() => {
     setIsMonitoring(true);
     updateMetrics();
     
     // 30秒ごとにメトリクスを更新
     const interval = setInterval(updateMetrics, 30000);
     return () => clearInterval(interval);
-  };
+  }, [updateMetrics]);
 
-  const stopMonitoring = () => {
+  const stopMonitoring = useCallback(() => {
     setIsMonitoring(false);
-  };
+  }, []);
 
-  const updateMetrics = () => {
+  const updateMetrics = useCallback(() => {
     // ページロード時間の測定
     const pageLoadTime = performance.timing ? 
       performance.timing.loadEventEnd - performance.timing.navigationStart : 0;
@@ -113,7 +113,7 @@ export default function PerformanceMonitor() {
 
     setMetrics(newMetrics);
     updateSystemHealth(newMetrics);
-  };
+  }, []);
 
   const updateSystemHealth = (metrics: PerformanceMetrics) => {
     const issues: string[] = [];
