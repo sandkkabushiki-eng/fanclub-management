@@ -39,8 +39,11 @@ export default function PerformanceMonitor() {
   const [isMonitoring, setIsMonitoring] = useState(false);
 
   useEffect(() => {
-    startMonitoring();
-    return () => stopMonitoring();
+    const cleanup = startMonitoring();
+    return () => {
+      stopMonitoring();
+      if (cleanup) cleanup();
+    };
   }, []);
 
   const startMonitoring = () => {
@@ -57,34 +60,35 @@ export default function PerformanceMonitor() {
   };
 
   const updateMetrics = () => {
-    const startTime = performance.now();
-    
     // ページロード時間の測定
     const pageLoadTime = performance.timing ? 
       performance.timing.loadEventEnd - performance.timing.navigationStart : 0;
 
     // メモリ使用量の取得
-    const memoryUsage = (performance as any).memory ? 
-      (performance as any).memory.usedJSHeapSize / 1024 / 1024 : 0;
+    const memoryUsage = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory ? 
+      (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory!.usedJSHeapSize / 1024 / 1024 : 0;
 
     // データ処理時間の測定
     const dataProcessingStart = performance.now();
     // 実際のデータ処理をシミュレート
-    const modelData = localStorage.getItem('fanclub-model-data');
-    const models = localStorage.getItem('fanclub-models');
+    localStorage.getItem('fanclub-model-data');
+    localStorage.getItem('fanclub-models');
     const dataProcessingTime = performance.now() - dataProcessingStart;
 
     // 総レコード数の計算
     let totalRecords = 0;
-    if (modelData) {
+    const modelDataStr = localStorage.getItem('fanclub-model-data');
+    if (modelDataStr) {
       try {
-        const parsed = JSON.parse(modelData);
-        Object.values(parsed).forEach((modelYearData: any) => {
-          Object.values(modelYearData).forEach((monthData: any) => {
-            if (Array.isArray(monthData)) {
-              totalRecords += monthData.length;
-            }
-          });
+        const parsed = JSON.parse(modelDataStr);
+        Object.values(parsed).forEach((modelYearData: unknown) => {
+          if (typeof modelYearData === 'object' && modelYearData !== null) {
+            Object.values(modelYearData).forEach((monthData: unknown) => {
+              if (Array.isArray(monthData)) {
+                totalRecords += monthData.length;
+              }
+            });
+          }
         });
       } catch (error) {
         console.error('Error parsing model data:', error);

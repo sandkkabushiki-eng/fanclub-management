@@ -6,7 +6,7 @@ import { Model } from '@/types/csv';
 
 interface BackupSystemProps {
   models: Model[];
-  modelData: any;
+  modelData: Record<string, unknown>;
 }
 
 interface BackupInfo {
@@ -33,7 +33,7 @@ export default function BackupSystem({ models, modelData }: BackupSystemProps) {
   const loadBackups = () => {
     const savedBackups = localStorage.getItem('fanclub-backups');
     if (savedBackups) {
-      setBackups(JSON.parse(savedBackups).map((b: any) => ({
+      setBackups(JSON.parse(savedBackups).map((b: BackupInfo & { timestamp: string }) => ({
         ...b,
         timestamp: new Date(b.timestamp)
       })));
@@ -43,7 +43,7 @@ export default function BackupSystem({ models, modelData }: BackupSystemProps) {
   const loadAutoBackupSettings = () => {
     const settings = localStorage.getItem('fanclub-auto-backup');
     if (settings) {
-      const parsed = JSON.parse(settings);
+      const parsed = JSON.parse(settings) as { enabled: boolean; interval: 'daily' | 'weekly' | 'monthly' };
       setAutoBackupEnabled(parsed.enabled);
       setBackupInterval(parsed.interval);
     }
@@ -112,7 +112,7 @@ export default function BackupSystem({ models, modelData }: BackupSystemProps) {
           const reader = new FileReader();
           reader.onload = (e) => {
             try {
-              const backupData = JSON.parse(e.target?.result as string);
+              const backupData = JSON.parse(e.target?.result as string) as { models: Model[]; modelData: Record<string, unknown> };
               
               // データを復元
               if (backupData.models) {

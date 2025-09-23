@@ -29,13 +29,13 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('upload');
   const [message, setMessage] = useState<string>('');
   const [models, setModels] = useState<Model[]>([]);
-  const [modelData, setModelData] = useState<any>({});
+  const [modelData, setModelData] = useState<Record<string, unknown>>({});
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     // 初期データの読み込み
     setModels(getModels());
-    const data = JSON.parse(localStorage.getItem('fanclub-model-data') || '{}');
+    const data = JSON.parse(localStorage.getItem('fanclub-model-data') || '{}') as Record<string, unknown>;
     setModelData(data);
     
     // 通知の生成
@@ -77,7 +77,7 @@ export default function Home() {
           
           // データ更新
           setModels(getModels());
-          const updatedData = JSON.parse(localStorage.getItem('fanclub-model-data') || '{}');
+          const updatedData = JSON.parse(localStorage.getItem('fanclub-model-data') || '{}') as Record<string, unknown>;
           setModelData(updatedData);
           
           // 新しい通知を生成

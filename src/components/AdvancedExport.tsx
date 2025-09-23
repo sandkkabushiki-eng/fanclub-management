@@ -7,7 +7,7 @@ import { formatCurrency } from '@/utils/csvUtils';
 
 interface AdvancedExportProps {
   models: Model[];
-  modelData: { [modelId: string]: { [year: number]: { [month: number]: FanClubRevenueData[] } } };
+  modelData: Record<string, Record<number, Record<number, FanClubRevenueData[]>>>;
 }
 
 export default function AdvancedExport({ models, modelData }: AdvancedExportProps) {
@@ -75,7 +75,7 @@ export default function AdvancedExport({ models, modelData }: AdvancedExportProp
     
     try {
       // データを収集
-      const exportData: any[] = [];
+      const exportData: Record<string, unknown>[] = [];
       
       selectedModels.forEach(modelId => {
         const model = models.find(m => m.id === modelId);
@@ -127,7 +127,7 @@ export default function AdvancedExport({ models, modelData }: AdvancedExportProp
     }
   };
 
-  const generateCSV = (data: any[]): string => {
+  const generateCSV = (data: Record<string, unknown>[]): string => {
     if (data.length === 0) return '';
     
     const headers = Object.keys(data[0]);
@@ -139,12 +139,12 @@ export default function AdvancedExport({ models, modelData }: AdvancedExportProp
     return csvRows.join('\n');
   };
 
-  const generateExcel = (data: any[]): string => {
+  const generateExcel = (data: Record<string, unknown>[]): string => {
     // 簡易的なExcel形式（実際の実装ではライブラリを使用）
     return generateCSV(data);
   };
 
-  const generatePDF = async (data: any[]): Promise<void> => {
+  const generatePDF = async (data: Record<string, unknown>[]): Promise<void> => {
     // PDF生成の実装（実際の実装ではライブラリを使用）
     console.log('PDF generation not implemented yet');
   };

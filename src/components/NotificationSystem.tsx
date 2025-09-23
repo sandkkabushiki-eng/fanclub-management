@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Bell, X, CheckCircle, AlertTriangle, Info, TrendingUp, Users, DollarSign } from 'lucide-react';
+import { useState } from 'react';
+import { Bell, X, CheckCircle, AlertTriangle, Info, TrendingUp } from 'lucide-react';
 
 export interface Notification {
   id: string;
@@ -10,7 +10,7 @@ export interface Notification {
   message: string;
   timestamp: Date;
   read: boolean;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 interface NotificationSystemProps {
@@ -36,18 +36,6 @@ export default function NotificationSystem({ notifications, onMarkAsRead, onClea
     }
   };
 
-  const getBgColor = (type: Notification['type']) => {
-    switch (type) {
-      case 'success':
-        return 'bg-green-50 border-green-200';
-      case 'warning':
-        return 'bg-yellow-50 border-yellow-200';
-      case 'achievement':
-        return 'bg-purple-50 border-purple-200';
-      default:
-        return 'bg-blue-50 border-blue-200';
-    }
-  };
 
   return (
     <div className="relative">
@@ -131,12 +119,12 @@ export default function NotificationSystem({ notifications, onMarkAsRead, onClea
 }
 
 // 通知生成ユーティリティ
-export const generateNotifications = (data: any): Notification[] => {
+export const generateNotifications = (data: Record<string, unknown>): Notification[] => {
   const notifications: Notification[] = [];
   const now = new Date();
 
   // 売上目標達成通知
-  if (data.totalRevenue > 100000) {
+  if (typeof data.totalRevenue === 'number' && data.totalRevenue > 100000) {
     notifications.push({
       id: `revenue-${now.getTime()}`,
       type: 'achievement',
@@ -149,7 +137,7 @@ export const generateNotifications = (data: any): Notification[] => {
   }
 
   // 新規顧客通知
-  if (data.newCustomers > 0) {
+  if (typeof data.newCustomers === 'number' && data.newCustomers > 0) {
     notifications.push({
       id: `new-customers-${now.getTime()}`,
       type: 'success',
@@ -162,7 +150,7 @@ export const generateNotifications = (data: any): Notification[] => {
   }
 
   // リピート率向上通知
-  if (data.repeatRate > 30) {
+  if (typeof data.repeatRate === 'number' && data.repeatRate > 30) {
     notifications.push({
       id: `repeat-rate-${now.getTime()}`,
       type: 'achievement',
@@ -175,7 +163,7 @@ export const generateNotifications = (data: any): Notification[] => {
   }
 
   // 異常な売上パターン通知
-  if (data.averageTransactionValue > 50000) {
+  if (typeof data.averageTransactionValue === 'number' && data.averageTransactionValue > 50000) {
     notifications.push({
       id: `high-avg-${now.getTime()}`,
       type: 'warning',

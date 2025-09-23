@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react';
 import { Smartphone, Monitor, Tablet } from 'lucide-react';
 
 export default function MobileOptimization() {
-  const [isMobile, setIsMobile] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
   const [deviceType, setDeviceType] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
   useEffect(() => {
@@ -13,9 +11,6 @@ export default function MobileOptimization() {
       const width = window.innerWidth;
       const isMobileDevice = width < 768;
       const isTabletDevice = width >= 768 && width < 1024;
-      
-      setIsMobile(isMobileDevice);
-      setIsTablet(isTabletDevice);
       
       if (isMobileDevice) {
         setDeviceType('mobile');
