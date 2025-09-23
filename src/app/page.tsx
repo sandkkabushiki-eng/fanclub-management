@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels } from '@/utils/modelUtils';
+import { saveModelToSupabase, saveModelMonthlyDataToSupabase } from '@/utils/supabaseUtils';
 import CSVUploader from '@/components/CSVUploaderNew';
 import ModelManagement from '@/components/ModelManagement';
 import ModelDataManagement from '@/components/ModelDataManagement';
@@ -22,16 +23,40 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('upload');
   const [error, setError] = useState<string>('');
 
-  const handleDataLoaded = (data: CSVData[], year: number, month: number, modelId: string) => {
-    // モデル別月別データとして保存
-    const model = getModels().find(m => m.id === modelId);
-    if (model) {
-      upsertModelMonthlyData(modelId, model.displayName, year, month, data as FanClubRevenueData[]);
+  const handleDataLoaded = async (data: CSVData[], year: number, month: number, modelId: string) => {
+    try {
+      setError('');
+      
+      // ローカルストレージにデータを保存
+      const model = getModels().find(m => m.id === modelId);
+      if (model) {
+        upsertModelMonthlyData(modelId, model.displayName, year, month, data as FanClubRevenueData[]);
+      }
+      
+      // クラウドに自動同期
+      try {
+        // モデル情報をクラウドに保存
+        if (model) {
+          await saveModelToSupabase(model);
+        }
+        
+        // 月別データをクラウドに保存
+        await saveModelMonthlyDataToSupabase(modelId, year, month, data as FanClubRevenueData[]);
+        
+        setError('データが正常にアップロードされ、クラウドに同期されました！');
+      } catch (syncError) {
+        console.error('クラウド同期エラー:', syncError);
+        setError('データは保存されましたが、クラウド同期に失敗しました。手動で同期してください。');
+      }
+      
+      // 3秒後にメッセージをクリア
+      setTimeout(() => setError(''), 5000);
+      
+      setActiveTab('models');
+    } catch (error) {
+      console.error('データ保存エラー:', error);
+      setError('データの保存中にエラーが発生しました。');
     }
-    
-    
-    setError('');
-    setActiveTab('models');
   };
 
   const handleError = (errorMessage: string) => {

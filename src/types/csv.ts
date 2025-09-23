@@ -271,6 +271,7 @@ export interface CustomerAnalysis {
   averageSpendingPerCustomer: number;
   topSpenders: RepeatCustomer[];
   recentCustomers: RepeatCustomer[];
+  allRepeaters: RepeatCustomer[]; // 2回以上購入の全ユーザー
   customerSegments: {
     segment: 'high_value' | 'medium_value' | 'low_value' | 'new';
     count: number;

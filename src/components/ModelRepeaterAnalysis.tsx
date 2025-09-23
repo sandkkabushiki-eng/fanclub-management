@@ -13,21 +13,22 @@ interface ModelRepeaterAnalysisProps {
 
 export default function ModelRepeaterAnalysis({ selectedModelId }: ModelRepeaterAnalysisProps) {
   const [models, setModels] = useState<Model[]>([]);
-  const [customerAnalysis, setCustomerAnalysis] = useState<{
-    totalCustomers: number;
-    repeatCustomers: number;
-    newCustomers: number;
-    repeatRate: number;
-    averageSpendingPerCustomer: number;
-    topSpenders: RepeatCustomer[];
-    recentCustomers: RepeatCustomer[];
-    customerSegments: Array<{
-      segment: string;
-      count: number;
-      totalSpent: number;
-      averageSpent: number;
-    }>;
-  } | null>(null);
+         const [customerAnalysis, setCustomerAnalysis] = useState<{
+           totalCustomers: number;
+           repeatCustomers: number;
+           newCustomers: number;
+           repeatRate: number;
+           averageSpendingPerCustomer: number;
+           topSpenders: RepeatCustomer[];
+           recentCustomers: RepeatCustomer[];
+           allRepeaters: RepeatCustomer[];
+           customerSegments: Array<{
+             segment: string;
+             count: number;
+             totalSpent: number;
+             averageSpent: number;
+           }>;
+         } | null>(null);
   const [selectedTab, setSelectedTab] = useState<'overview' | 'repeaters' | 'segments'>('overview');
 
   useEffect(() => {
@@ -90,15 +91,16 @@ export default function ModelRepeaterAnalysis({ selectedModelId }: ModelRepeater
     );
   }
 
-  const {
-    totalCustomers,
-    repeatCustomers,
-    repeatRate,
-    averageSpendingPerCustomer,
-    topSpenders,
-    recentCustomers,
-    customerSegments
-  } = customerAnalysis;
+         const {
+           totalCustomers,
+           repeatCustomers,
+           repeatRate,
+           averageSpendingPerCustomer,
+           topSpenders,
+           recentCustomers,
+           allRepeaters,
+           customerSegments
+         } = customerAnalysis;
 
   const tabs = [
     { id: 'overview', label: '概要', icon: TrendingUp },
@@ -205,9 +207,12 @@ export default function ModelRepeaterAnalysis({ selectedModelId }: ModelRepeater
       {/* リピータータブ */}
       {selectedTab === 'repeaters' && (
         <div className="space-y-4">
-          <h4 className="text-lg font-semibold text-gray-900">リピーター詳細</h4>
+          <div className="flex justify-between items-center">
+            <h4 className="text-lg font-semibold text-gray-900">リピーター一覧（2回以上購入）</h4>
+            <span className="text-sm text-gray-600">全{allRepeaters.length}名</span>
+          </div>
           <div className="space-y-3">
-            {topSpenders.filter((customer: RepeatCustomer) => customer.totalTransactions > 1).map((customer: RepeatCustomer, index: number) => (
+            {allRepeaters.map((customer: RepeatCustomer, index: number) => (
               <div key={index} className="border rounded-lg p-4">
                 <div className="flex justify-between items-start mb-3">
                   <div>

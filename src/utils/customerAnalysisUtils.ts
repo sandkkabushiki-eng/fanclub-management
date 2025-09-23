@@ -15,18 +15,19 @@ export const analyzeRepeatCustomers = (modelId?: string): CustomerAnalysis => {
     data = allData.flatMap(d => d.data);
   }
   
-  if (data.length === 0) {
-    return {
-      totalCustomers: 0,
-      repeatCustomers: 0,
-      newCustomers: 0,
-      repeatRate: 0,
-      averageSpendingPerCustomer: 0,
-      topSpenders: [],
-      recentCustomers: [],
-      customerSegments: []
-    };
-  }
+         if (data.length === 0) {
+           return {
+             totalCustomers: 0,
+             repeatCustomers: 0,
+             newCustomers: 0,
+             repeatRate: 0,
+             averageSpendingPerCustomer: 0,
+             topSpenders: [],
+             recentCustomers: [],
+             allRepeaters: [],
+             customerSegments: []
+           };
+         }
   
   // 購入者別のデータを集計
   const customerData = new Map<string, {
@@ -130,12 +131,15 @@ export const analyzeRepeatCustomers = (modelId?: string): CustomerAnalysis => {
     })
     .sort((a, b) => b.totalSpent - a.totalSpent);
   
-  const totalCustomers = repeatCustomers.length;
-  const repeatCustomersCount = repeatCustomers.filter(c => c.totalTransactions > 1).length;
-  const newCustomers = repeatCustomers.filter(c => c.totalTransactions === 1).length;
-  const repeatRate = totalCustomers > 0 ? (repeatCustomersCount / totalCustomers) * 100 : 0;
-  const averageSpendingPerCustomer = totalCustomers > 0 ? 
-    repeatCustomers.reduce((sum, c) => sum + c.totalSpent, 0) / totalCustomers : 0;
+         const totalCustomers = repeatCustomers.length;
+         const repeatCustomersCount = repeatCustomers.filter(c => c.totalTransactions > 1).length;
+         const newCustomers = repeatCustomers.filter(c => c.totalTransactions === 1).length;
+         const repeatRate = totalCustomers > 0 ? (repeatCustomersCount / totalCustomers) * 100 : 0;
+         const averageSpendingPerCustomer = totalCustomers > 0 ?
+           repeatCustomers.reduce((sum, c) => sum + c.totalSpent, 0) / totalCustomers : 0;
+
+         // リピーター（2回以上購入）の一覧を取得
+         const allRepeaters = repeatCustomers.filter(c => c.totalTransactions > 1);
   
   // 顧客セグメント分析
   const totalSpent = repeatCustomers.reduce((sum, c) => sum + c.totalSpent, 0);
@@ -175,18 +179,19 @@ export const analyzeRepeatCustomers = (modelId?: string): CustomerAnalysis => {
       segment.customers.reduce((sum, c) => sum + c.totalSpent, 0) / segment.customers.length : 0
   }));
   
-  return {
-    totalCustomers,
-    repeatCustomers: repeatCustomersCount,
-    newCustomers,
-    repeatRate,
-    averageSpendingPerCustomer,
-    topSpenders: repeatCustomers.slice(0, 10),
-    recentCustomers: repeatCustomers
-      .sort((a, b) => new Date(b.lastPurchaseDate).getTime() - new Date(a.lastPurchaseDate).getTime())
-      .slice(0, 10),
-    customerSegments
-  };
+         return {
+           totalCustomers,
+           repeatCustomers: repeatCustomersCount,
+           newCustomers,
+           repeatRate,
+           averageSpendingPerCustomer,
+           topSpenders: repeatCustomers.slice(0, 10),
+           recentCustomers: repeatCustomers
+             .sort((a, b) => new Date(b.lastPurchaseDate).getTime() - new Date(a.lastPurchaseDate).getTime())
+             .slice(0, 10),
+           allRepeaters, // 2回以上購入の全ユーザー
+           customerSegments
+         };
 };
 
 // モデル別の月別売上分析
