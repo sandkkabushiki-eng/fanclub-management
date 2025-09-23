@@ -98,7 +98,7 @@ export default function BackupSystem({ models, modelData }: BackupSystemProps) {
     }
   };
 
-  const restoreBackup = async (_backupId: string) => {
+  const restoreBackup = async () => {
     setIsRestoring(true);
     
     try {
@@ -331,7 +331,7 @@ export default function BackupSystem({ models, modelData }: BackupSystemProps) {
                 
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => restoreBackup(backup.id)}
+                    onClick={() => restoreBackup()}
                     disabled={isRestoring}
                     className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
                   >
@@ -360,7 +360,7 @@ export default function BackupSystem({ models, modelData }: BackupSystemProps) {
         
         <div className="flex items-center space-x-4">
           <button
-            onClick={() => restoreBackup('')}
+            onClick={() => restoreBackup()}
             disabled={isRestoring}
             className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 ${
               !isRestoring

@@ -20,9 +20,12 @@ export default function AdvancedExport({ models, modelData }: AdvancedExportProp
 
   // 利用可能な年と月を取得
   const availableYears = Array.from(new Set(
-    Object.values(modelData).flatMap(modelYearData =>
-      Object.keys(modelYearData).map(Number)
-    )
+    Object.values(modelData).flatMap(modelYearData => {
+      if (typeof modelYearData === 'object' && modelYearData !== null) {
+        return Object.keys(modelYearData).map(Number);
+      }
+      return [];
+    })
   )).sort((a, b) => b - a);
 
   const availableMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -145,7 +148,7 @@ export default function AdvancedExport({ models, modelData }: AdvancedExportProp
     return generateCSV(data);
   };
 
-  const generatePDF = async (_data: Record<string, unknown>[]): Promise<void> => {
+  const generatePDF = async (): Promise<void> => {
     // PDF生成の実装（実際の実装ではライブラリを使用）
     console.log('PDF generation not implemented yet');
   };
