@@ -85,9 +85,9 @@ export default function Home() {
         }
         
         // 通知の生成
-        const monthlyData = getModelMonthlyData();
-        if (monthlyData.length > 0) {
-          const latestData = monthlyData[0];
+        const localMonthlyData = getModelMonthlyData();
+        if (localMonthlyData.length > 0) {
+          const latestData = localMonthlyData[0];
           const newNotifications = generateNotifications({
             totalRevenue: latestData.analysis?.totalRevenue || 0,
             newCustomers: latestData.analysis?.totalCustomers || 0,
