@@ -44,7 +44,7 @@ export default function PerformanceMonitor() {
       stopMonitoring();
       if (cleanup) cleanup();
     };
-  }, [startMonitoring, stopMonitoring]);
+  }, []);
 
   const startMonitoring = useCallback(() => {
     setIsMonitoring(true);
