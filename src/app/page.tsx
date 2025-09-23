@@ -1,18 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  Upload, 
-  BarChart3, 
-  Users
+import {
+  Upload,
+  BarChart3,
+  Users,
+  Share2
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels } from '@/utils/modelUtils';
 import CSVUploader from '@/components/CSVUploaderNew';
 import ModelManagement from '@/components/ModelManagement';
 import ModelDataManagement from '@/components/ModelDataManagement';
+import DataSharing from '@/components/DataSharing';
 
-type TabType = 'upload' | 'models' | 'management';
+type TabType = 'upload' | 'models' | 'management' | 'sharing';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('upload');
@@ -41,7 +43,8 @@ export default function Home() {
   const tabs = [
     { id: 'upload', label: 'CSVアップロード', icon: Upload },
     { id: 'models', label: 'モデル管理', icon: Users },
-    { id: 'management', label: 'データ管理・分析', icon: BarChart3 }
+    { id: 'management', label: 'データ管理・分析', icon: BarChart3 },
+    { id: 'sharing', label: 'データ共有', icon: Share2 }
   ];
 
   return (
@@ -130,9 +133,19 @@ export default function Home() {
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                 <BarChart3 className="h-6 w-6 mr-2" />
-                データ管理
+                データ管理・分析
               </h2>
               <ModelDataManagement onDataChange={handleModelChange} />
+            </div>
+          )}
+
+          {activeTab === 'sharing' && (
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <Share2 className="h-6 w-6 mr-2" />
+                データ共有
+              </h2>
+              <DataSharing onDataChange={handleModelChange} />
             </div>
           )}
 
