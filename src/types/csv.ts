@@ -268,18 +268,31 @@ export interface RepeatCustomer {
 export interface CustomerAnalysis {
   totalCustomers: number;
   repeatCustomers: number;
+  newCustomers: number;
   repeatRate: number; // リピート率
   averageSpendingPerCustomer: number;
-  topSpenders: {
-    name: string;
+  topSpenders: RepeatCustomer[];
+  recentCustomers: RepeatCustomer[];
+  allRepeaters: RepeatCustomer[]; // 2回以上購入の全ユーザー
+  customerSegments: {
+    segment: 'high_value' | 'medium_value' | 'low_value' | 'new';
+    count: number;
     totalSpent: number;
-    purchaseCount: number;
     averageSpent: number;
   }[];
-  allRepeaters: {
-    name: string;
+  monthlyCustomerTrends: {
+    month: string;
+    newCustomers: number;
+    returningCustomers: number;
+    totalRevenue: number;
+  }[];
+  customerLifetimeValue: {
+    customerName: string;
     totalSpent: number;
     purchaseCount: number;
     averageSpent: number;
+    firstPurchaseDate: string;
+    lastPurchaseDate: string;
+    daysActive: number;
   }[];
 }
