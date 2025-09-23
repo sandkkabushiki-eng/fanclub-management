@@ -1,4 +1,4 @@
-import { FanClubRevenueData, RepeatCustomer, CustomerAnalysis } from '@/types/csv';
+import { FanClubRevenueData, CustomerAnalysis } from '@/types/csv';
 import { getModelMonthlyData } from './modelUtils';
 
 // 顧客データを分析

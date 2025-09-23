@@ -10,6 +10,7 @@ export interface FanClubRevenueData {
   種類?: 'プラン購入' | '単品販売'; // 購入タイプ
   対象?: string; // プラン名 or 作品名
   購入者?: string; // 購入者の名前
+  顧客名?: string; // 顧客名（購入者と同じ）
   // 以下の項目は無視
   対象URL?: string;
   ユーザページURL?: string;
@@ -22,7 +23,6 @@ export interface FanClubRevenueData {
 export interface RevenueAnalysis {
   totalRevenue: number;
   totalFees: number;
-  netRevenue: number;
   totalTransactions: number;
   planPurchases: number;
   singlePurchases: number;
@@ -47,6 +47,8 @@ export interface RevenueAnalysis {
   averageTransactionValue: number;
   averageSpendingPerCustomer: number; // 購入者平均単価
   feeRate: number;
+  totalCustomers: number;
+  repeatRate: number;
 }
 
 // 経費管理の型定義
@@ -266,16 +268,18 @@ export interface RepeatCustomer {
 export interface CustomerAnalysis {
   totalCustomers: number;
   repeatCustomers: number;
-  newCustomers: number;
   repeatRate: number; // リピート率
   averageSpendingPerCustomer: number;
-  topSpenders: RepeatCustomer[];
-  recentCustomers: RepeatCustomer[];
-  allRepeaters: RepeatCustomer[]; // 2回以上購入の全ユーザー
-  customerSegments: {
-    segment: 'high_value' | 'medium_value' | 'low_value' | 'new';
-    count: number;
+  topSpenders: {
+    name: string;
     totalSpent: number;
+    purchaseCount: number;
+    averageSpent: number;
+  }[];
+  allRepeaters: {
+    name: string;
+    totalSpent: number;
+    purchaseCount: number;
     averageSpent: number;
   }[];
 }

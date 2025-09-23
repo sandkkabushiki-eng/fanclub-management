@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Calendar, Edit, Trash2, User, BarChart3, TrendingUp, Users, DollarSign } from 'lucide-react';
-import { Model, ModelMonthlyData } from '@/types/csv';
+import { Model, ModelMonthlyData, FanClubRevenueData } from '@/types/csv';
 import { getModels, getModelMonthlyDataByModel, deleteModelMonthlyData, formatYearMonth } from '@/utils/modelUtils';
-import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
+// import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
 import CSVDataEditor from './CSVDataEditor';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import RevenueDashboard from './RevenueDashboard';
@@ -22,7 +22,7 @@ export default function ModelDataManagement() {
     modelName: string;
     year: number;
     month: number;
-    data: any[];
+    data: FanClubRevenueData[];
   } | null>(null);
   const [deletingData, setDeletingData] = useState<{
     modelId: string;
@@ -203,10 +203,11 @@ export default function ModelDataManagement() {
       {/* 削除確認ダイアログ */}
       {deletingData && (
         <DeleteConfirmDialog
+          isOpen={!!deletingData}
           title="データ削除"
           message={`${formatYearMonth(deletingData.year, deletingData.month)}のデータを削除しますか？`}
           onConfirm={confirmDelete}
-          onCancel={() => setDeletingData(null)}
+          onClose={() => setDeletingData(null)}
         />
       )}
     </div>

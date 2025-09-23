@@ -55,7 +55,7 @@ export default function MonthlyTrendsChart() {
 
   const models = Array.from(new Set(modelData.map(d => ({ id: d.modelId, name: d.modelName }))));
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string }[]; label?: string }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">

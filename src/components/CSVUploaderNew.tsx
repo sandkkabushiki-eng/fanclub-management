@@ -2,8 +2,8 @@
 
 import { useState, useRef } from 'react';
 import { Upload, FileText, CheckCircle, Calendar, Users } from 'lucide-react';
-import { CSVData, Model, FanClubRevenueData } from '@/types/csv';
-import { parseCSVFile, analyzeFanClubRevenue } from '@/utils/csvUtils';
+import { CSVData, Model } from '@/types/csv';
+import { parseCSVFile } from '@/utils/csvUtils';
 import { getModels } from '@/utils/modelUtils';
 import { parseYearMonthFromFileName } from '@/utils/fileNameUtils';
 
@@ -17,7 +17,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [selectedModelId, setSelectedModelId] = useState<string>('');
-  const [models, setModels] = useState<Model[]>(getModels());
+  const [models] = useState<Model[]>(getModels());
   const [parsedData, setParsedData] = useState<CSVData[] | null>(null);
   const [fileName, setFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);

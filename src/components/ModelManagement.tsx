@@ -22,11 +22,7 @@ export default function ModelManagement() {
     e.preventDefault();
     
     if (editingModel) {
-      updateModel(editingModel.id, {
-        ...editingModel,
-        name: formData.name,
-        displayName: formData.displayName
-      });
+      updateModel(editingModel.id, formData.name, formData.displayName);
     } else {
       addModel(formData.name, formData.displayName);
     }
