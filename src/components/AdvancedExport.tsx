@@ -118,7 +118,7 @@ export default function AdvancedExport({ models, modelData }: AdvancedExportProp
         downloadFile(excelContent, 'fanclub-data.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       } else if (exportFormat === 'pdf') {
         // PDFエクスポート
-        await generatePDF(exportData);
+        await generatePDF();
       }
 
       // 成功通知
