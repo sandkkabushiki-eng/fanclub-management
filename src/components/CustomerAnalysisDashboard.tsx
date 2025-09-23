@@ -28,7 +28,7 @@ export default function CustomerAnalysisDashboard({ selectedModelId }: CustomerA
           // Supabaseのデータをローカルストレージ形式に変換
           const formattedData: Record<string, Record<number, Record<number, FanClubRevenueData[]>>> = {};
           
-          monthlyData.forEach((row: any) => {
+          monthlyData.forEach((row: { model_id: string; year: number; month: number; data: FanClubRevenueData[] }) => {
             if (!formattedData[row.model_id]) {
               formattedData[row.model_id] = {};
             }
