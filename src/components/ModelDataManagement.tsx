@@ -1,16 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, Edit, Trash2, User, BarChart3 } from 'lucide-react';
+import { Calendar, Edit, Trash2, User, BarChart3, TrendingUp, Users, DollarSign } from 'lucide-react';
 import { Model, ModelMonthlyData } from '@/types/csv';
 import { getModels, getModelMonthlyDataByModel, deleteModelMonthlyData, formatYearMonth } from '@/utils/modelUtils';
+import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
 import CSVDataEditor from './CSVDataEditor';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
+import RevenueDashboard from './RevenueDashboard';
+import CustomerAnalysisDashboard from './CustomerAnalysisDashboard';
+import MonthlyTrendsChart from './MonthlyTrendsChart';
+import OverallDashboard from './OverallDashboard';
 
 export default function ModelDataManagement() {
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>('');
   const [modelData, setModelData] = useState<ModelMonthlyData[]>([]);
+  const [activeTab, setActiveTab] = useState<'data' | 'revenue' | 'customers' | 'trends' | 'overall'>('data');
   const [editingData, setEditingData] = useState<{
     modelId: string;
     modelName: string;
@@ -67,36 +73,67 @@ export default function ModelDataManagement() {
     setModelData(getModelMonthlyDataByModel(selectedModelId));
   };
 
+  const tabs = [
+    { id: 'data' as const, label: 'データ管理', icon: Calendar },
+    { id: 'revenue' as const, label: '売上分析', icon: DollarSign },
+    { id: 'customers' as const, label: '顧客分析', icon: Users },
+    { id: 'trends' as const, label: '月別トレンド', icon: TrendingUp },
+    { id: 'overall' as const, label: '全体ダッシュボード', icon: BarChart3 },
+  ];
+
   return (
     <div className="space-y-6">
       {/* ヘッダー */}
       <div className="flex items-center space-x-4">
         <BarChart3 className="h-8 w-8 text-red-600" />
-        <h2 className="text-2xl font-bold text-red-600">データ管理</h2>
+        <h2 className="text-2xl font-bold text-red-600">データ管理・分析</h2>
       </div>
 
-      {/* モデル選択 */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          <User className="h-4 w-4 inline mr-1" />
-          モデル選択
-        </label>
-        <select
-          value={selectedModelId}
-          onChange={(e) => setSelectedModelId(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-        >
-          <option value="">モデルを選択してください</option>
-          {models.map(model => (
-            <option key={model.id} value={model.id}>
-              {model.displayName}
-            </option>
-          ))}
-        </select>
+      {/* タブナビゲーション */}
+      <div className="flex flex-wrap gap-2">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                activeTab === tab.id
+                  ? 'bg-red-600 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-red-50 shadow-sm border border-red-200'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* データ一覧 */}
-      {selectedModelId && (
+      {/* モデル選択（データ管理タブ以外では表示） */}
+      {activeTab !== 'overall' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            <User className="h-4 w-4 inline mr-1" />
+            モデル選択
+          </label>
+          <select
+            value={selectedModelId}
+            onChange={(e) => setSelectedModelId(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+          >
+            <option value="">モデルを選択してください</option>
+            {models.map(model => (
+              <option key={model.id} value={model.id}>
+                {model.displayName}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* タブコンテンツ */}
+      {activeTab === 'data' && selectedModelId && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900">
             月別データ一覧
@@ -144,6 +181,11 @@ export default function ModelDataManagement() {
           )}
         </div>
       )}
+
+      {activeTab === 'revenue' && <RevenueDashboard />}
+      {activeTab === 'customers' && <CustomerAnalysisDashboard />}
+      {activeTab === 'trends' && <MonthlyTrendsChart />}
+      {activeTab === 'overall' && <OverallDashboard />}
 
       {/* 編集ダイアログ */}
       {editingData && (
