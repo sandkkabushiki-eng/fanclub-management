@@ -1,4 +1,4 @@
-import { ModelMonthlyData, Model, FanClubRevenueData } from '@/types/csv';
+import { ModelMonthlyData, FanClubRevenueData } from '@/types/csv';
 import { getModels, getModelMonthlyData } from './modelUtils';
 
 // 全データのエクスポート
@@ -26,7 +26,10 @@ export const exportAllData = () => {
 };
 
 // データのインポート
-export const importAllData = (importData: any) => {
+export const importAllData = (importData: {
+  models: any[];
+  modelData: ModelMonthlyData[];
+}) => {
   try {
     // バリデーション
     if (!importData.models || !importData.modelData) {
@@ -127,7 +130,7 @@ export const getDataStatistics = () => {
 };
 
 // CSVデータのダウンロード
-export const downloadCSV = (data: any[], filename: string) => {
+export const downloadCSV = (data: Record<string, any>[], filename: string) => {
   if (data.length === 0) return;
   
   const headers = Object.keys(data[0]);
@@ -151,7 +154,7 @@ export const downloadCSV = (data: any[], filename: string) => {
 };
 
 // JSONデータのダウンロード
-export const downloadJSON = (data: any, filename: string) => {
+export const downloadJSON = (data: Record<string, any>, filename: string) => {
   const jsonContent = JSON.stringify(data, null, 2);
   const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
   const link = document.createElement('a');
