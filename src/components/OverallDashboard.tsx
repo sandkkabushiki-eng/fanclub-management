@@ -28,7 +28,14 @@ export default function OverallDashboard() {
   const [modelStats, setModelStats] = useState<ModelStats[]>([]);
 
   useEffect(() => {
-    setModelData(getModelMonthlyData());
+    const loadModelData = () => {
+      console.log('Loading model data for overall dashboard...');
+      const data = getModelMonthlyData();
+      console.log('Overall dashboard model data loaded:', data.length, 'records');
+      setModelData(data);
+    };
+    
+    loadModelData();
   }, []);
 
   useEffect(() => {

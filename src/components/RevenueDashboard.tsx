@@ -19,12 +19,17 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
   useEffect(() => {
     const loadModelData = async () => {
       try {
+        console.log('Loading model data for revenue dashboard...');
+        
         // Supabaseから月別データを取得
         const { data: monthlyData, error } = await supabase.from('monthly_data').select('*');
         if (error) {
           console.error('Monthly data fetch error:', error);
-          setModelData(getModelMonthlyData());
+          const localData = getModelMonthlyData();
+          console.log('Using local model data:', localData.length, 'records');
+          setModelData(localData);
         } else if (monthlyData && monthlyData.length > 0) {
+          console.log('Found monthly data from Supabase:', monthlyData.length, 'records');
           // Supabaseのデータをローカルストレージ形式に変換
           const formattedData: Record<string, Record<number, Record<number, FanClubRevenueData[]>>> = {};
           
@@ -39,13 +44,20 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
           });
           
           localStorage.setItem('fanclub-model-data', JSON.stringify(formattedData));
-          setModelData(getModelMonthlyData());
+          const localData = getModelMonthlyData();
+          console.log('Converted and loaded model data:', localData.length, 'records');
+          setModelData(localData);
         } else {
-          setModelData(getModelMonthlyData());
+          console.log('No monthly data in Supabase, using local storage');
+          const localData = getModelMonthlyData();
+          console.log('Local model data count:', localData.length);
+          setModelData(localData);
         }
       } catch (error) {
         console.error('Error loading model data:', error);
-        setModelData(getModelMonthlyData());
+        const localData = getModelMonthlyData();
+        console.log('Fallback to local model data:', localData.length);
+        setModelData(localData);
       }
     };
 

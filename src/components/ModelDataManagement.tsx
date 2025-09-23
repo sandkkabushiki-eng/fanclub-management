@@ -33,12 +33,17 @@ export default function ModelDataManagement() {
   useEffect(() => {
     const loadModels = async () => {
       try {
+        console.log('Loading models for data management...');
+        
         // Supabaseからモデルデータを取得
         const { data: modelsData, error } = await supabase.from('models').select('*');
         if (error) {
           console.error('Models fetch error:', error);
-          setModels(getModels());
+          const localModels = getModels();
+          console.log('Using local models:', localModels.length);
+          setModels(localModels);
         } else if (modelsData && modelsData.length > 0) {
+          console.log('Found models from Supabase:', modelsData.length);
           const formattedModels = modelsData.map(m => ({
             id: m.id,
             name: m.name,
@@ -50,11 +55,16 @@ export default function ModelDataManagement() {
           localStorage.setItem('fanclub-models', JSON.stringify(formattedModels));
           setModels(formattedModels);
         } else {
-          setModels(getModels());
+          console.log('No models in Supabase, using local storage');
+          const localModels = getModels();
+          console.log('Local models count:', localModels.length);
+          setModels(localModels);
         }
       } catch (error) {
         console.error('Error loading models:', error);
-        setModels(getModels());
+        const localModels = getModels();
+        console.log('Fallback to local models:', localModels.length);
+        setModels(localModels);
       }
     };
 
@@ -63,7 +73,10 @@ export default function ModelDataManagement() {
 
   useEffect(() => {
     if (selectedModelId) {
-      setModelData(getModelMonthlyDataByModel(selectedModelId));
+      console.log('Loading model data for:', selectedModelId);
+      const modelData = getModelMonthlyDataByModel(selectedModelId);
+      console.log('Model data loaded:', modelData.length, 'records');
+      setModelData(modelData);
     } else {
       setModelData([]);
     }
