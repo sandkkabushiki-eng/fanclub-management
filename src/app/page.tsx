@@ -5,7 +5,8 @@ import {
   Upload,
   BarChart3,
   Users,
-  Share2
+  Share2,
+  Cloud
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels } from '@/utils/modelUtils';
@@ -13,8 +14,9 @@ import CSVUploader from '@/components/CSVUploaderNew';
 import ModelManagement from '@/components/ModelManagement';
 import ModelDataManagement from '@/components/ModelDataManagement';
 import DataSharing from '@/components/DataSharing';
+import DataSync from '@/components/DataSync';
 
-type TabType = 'upload' | 'models' | 'management' | 'sharing';
+type TabType = 'upload' | 'models' | 'management' | 'sharing' | 'sync';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('upload');
@@ -44,7 +46,8 @@ export default function Home() {
     { id: 'upload', label: 'CSVアップロード', icon: Upload },
     { id: 'models', label: 'モデル管理', icon: Users },
     { id: 'management', label: 'データ管理・分析', icon: BarChart3 },
-    { id: 'sharing', label: 'データ共有', icon: Share2 }
+    { id: 'sharing', label: 'データ共有', icon: Share2 },
+    { id: 'sync', label: 'クラウド同期', icon: Cloud }
   ];
 
   return (
@@ -146,6 +149,16 @@ export default function Home() {
                 データ共有
               </h2>
               <DataSharing onDataChange={handleModelChange} />
+            </div>
+          )}
+
+          {activeTab === 'sync' && (
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <Cloud className="h-6 w-6 mr-2" />
+                クラウド同期
+              </h2>
+              <DataSync onDataChange={handleModelChange} />
             </div>
           )}
 
