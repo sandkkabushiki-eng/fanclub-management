@@ -70,15 +70,15 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-white">
       <div className="container mx-auto px-4 py-8">
         {/* ヘッダー */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            ファンクラブ管理システム
+          <h1 className="text-4xl font-bold text-red-600 mb-2">
+            ファンクラ君
           </h1>
           <p className="text-gray-600">
-            CSVデータのアップロード・分析・共有
+            売上管理システム
           </p>
         </div>
 
@@ -103,8 +103,8 @@ export default function Home() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
                   activeTab === tab.id
-                    ? 'bg-indigo-600 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 shadow-sm'
+                    ? 'bg-red-600 text-white shadow-lg'
+                    : 'bg-white text-gray-700 hover:bg-red-50 shadow-sm border border-red-200'
                 }`}
               >
                 <Icon className="h-5 w-5" />
@@ -115,7 +115,7 @@ export default function Home() {
         </div>
 
         {/* タブコンテンツ */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-red-200">
           {activeTab === 'upload' && (
             <CSVUploader onDataLoaded={handleDataLoaded} />
           )}
