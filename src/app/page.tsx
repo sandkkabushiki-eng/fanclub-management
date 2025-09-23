@@ -37,11 +37,15 @@ export default function Home() {
     // 初期データの読み込み（Supabaseから）
     const loadInitialData = async () => {
       try {
+        console.log('Starting initial data load...');
+        
         // Supabaseからモデルデータを取得
         const { data: modelsData, error: modelsError } = await supabase.from('models').select('*');
         if (modelsError) {
           console.error('Models fetch error:', modelsError);
+          setMessage(`モデルデータの取得に失敗しました: ${modelsError.message}`);
         } else if (modelsData && modelsData.length > 0) {
+          console.log('Found models data:', modelsData.length, 'models');
           // Supabaseのデータをローカルストレージに保存
           const formattedModels = modelsData.map(m => ({
             id: m.id,
@@ -54,6 +58,7 @@ export default function Home() {
           localStorage.setItem('fanclub-models', JSON.stringify(formattedModels));
           setModels(formattedModels);
         } else {
+          console.log('No models data found, loading from local storage');
           // Supabaseにデータがない場合はローカルストレージから読み込み
           setModels(getModels());
         }
@@ -62,7 +67,9 @@ export default function Home() {
         const { data: monthlyData, error: monthlyError } = await supabase.from('monthly_data').select('*');
         if (monthlyError) {
           console.error('Monthly data fetch error:', monthlyError);
+          setMessage(`月別データの取得に失敗しました: ${monthlyError.message}`);
         } else if (monthlyData && monthlyData.length > 0) {
+          console.log('Found monthly data:', monthlyData.length, 'records');
           // Supabaseのデータをローカルストレージ形式に変換
           const formattedData: Record<string, Record<number, Record<number, FanClubRevenueData[]>>> = {};
           
@@ -79,29 +86,42 @@ export default function Home() {
           localStorage.setItem('fanclub-model-data', JSON.stringify(formattedData));
           setModelData(formattedData);
         } else {
+          console.log('No monthly data found, loading from local storage');
           // Supabaseにデータがない場合はローカルストレージから読み込み
           const data = JSON.parse(localStorage.getItem('fanclub-model-data') || '{}') as Record<string, unknown>;
           setModelData(data);
         }
         
         // 通知の生成
-        const localMonthlyData = getModelMonthlyData();
-        if (localMonthlyData.length > 0) {
-          const latestData = localMonthlyData[0];
-          const newNotifications = generateNotifications({
-            totalRevenue: latestData.analysis?.totalRevenue || 0,
-            newCustomers: latestData.analysis?.totalCustomers || 0,
-            repeatRate: latestData.analysis?.repeatRate || 0,
-            averageTransactionValue: latestData.analysis?.averageTransactionValue || 0
-          });
-          setNotifications(newNotifications);
+        try {
+          const localMonthlyData = getModelMonthlyData();
+          if (localMonthlyData.length > 0) {
+            const latestData = localMonthlyData[0];
+            const newNotifications = generateNotifications({
+              totalRevenue: latestData.analysis?.totalRevenue || 0,
+              newCustomers: latestData.analysis?.totalCustomers || 0,
+              repeatRate: latestData.analysis?.repeatRate || 0,
+              averageTransactionValue: latestData.analysis?.averageTransactionValue || 0
+            });
+            setNotifications(newNotifications);
+          }
+        } catch (notificationError) {
+          console.error('Error generating notifications:', notificationError);
         }
+        
+        console.log('Initial data load completed successfully');
       } catch (error) {
         console.error('Error loading initial data:', error);
+        setMessage(`データの読み込み中にエラーが発生しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
         // エラーの場合はローカルストレージから読み込み
-        setModels(getModels());
-        const data = JSON.parse(localStorage.getItem('fanclub-model-data') || '{}') as Record<string, unknown>;
-        setModelData(data);
+        try {
+          setModels(getModels());
+          const data = JSON.parse(localStorage.getItem('fanclub-model-data') || '{}') as Record<string, unknown>;
+          setModelData(data);
+        } catch (fallbackError) {
+          console.error('Fallback data load also failed:', fallbackError);
+          setMessage('データの読み込みに完全に失敗しました。ページを再読み込みしてください。');
+        }
       }
     };
 
