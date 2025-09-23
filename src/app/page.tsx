@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Upload,
   BarChart3,
@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels } from '@/utils/modelUtils';
-import { saveModelToSupabase, saveModelMonthlyDataToSupabase, getModelsFromSupabase, getModelMonthlyDataFromSupabase } from '@/utils/supabaseUtils';
+import { saveModelToSupabase, saveModelMonthlyDataToSupabase } from '@/utils/supabaseUtils';
 import CSVUploader from '@/components/CSVUploaderNew';
 import ModelManagement from '@/components/ModelManagement';
 import ModelDataManagement from '@/components/ModelDataManagement';
@@ -19,23 +19,11 @@ type TabType = 'upload' | 'models' | 'management' | 'sharing';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('upload');
-  const [error, setError] = useState<string>('');
+  const [message, setMessage] = useState<string>('');
 
   const handleDataLoaded = async (data: CSVData[], year: number, month: number, modelId: string) => {
     try {
-      setError('');
-      
-      // まずクラウドから最新データを取得
-      try {
-        const cloudModels = await getModelsFromSupabase();
-        const cloudModelData = await getModelMonthlyDataFromSupabase();
-        
-        // ローカルストレージに最新データを保存
-        localStorage.setItem('fanclub-models', JSON.stringify(cloudModels));
-        localStorage.setItem('fanclub-model-data', JSON.stringify(cloudModelData));
-      } catch (cloudError) {
-        console.log('クラウドデータの取得に失敗しましたが、続行します:', cloudError);
-      }
+      setMessage('');
       
       // ローカルストレージにデータを保存
       const model = getModels().find(m => m.id === modelId);
@@ -51,82 +39,72 @@ export default function Home() {
         }
         
         // 月別データをクラウドに保存
-        await saveModelMonthlyDataToSupabase(modelId, year, month, data as FanClubRevenueData[]);
+        const success = await saveModelMonthlyDataToSupabase(modelId, year, month, data as FanClubRevenueData[]);
         
-        setError('データが正常にアップロードされ、全員に自動共有されました！');
+        if (success) {
+          setMessage('✅ データが正常にアップロードされ、全員に自動共有されました！');
+        } else {
+          setMessage('⚠️ データは保存されましたが、クラウド同期に失敗しました。');
+        }
       } catch (syncError) {
         console.error('クラウド同期エラー:', syncError);
-        setError('データは保存されましたが、クラウド同期に失敗しました。');
+        setMessage('⚠️ データは保存されましたが、クラウド同期に失敗しました。');
       }
       
       // 5秒後にメッセージをクリア
-      setTimeout(() => setError(''), 5000);
+      setTimeout(() => setMessage(''), 5000);
       
       setActiveTab('models');
     } catch (error) {
       console.error('データ保存エラー:', error);
-      setError('データの保存中にエラーが発生しました。');
+      setMessage('❌ データの保存中にエラーが発生しました。');
+      setTimeout(() => setMessage(''), 5000);
     }
   };
 
-  const handleError = (errorMessage: string) => {
-    setError(errorMessage);
-  };
-
-
-  const handleModelChange = () => {
-  };
-
-  // アプリケーション起動時にクラウドからデータを取得
-  useEffect(() => {
-    const loadCloudData = async () => {
-      try {
-        const cloudModels = await getModelsFromSupabase();
-        const cloudModelData = await getModelMonthlyDataFromSupabase();
-        
-        // ローカルストレージに最新データを保存
-        localStorage.setItem('fanclub-models', JSON.stringify(cloudModels));
-        localStorage.setItem('fanclub-model-data', JSON.stringify(cloudModelData));
-      } catch (error) {
-        console.log('クラウドデータの取得に失敗しました:', error);
-      }
-    };
-
-    loadCloudData();
-  }, []);
-
   const tabs = [
-    { id: 'upload', label: 'CSVアップロード', icon: Upload },
-    { id: 'models', label: 'モデル管理', icon: Users },
-    { id: 'management', label: 'データ管理・分析', icon: BarChart3 },
-    { id: 'sharing', label: 'データ共有', icon: Share2 }
+    { id: 'upload' as TabType, label: 'CSVアップロード', icon: Upload },
+    { id: 'models' as TabType, label: 'モデル管理', icon: Users },
+    { id: 'management' as TabType, label: 'データ管理', icon: BarChart3 },
+    { id: 'sharing' as TabType, label: 'データ共有', icon: Share2 },
   ];
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8">
         {/* ヘッダー */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            ファンクラブ売上管理システム
+            ファンクラブ管理システム
           </h1>
-          <p className="text-lg text-gray-600">
-            CSVデータ分析・売上管理・収益配分計算
+          <p className="text-gray-600">
+            CSVデータのアップロード・分析・共有
           </p>
         </div>
 
+        {/* メッセージ表示 */}
+        {message && (
+          <div className={`mb-6 p-4 rounded-lg text-center ${
+            message.includes('✅') ? 'bg-green-100 text-green-800' :
+            message.includes('⚠️') ? 'bg-yellow-100 text-yellow-800' :
+            'bg-red-100 text-red-800'
+          }`}>
+            {message}
+          </div>
+        )}
+
         {/* タブナビゲーション */}
-        <div className="flex flex-wrap justify-center mb-8">
+        <div className="flex flex-wrap justify-center gap-2 mb-8">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as TabType)}
-                className={`flex items-center space-x-2 px-6 py-3 m-1 rounded-lg font-medium transition-all duration-200 ${
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
                   activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 shadow-md'
+                    ? 'bg-indigo-600 text-white shadow-lg'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 shadow-sm'
                 }`}
               >
                 <Icon className="h-5 w-5" />
@@ -136,76 +114,25 @@ export default function Home() {
           })}
         </div>
 
-        {/* エラー表示 */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-200 rounded-lg">
-            <p className="text-red-800">{error}</p>
-          </div>
-        )}
-
         {/* タブコンテンツ */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
+        <div className="bg-white rounded-xl shadow-lg p-6">
           {activeTab === 'upload' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <Upload className="h-6 w-6 mr-2" />
-                CSVファイルアップロード
-              </h2>
-              <CSVUploader onDataLoaded={handleDataLoaded} onError={handleError} />
-              
-              {/* CSV形式の説明 */}
-              <div className="mt-8 p-6 bg-gray-50 rounded-lg">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">CSVファイルの形式</h3>
-                <p className="text-gray-700 mb-4">
-                  以下の項目を含むCSVファイルをアップロードしてください：
-                </p>
-                <ul className="list-disc list-inside space-y-2 text-gray-700">
-                  <li><strong>日付</strong> - 購入日（YYYY-MM-DD形式）</li>
-                  <li><strong>金額</strong> - 売上金額（数値）</li>
-                  <li><strong>手数料</strong> - サイトの手数料（数値）</li>
-                  <li><strong>種類</strong> - プラン購入 or 単品販売</li>
-                  <li><strong>対象</strong> - プラン名 or 作品名</li>
-                  <li><strong>購入者</strong> - 購入者の名前</li>
-                </ul>
-                <p className="text-sm text-gray-500 mt-4">
-                  ※ 対象URL、ユーザページURL、プラン解約日は無視されます
-                </p>
-              </div>
-            </div>
+            <CSVUploader onDataLoaded={handleDataLoaded} />
           )}
-
+          
           {activeTab === 'models' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <Users className="h-6 w-6 mr-2" />
-                モデル管理
-              </h2>
-              <ModelManagement onModelChange={handleModelChange} />
-            </div>
+            <ModelManagement />
           )}
-
+          
           {activeTab === 'management' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <BarChart3 className="h-6 w-6 mr-2" />
-                データ管理・分析
-              </h2>
-              <ModelDataManagement onDataChange={handleModelChange} />
-            </div>
+            <ModelDataManagement />
           )}
-
+          
           {activeTab === 'sharing' && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <Share2 className="h-6 w-6 mr-2" />
-                データ共有
-              </h2>
-              <DataSharing onDataChange={handleModelChange} />
-            </div>
+            <DataSharing />
           )}
-
         </div>
       </div>
-    </main>
+    </div>
   );
 }
