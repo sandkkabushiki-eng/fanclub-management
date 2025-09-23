@@ -6,11 +6,14 @@ import { ModelMonthlyData, CustomerAnalysis } from '@/types/csv';
 import { getModelMonthlyData } from '@/utils/modelUtils';
 import { analyzeCustomerData, formatCurrency } from '@/utils/csvUtils';
 
-export default function CustomerAnalysisDashboard() {
+interface CustomerAnalysisDashboardProps {
+  selectedModelId: string;
+}
+
+export default function CustomerAnalysisDashboard({ selectedModelId }: CustomerAnalysisDashboardProps) {
   const [modelData, setModelData] = useState<ModelMonthlyData[]>([]);
-  const [selectedModelId, setSelectedModelId] = useState<string>('');
   const [analysis, setAnalysis] = useState<CustomerAnalysis | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'repeaters' | 'segments' | 'trends' | 'lifetime'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'repeaters' | 'segments' | 'lifetime'>('overview');
 
   useEffect(() => {
     setModelData(getModelMonthlyData());
@@ -30,13 +33,12 @@ export default function CustomerAnalysisDashboard() {
     }
   }, [selectedModelId, modelData]);
 
-  const models = Array.from(new Set(modelData.map(d => ({ id: d.modelId, name: d.modelName }))));
+  // const models = Array.from(new Set(modelData.map(d => ({ id: d.modelId, name: d.modelName }))));
 
   const tabs = [
     { id: 'overview' as const, label: '概要', icon: BarChart3 },
     { id: 'repeaters' as const, label: 'リピーター管理', icon: Repeat },
     { id: 'segments' as const, label: '顧客セグメント', icon: Target },
-    { id: 'trends' as const, label: '月別トレンド', icon: TrendingUp },
     { id: 'lifetime' as const, label: '顧客生涯価値', icon: DollarSign },
   ];
 
@@ -47,24 +49,6 @@ export default function CustomerAnalysisDashboard() {
         <h2 className="text-2xl font-bold text-red-600">顧客分析</h2>
       </div>
 
-      {/* モデル選択 */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          モデル選択
-        </label>
-        <select
-          value={selectedModelId}
-          onChange={(e) => setSelectedModelId(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-        >
-          <option value="">モデルを選択してください</option>
-          {models.map(model => (
-            <option key={model.id} value={model.id}>
-              {model.name}
-            </option>
-          ))}
-        </select>
-      </div>
 
       {/* タブナビゲーション */}
       {analysis && (
@@ -156,8 +140,8 @@ export default function CustomerAnalysisDashboard() {
                   {analysis.topSpenders.map((customer, index) => (
                     <div key={customer.buyerName} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-3">
-                        <span className="w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                          {index + 1}
+                        <span className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                          {index + 1}位
                         </span>
                         <div>
                           <p className="font-medium text-gray-900">{customer.buyerName}</p>
@@ -187,8 +171,8 @@ export default function CustomerAnalysisDashboard() {
                   {analysis.recentCustomers.map((customer, index) => (
                     <div key={customer.buyerName} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                       <div className="flex items-center space-x-3">
-                        <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                          {index + 1}
+                        <span className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                          {index + 1}位
                         </span>
                         <div>
                           <p className="font-medium text-gray-900">{customer.buyerName}</p>
@@ -264,28 +248,6 @@ export default function CustomerAnalysisDashboard() {
             </div>
           )}
 
-          {activeTab === 'trends' && (
-            <div className="bg-white border border-red-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-orange-500" />
-                <span>月別顧客トレンド</span>
-              </h3>
-              <div className="space-y-3">
-                {analysis.monthlyCustomerTrends.map((trend) => (
-                  <div key={trend.month} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-gray-900">{trend.month}</h4>
-                      <div className="flex space-x-4 text-sm">
-                        <span className="text-blue-600">新規: {trend.newCustomers}名</span>
-                        <span className="text-green-600">リピーター: {trend.returningCustomers}名</span>
-                        <span className="text-purple-600">売上: {formatCurrency(trend.totalRevenue)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {activeTab === 'lifetime' && (
             <div className="bg-white border border-red-200 rounded-lg p-6">
@@ -298,8 +260,8 @@ export default function CustomerAnalysisDashboard() {
                   <div key={customer.customerName} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <span className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                          {index + 1}
+                        <span className="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                          {index + 1}位
                         </span>
                         <div>
                           <p className="font-medium text-gray-900">{customer.customerName}</p>

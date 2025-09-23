@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, Edit, Trash2, User, BarChart3, TrendingUp, Users, DollarSign } from 'lucide-react';
+import { Calendar, Edit, Trash2, User, BarChart3, Users, DollarSign } from 'lucide-react';
 import { Model, ModelMonthlyData, FanClubRevenueData } from '@/types/csv';
 import { getModels, getModelMonthlyDataByModel, deleteModelMonthlyData, formatYearMonth } from '@/utils/modelUtils';
 // import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
@@ -9,7 +9,6 @@ import CSVDataEditor from './CSVDataEditor';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import RevenueDashboard from './RevenueDashboard';
 import CustomerAnalysisDashboard from './CustomerAnalysisDashboard';
-import MonthlyTrendsChart from './MonthlyTrendsChart';
 import OverallDashboard from './OverallDashboard';
 
 export default function ModelDataManagement() {
@@ -77,7 +76,6 @@ export default function ModelDataManagement() {
     { id: 'data' as const, label: 'データ管理', icon: Calendar },
     { id: 'revenue' as const, label: '売上分析', icon: DollarSign },
     { id: 'customers' as const, label: '顧客分析', icon: Users },
-    { id: 'trends' as const, label: '月別トレンド', icon: TrendingUp },
     { id: 'overall' as const, label: '全体ダッシュボード', icon: BarChart3 },
   ];
 
@@ -110,7 +108,7 @@ export default function ModelDataManagement() {
         })}
       </div>
 
-      {/* モデル選択（データ管理タブ以外では表示） */}
+      {/* モデル選択（全体ダッシュボード以外では表示） */}
       {activeTab !== 'overall' && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -182,9 +180,8 @@ export default function ModelDataManagement() {
         </div>
       )}
 
-      {activeTab === 'revenue' && <RevenueDashboard />}
-      {activeTab === 'customers' && <CustomerAnalysisDashboard />}
-      {activeTab === 'trends' && <MonthlyTrendsChart />}
+      {activeTab === 'revenue' && selectedModelId && <RevenueDashboard selectedModelId={selectedModelId} />}
+      {activeTab === 'customers' && selectedModelId && <CustomerAnalysisDashboard selectedModelId={selectedModelId} />}
       {activeTab === 'overall' && <OverallDashboard />}
 
       {/* 編集ダイアログ */}
