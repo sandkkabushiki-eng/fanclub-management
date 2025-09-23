@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, Users, DollarSign, PieChart } from 'lucide-react';
-import { ModelMonthlyData, RevenueAnalysis } from '@/types/csv';
+import { ModelMonthlyData, RevenueAnalysis, FanClubRevenueData } from '@/types/csv';
 import { getModelMonthlyData } from '@/utils/modelUtils';
 import { supabase } from '@/lib/supabase';
 import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
