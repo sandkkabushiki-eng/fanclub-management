@@ -191,9 +191,19 @@ export const analyzeCustomerData = (data: FanClubRevenueData[]): CustomerAnalysi
   }>();
 
   data.forEach(record => {
-    const customerName = record.顧客名 || record.購入者 || '不明';
-    const amount = record.金額 || 0;
+    // 顧客名の取得（購入者フィールドを優先）
+    const customerName = record.購入者 || record.顧客名 || '不明';
+    // 金額の取得（数値型に変換）
+    const amount = typeof record.金額 === 'number' ? record.金額 : Number(record.金額) || 0;
     const purchaseDate = record.日付 || new Date().toISOString();
+    
+    // デバッグ用ログ（本番では削除）
+    // console.log('Processing record:', {
+    //   customerName,
+    //   amount,
+    //   originalAmount: record.金額,
+    //   purchaseDate
+    // });
     
     if (!customerData.has(customerName)) {
       customerData.set(customerName, {
@@ -275,35 +285,43 @@ export const analyzeCustomerData = (data: FanClubRevenueData[]): CustomerAnalysi
       monthlySpending: []
     }));
 
-  // 顧客セグメント分析
+  // 顧客セグメント分析（修正版）
   const sortedCustomers = customers.sort((a, b) => b.totalSpent - a.totalSpent);
-  const highValueThreshold = sortedCustomers[Math.floor(sortedCustomers.length * 0.2)]?.totalSpent || 0;
-  const mediumValueThreshold = sortedCustomers[Math.floor(sortedCustomers.length * 0.6)]?.totalSpent || 0;
+  
+  // セグメント閾値の計算を修正
+  const highValueThreshold = sortedCustomers.length > 0 ? sortedCustomers[Math.floor(sortedCustomers.length * 0.2)]?.totalSpent || 0 : 0;
+  const mediumValueThreshold = sortedCustomers.length > 0 ? sortedCustomers[Math.floor(sortedCustomers.length * 0.6)]?.totalSpent || 0 : 0;
+
+  // 各セグメントの顧客を取得
+  const highValueCustomers = customers.filter(c => c.totalSpent >= highValueThreshold);
+  const mediumValueCustomers = customers.filter(c => c.totalSpent >= mediumValueThreshold && c.totalSpent < highValueThreshold);
+  const lowValueCustomers = customers.filter(c => c.totalSpent < mediumValueThreshold && c.purchaseCount > 1);
+  const newCustomersList = customers.filter(c => c.purchaseCount === 1);
 
   const customerSegments = [
     {
       segment: 'high_value' as const,
-      count: customers.filter(c => c.totalSpent >= highValueThreshold).length,
-      totalSpent: customers.filter(c => c.totalSpent >= highValueThreshold).reduce((sum, c) => sum + c.totalSpent, 0),
-      averageSpent: customers.filter(c => c.totalSpent >= highValueThreshold).reduce((sum, c) => sum + c.totalSpent, 0) / Math.max(1, customers.filter(c => c.totalSpent >= highValueThreshold).length)
+      count: highValueCustomers.length,
+      totalSpent: highValueCustomers.reduce((sum, c) => sum + c.totalSpent, 0),
+      averageSpent: highValueCustomers.length > 0 ? highValueCustomers.reduce((sum, c) => sum + c.totalSpent, 0) / highValueCustomers.length : 0
     },
     {
       segment: 'medium_value' as const,
-      count: customers.filter(c => c.totalSpent >= mediumValueThreshold && c.totalSpent < highValueThreshold).length,
-      totalSpent: customers.filter(c => c.totalSpent >= mediumValueThreshold && c.totalSpent < highValueThreshold).reduce((sum, c) => sum + c.totalSpent, 0),
-      averageSpent: customers.filter(c => c.totalSpent >= mediumValueThreshold && c.totalSpent < highValueThreshold).reduce((sum, c) => sum + c.totalSpent, 0) / Math.max(1, customers.filter(c => c.totalSpent >= mediumValueThreshold && c.totalSpent < highValueThreshold).length)
+      count: mediumValueCustomers.length,
+      totalSpent: mediumValueCustomers.reduce((sum, c) => sum + c.totalSpent, 0),
+      averageSpent: mediumValueCustomers.length > 0 ? mediumValueCustomers.reduce((sum, c) => sum + c.totalSpent, 0) / mediumValueCustomers.length : 0
     },
     {
       segment: 'low_value' as const,
-      count: customers.filter(c => c.totalSpent < mediumValueThreshold && c.purchaseCount > 1).length,
-      totalSpent: customers.filter(c => c.totalSpent < mediumValueThreshold && c.purchaseCount > 1).reduce((sum, c) => sum + c.totalSpent, 0),
-      averageSpent: customers.filter(c => c.totalSpent < mediumValueThreshold && c.purchaseCount > 1).reduce((sum, c) => sum + c.totalSpent, 0) / Math.max(1, customers.filter(c => c.totalSpent < mediumValueThreshold && c.purchaseCount > 1).length)
+      count: lowValueCustomers.length,
+      totalSpent: lowValueCustomers.reduce((sum, c) => sum + c.totalSpent, 0),
+      averageSpent: lowValueCustomers.length > 0 ? lowValueCustomers.reduce((sum, c) => sum + c.totalSpent, 0) / lowValueCustomers.length : 0
     },
     {
       segment: 'new' as const,
-      count: newCustomers,
-      totalSpent: customers.filter(c => c.purchaseCount === 1).reduce((sum, c) => sum + c.totalSpent, 0),
-      averageSpent: customers.filter(c => c.purchaseCount === 1).reduce((sum, c) => sum + c.totalSpent, 0) / Math.max(1, newCustomers)
+      count: newCustomersList.length,
+      totalSpent: newCustomersList.reduce((sum, c) => sum + c.totalSpent, 0),
+      averageSpent: newCustomersList.length > 0 ? newCustomersList.reduce((sum, c) => sum + c.totalSpent, 0) / newCustomersList.length : 0
     }
   ];
 
@@ -313,16 +331,17 @@ export const analyzeCustomerData = (data: FanClubRevenueData[]): CustomerAnalysi
   data.forEach(record => {
     const date = new Date(record.日付 || new Date().toISOString());
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    
+
     if (!monthlyTrends.has(monthKey)) {
       monthlyTrends.set(monthKey, { newCustomers: 0, returningCustomers: 0, totalRevenue: 0 });
     }
-    
+
     const trend = monthlyTrends.get(monthKey)!;
-    trend.totalRevenue += record.金額 || 0;
-    
+    const amount = typeof record.金額 === 'number' ? record.金額 : Number(record.金額) || 0;
+    trend.totalRevenue += amount;
+
     // 新規顧客かリピーターかを判定
-    const customerName = record.顧客名 || record.購入者 || '不明';
+    const customerName = record.購入者 || record.顧客名 || '不明';
     const customer = customerData.get(customerName);
     if (customer && customer.firstPurchaseDate === record.日付) {
       trend.newCustomers++;
