@@ -16,7 +16,7 @@ export class UserDataManager {
   }
 
   // ユーザー専用のモデルデータを保存
-  async saveUserModel(model: Model): Promise<boolean> {
+  async saveUserModel(_model: Model): Promise<boolean> {
     try {
       // 現在はSupabaseのトリガーで処理されるため、この部分は使用していない
       console.log('Model save requested but handled by Supabase trigger');
@@ -29,10 +29,10 @@ export class UserDataManager {
 
   // ユーザー専用の月別データを保存
   async saveUserMonthlyData(
-    modelId: string,
-    year: number,
-    month: number,
-    data: FanClubRevenueData[]
+    _modelId: string,
+    _year: number,
+    _month: number,
+    _data: FanClubRevenueData[]
   ): Promise<boolean> {
     try {
       // 現在はSupabaseのトリガーで処理されるため、この部分は使用していない
