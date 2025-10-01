@@ -1,5 +1,6 @@
 import { Model, ModelMonthlyData, ModelRevenueSummary, FanClubRevenueData } from '@/types/csv';
 import { analyzeFanClubRevenue } from './csvUtils';
+import { saveModelToSupabase, deleteModelFromSupabase } from './supabaseUtils';
 
 const MODEL_STORAGE_KEY = 'fanclub-models';
 const MODEL_DATA_STORAGE_KEY = 'fanclub-model-data';
@@ -27,7 +28,7 @@ export const saveModels = (models: Model[]): void => {
   }
 };
 
-export const addModel = (name: string, displayName: string, description?: string): Model => {
+export const addModel = async (name: string, displayName: string, description?: string): Promise<Model> => {
   const models = getModels();
   const newModel: Model = {
     id: Date.now().toString(),
@@ -38,18 +39,28 @@ export const addModel = (name: string, displayName: string, description?: string
     createdAt: new Date().toISOString()
   };
   
+  // ローカルストレージに保存
   models.push(newModel);
   saveModels(models);
+  
+  // Supabaseにも保存
+  try {
+    await saveModelToSupabase(newModel);
+    console.log('Model saved to Supabase successfully');
+  } catch (error) {
+    console.error('Failed to save model to Supabase:', error);
+  }
+  
   return newModel;
 };
 
-export const updateModel = (id: string, name: string, displayName: string, description?: string, status?: 'active' | 'inactive'): boolean => {
+export const updateModel = async (id: string, name: string, displayName: string, description?: string, status?: 'active' | 'inactive'): Promise<boolean> => {
   const models = getModels();
   const index = models.findIndex(model => model.id === id);
   
   if (index === -1) return false;
   
-  models[index] = {
+  const updatedModel = {
     ...models[index],
     name,
     displayName,
@@ -57,11 +68,21 @@ export const updateModel = (id: string, name: string, displayName: string, descr
     status: status || models[index].status
   };
   
+  models[index] = updatedModel;
   saveModels(models);
+  
+  // Supabaseにも更新
+  try {
+    await saveModelToSupabase(updatedModel);
+    console.log('Model updated in Supabase successfully');
+  } catch (error) {
+    console.error('Failed to update model in Supabase:', error);
+  }
+  
   return true;
 };
 
-export const deleteModel = (id: string): boolean => {
+export const deleteModel = async (id: string): Promise<boolean> => {
   const models = getModels();
   const filtered = models.filter(model => model.id !== id);
   
@@ -74,6 +95,14 @@ export const deleteModel = (id: string): boolean => {
   if (Array.isArray(modelData)) {
     const filteredData = modelData.filter(data => data.modelId !== id);
     saveModelMonthlyData(filteredData);
+  }
+  
+  // Supabaseからも削除
+  try {
+    await deleteModelFromSupabase(id);
+    console.log('Model deleted from Supabase successfully');
+  } catch (error) {
+    console.error('Failed to delete model from Supabase:', error);
   }
   
   return true;

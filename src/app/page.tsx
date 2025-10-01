@@ -5,11 +5,8 @@ import {
   Upload,
   BarChart3,
   Users,
-  Share2,
-  Download,
-  Database,
-  Activity,
-  RefreshCw
+  RefreshCw,
+  LogOut
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData, Model } from '@/types/csv';
 import { upsertModelMonthlyData, getModels, getModelMonthlyData } from '@/utils/modelUtils';
@@ -18,15 +15,16 @@ import { supabase } from '@/lib/supabase';
 import CSVUploader from '@/components/CSVUploaderNew';
 import ModelManagement from '@/components/ModelManagement';
 import ModelDataManagement from '@/components/ModelDataManagement';
-import DataSharing from '@/components/DataSharing';
-import AdvancedExport from '@/components/AdvancedExport';
-import BackupSystem from '@/components/BackupSystem';
-import PerformanceMonitor from '@/components/PerformanceMonitor';
 import NotificationSystem, { Notification, generateNotifications } from '@/components/NotificationSystem';
+import SecureAuth from '@/components/SecureAuth';
+import AdminDashboard from '@/components/AdminDashboard';
+import { authManager } from '@/lib/auth';
+import { AuthSession } from '@/types/auth';
 
-type TabType = 'upload' | 'models' | 'management' | 'sharing' | 'export' | 'backup' | 'monitor';
+type TabType = 'upload' | 'models' | 'management';
 
 export default function Home() {
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('upload');
   const [message, setMessage] = useState<string>('');
   const [models, setModels] = useState<Model[]>([]);
@@ -34,6 +32,17 @@ export default function Home() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
+    // セッション復元
+    const session = authManager.loadSession();
+    if (session) {
+      setAuthSession(session);
+    }
+  }, []);
+
+  useEffect(() => {
+    // 認証済みの場合のみデータを読み込み
+    if (!authSession) return;
+    
     // 初期データの読み込み（Supabaseから）
     const loadInitialData = async () => {
       try {
@@ -126,7 +135,7 @@ export default function Home() {
     };
 
     loadInitialData();
-  }, []);
+  }, [authSession]);
 
   const handleDataLoaded = async (data: CSVData[], year: number, month: number, modelId: string) => {
     try {
@@ -199,6 +208,16 @@ export default function Home() {
     );
   };
 
+  const handleLogout = () => {
+    authManager.logout();
+    setAuthSession(null);
+    setMessage('ログアウトしました');
+  };
+
+  const handleAuthenticated = (session: AuthSession) => {
+    setAuthSession(session);
+  };
+
   const handleSyncData = async () => {
     try {
       setMessage('データを同期中...');
@@ -207,6 +226,7 @@ export default function Home() {
       const { data: modelsData, error: modelsError } = await supabase.from('models').select('*');
       if (modelsError) {
         console.error('Models fetch error:', modelsError);
+        setMessage('⚠️ モデルデータの同期に失敗しました。');
       } else if (modelsData && modelsData.length > 0) {
         const formattedModels = modelsData.map(m => ({
           id: m.id,
@@ -218,11 +238,13 @@ export default function Home() {
         }));
         localStorage.setItem('fanclub-models', JSON.stringify(formattedModels));
         setModels(formattedModels);
+        console.log('Models synced:', formattedModels.length);
       }
 
       const { data: monthlyData, error: monthlyError } = await supabase.from('monthly_data').select('*');
       if (monthlyError) {
         console.error('Monthly data fetch error:', monthlyError);
+        setMessage('⚠️ 月別データの同期に失敗しました。');
       } else if (monthlyData && monthlyData.length > 0) {
         const formattedData: Record<string, Record<number, Record<number, FanClubRevenueData[]>>> = {};
         
@@ -238,6 +260,7 @@ export default function Home() {
         
         localStorage.setItem('fanclub-model-data', JSON.stringify(formattedData));
         setModelData(formattedData);
+        console.log('Monthly data synced:', monthlyData.length, 'records');
       }
 
       setMessage('✅ データの同期が完了しました！');
@@ -253,106 +276,143 @@ export default function Home() {
     { id: 'upload' as TabType, label: 'CSVアップロード', icon: Upload },
     { id: 'models' as TabType, label: 'モデル管理', icon: Users },
     { id: 'management' as TabType, label: 'データ管理', icon: BarChart3 },
-    { id: 'sharing' as TabType, label: 'データ共有', icon: Share2 },
-    { id: 'export' as TabType, label: '高度なエクスポート', icon: Download },
-    { id: 'backup' as TabType, label: 'バックアップ', icon: Database },
-    { id: 'monitor' as TabType, label: 'パフォーマンス', icon: Activity },
   ];
 
+  // 認証されていない場合は認証画面を表示
+  if (!authSession) {
+    return <SecureAuth onAuthenticated={handleAuthenticated} />;
+  }
+
+  // 管理者の場合は管理者ダッシュボードを表示
+  if (authSession.user.role === 'admin') {
+    return <AdminDashboard onLogout={handleLogout} />;
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-white">
-      <div className="container mx-auto px-4 py-8">
-        {/* ヘッダー */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="text-center flex-1">
-            <h1 className="text-4xl font-bold text-red-600 mb-2">
-              ファンクラ君
-            </h1>
-            <p className="text-gray-600">
-              売上管理システム
-            </p>
-          </div>
-          
-          {/* データ同期ボタンと通知システム */}
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={handleSyncData}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              title="Supabaseから最新データを同期"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span className="hidden sm:inline">データ同期</span>
-            </button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      {/* ヘッダー */}
+      <header className="bg-blue-50/95 backdrop-blur-xl border-b border-blue-100 sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* ロゴとタイトル */}
+            <div className="flex items-center space-x-4">
+              <div className="w-9 h-9 bg-blue-600 rounded-2xl flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-semibold text-blue-900">
+                  ファンクラ君
+                </h1>
+                <p className="text-sm text-blue-600">
+                  売上管理システム
+                </p>
+              </div>
+            </div>
             
-            <NotificationSystem
-              notifications={notifications}
-              onMarkAsRead={handleMarkNotificationAsRead}
-              onClearAll={handleClearAllNotifications}
-            />
+            {/* ユーザー情報とアクション */}
+            <div className="flex items-center space-x-2">
+              {/* ユーザー情報 */}
+              <div className="hidden md:flex items-center space-x-3 px-4 py-2 bg-blue-50/80 rounded-2xl">
+                <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center">
+                  <span className="text-blue-700 text-sm font-medium">
+                    {authSession.user.name.charAt(0)}
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <p className="font-medium text-blue-900">{authSession.user.name}</p>
+                  <p className="text-blue-600">{authSession.user.email}</p>
+                </div>
+              </div>
+              
+              {/* アクションボタン */}
+              <button
+                onClick={handleSyncData}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-2xl transition-all duration-200"
+                title="データ同期"
+              >
+                <RefreshCw className="h-4 w-4 text-blue-600" />
+                <span className="hidden sm:inline text-sm text-blue-700">同期</span>
+              </button>
+              
+              <NotificationSystem
+                notifications={notifications}
+                onMarkAsRead={handleMarkNotificationAsRead}
+                onClearAll={handleClearAllNotifications}
+              />
+              
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-2xl transition-all duration-200"
+                title="ログアウト"
+              >
+                <LogOut className="h-4 w-4 text-blue-600" />
+                <span className="hidden sm:inline text-sm text-blue-700">ログアウト</span>
+              </button>
+            </div>
           </div>
         </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-8">
 
         {/* メッセージ表示 */}
         {message && (
-          <div className={`mb-6 p-4 rounded-lg text-center ${
-            message.includes('✅') ? 'bg-green-100 text-green-800' :
-            message.includes('⚠️') ? 'bg-yellow-100 text-yellow-800' :
-            'bg-red-100 text-red-800'
+          <div className={`mb-8 p-5 rounded-2xl text-center backdrop-blur-sm ${
+            message.includes('✅') ? 'bg-blue-50/80 text-blue-800 border border-blue-100' :
+            message.includes('⚠️') ? 'bg-yellow-50/80 text-yellow-800 border border-yellow-100' :
+            'bg-red-50/80 text-red-800 border border-red-100'
           }`}>
-            {message}
+            <p className="font-medium">{message}</p>
           </div>
         )}
 
-        {/* タブナビゲーション */}
-        <div className="flex flex-wrap justify-center gap-2 mb-8">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 text-sm ${
-                  activeTab === tab.id
-                    ? 'bg-red-600 text-white shadow-lg'
-                    : 'bg-white text-gray-700 hover:bg-red-50 shadow-sm border border-red-200'
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* メインコンテンツエリア */}
+        <div className="flex gap-8">
+          {/* 縦タブナビゲーション */}
+          <div className="w-72 flex-shrink-0">
+            <div className="bg-blue-50/60 backdrop-blur-xl rounded-3xl p-6 shadow-sm border border-blue-100/50 sticky top-28">
+              <div className="space-y-1">
+                {tabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full flex items-center space-x-4 px-5 py-4 rounded-2xl font-medium transition-all duration-200 text-sm ${
+                        activeTab === tab.id
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'text-blue-600 hover:text-blue-900 hover:bg-blue-100/80'
+                      }`}
+                    >
+                      <Icon className={`h-5 w-5 transition-colors duration-200 ${
+                        activeTab === tab.id ? 'text-white' : 'text-blue-500'
+                      }`} />
+                      <span className="font-medium">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
-        {/* タブコンテンツ */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-red-200">
-          {activeTab === 'upload' && (
-            <CSVUploader onDataLoaded={handleDataLoaded} />
-          )}
-          
-          {activeTab === 'models' && (
-            <ModelManagement />
-          )}
-          
-          {activeTab === 'management' && (
-            <ModelDataManagement />
-          )}
-          
-          {activeTab === 'sharing' && (
-            <DataSharing />
-          )}
-
-          {activeTab === 'export' && (
-            <AdvancedExport models={models} modelData={modelData} />
-          )}
-
-          {activeTab === 'backup' && (
-            <BackupSystem models={models} modelData={modelData} />
-          )}
-
-          {activeTab === 'monitor' && (
-            <PerformanceMonitor />
-          )}
+          {/* メインコンテンツ */}
+          <div className="flex-1">
+            <div className="bg-blue-50/40 backdrop-blur-xl rounded-3xl shadow-sm border border-blue-100/50 overflow-hidden">
+              <div className="p-10">
+                {activeTab === 'upload' && (
+                  <CSVUploader onDataLoaded={handleDataLoaded} />
+                )}
+                
+                {activeTab === 'models' && (
+                  <ModelManagement />
+                )}
+                
+                {activeTab === 'management' && (
+                  <ModelDataManagement />
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

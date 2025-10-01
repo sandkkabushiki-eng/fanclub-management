@@ -3,14 +3,19 @@ import { Model, ModelMonthlyData, FanClubRevenueData } from '@/types/csv';
 import { analyzeFanClubRevenue } from './csvUtils';
 
 // モデルをSupabaseに保存
-export const saveModelToSupabase = async (model: Model): Promise<boolean> => {
+export const saveModelToSupabase = async (model: Model, userId?: string): Promise<boolean> => {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentUserId = userId || user?.id;
+
     const { error } = await supabase
       .from('models')
       .upsert({
         id: model.id,
         name: model.name,
         display_name: model.displayName,
+        user_id: currentUserId,
+        created_at: model.createdAt || new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
 
@@ -30,9 +35,12 @@ export const saveModelMonthlyDataToSupabase = async (
   modelId: string,
   year: number,
   month: number,
-  data: FanClubRevenueData[]
+  data: FanClubRevenueData[],
+  userId?: string
 ): Promise<boolean> => {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentUserId = userId || user?.id;
     const analysis = analyzeFanClubRevenue(data);
     
     // 既存のデータがあるかチェック
@@ -56,6 +64,7 @@ export const saveModelMonthlyDataToSupabase = async (
         .update({
           data,
           analysis,
+          user_id: currentUserId,
           updated_at: new Date().toISOString()
         })
         .eq('id', existingData.id);
@@ -70,6 +79,7 @@ export const saveModelMonthlyDataToSupabase = async (
         .from('monthly_data')
         .insert({
           model_id: modelId,
+          user_id: currentUserId,
           year,
           month,
           data,
@@ -149,5 +159,53 @@ export const getModelMonthlyDataFromSupabase = async (): Promise<ModelMonthlyDat
   } catch (error) {
     console.error('Error fetching monthly data:', error);
     return [];
+  }
+};
+
+// Supabaseからモデルを削除
+export const deleteModelFromSupabase = async (modelId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('models')
+      .delete()
+      .eq('id', modelId);
+
+    if (error) {
+      console.error('Error deleting model from Supabase:', error);
+      return false;
+    }
+    
+    console.log('Model deleted from Supabase successfully');
+    return true;
+  } catch (error) {
+    console.error('Error deleting model:', error);
+    return false;
+  }
+};
+
+// Supabaseから月別データを削除
+export const deleteModelMonthlyDataFromSupabase = async (
+  modelId: string,
+  year: number,
+  month: number
+): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('monthly_data')
+      .delete()
+      .eq('model_id', modelId)
+      .eq('year', year)
+      .eq('month', month);
+
+    if (error) {
+      console.error('Error deleting monthly data from Supabase:', error);
+      return false;
+    }
+    
+    console.log('Monthly data deleted from Supabase successfully');
+    return true;
+  } catch (error) {
+    console.error('Error deleting monthly data:', error);
+    return false;
   }
 };

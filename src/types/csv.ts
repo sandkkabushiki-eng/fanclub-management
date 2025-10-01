@@ -38,6 +38,36 @@ export interface RevenueAnalysis {
     salesCount: number;
     type: string;
   }[];
+  planDetails: {
+    planName: string;
+    salesCount: number;
+    totalRevenue: number;
+    averagePrice: number;
+  }[];
+  singleItemDetails: {
+    itemName: string;
+    salesCount: number;
+    totalRevenue: number;
+    averagePrice: number;
+  }[];
+  monthlyPlanDetails: {
+    month: string;
+    totalRevenue: number;
+    plans: {
+      planName: string;
+      salesCount: number;
+      totalRevenue: number;
+    }[];
+  }[];
+  monthlySingleItemDetails: {
+    month: string;
+    totalRevenue: number;
+    items: {
+      itemName: string;
+      salesCount: number;
+      totalRevenue: number;
+    }[];
+  }[];
   monthlyRevenue: {
     month: string;
     revenue: number;

@@ -112,14 +112,14 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
         <div
           className={`border-2 border-dashed rounded-lg p-8 transition-colors ${
             isDragging 
-              ? 'border-red-500 bg-red-50' 
-              : 'border-red-300 hover:border-red-400'
+              ? 'border-blue-500 bg-blue-50' 
+              : 'border-blue-300 hover:border-blue-400'
           }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
         >
-          <Upload className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <Upload className="h-12 w-12 text-blue-500 mx-auto mb-4" />
           <p className="text-lg font-medium text-gray-700 mb-2">
             CSVファイルをドラッグ&ドロップ
           </p>
@@ -128,7 +128,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
           </p>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             ファイルを選択
           </button>
@@ -166,7 +166,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 {generateYearOptions().map(year => (
                   <option key={year} value={year}>{year}年</option>
@@ -175,7 +175,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
               <select
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 {generateMonthOptions().map(month => (
                   <option key={month} value={month}>{month}月</option>
@@ -193,7 +193,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
             <select
               value={selectedModelId}
               onChange={(e) => setSelectedModelId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">モデルを選択</option>
               {models.map(model => (
@@ -209,7 +209,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
             <button
               onClick={handleUpload}
               disabled={isLoading}
-              className="w-full bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-colors"
+              className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
             >
               {isLoading ? '処理中...' : 'アップロード'}
             </button>

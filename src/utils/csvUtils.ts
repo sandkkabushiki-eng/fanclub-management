@@ -105,10 +105,144 @@ export const analyzeFanClubRevenue = (data: FanClubRevenueData[]): RevenueAnalys
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 10);
 
+  // プラン詳細分析
+  const planStats = data
+    .filter(item => item.種類 === 'プラン購入')
+    .reduce((acc, item) => {
+      const planName = item.対象 || '不明なプラン';
+      if (!acc[planName]) {
+        acc[planName] = { planName, salesCount: 0, totalRevenue: 0 };
+      }
+      acc[planName].salesCount += 1;
+      acc[planName].totalRevenue += Number(item.金額) || 0;
+      return acc;
+    }, {} as Record<string, { planName: string; salesCount: number; totalRevenue: number }>);
+
+  const planDetails = Object.values(planStats)
+    .map(plan => ({
+      ...plan,
+      averagePrice: plan.totalRevenue / plan.salesCount
+    }))
+    .sort((a, b) => b.salesCount - a.salesCount);
+
+  // 単品詳細分析
+  const singleItemStats = data
+    .filter(item => item.種類 === '単品販売')
+    .reduce((acc, item) => {
+      const itemName = item.対象 || '不明な商品';
+      if (!acc[itemName]) {
+        acc[itemName] = { itemName, salesCount: 0, totalRevenue: 0 };
+      }
+      acc[itemName].salesCount += 1;
+      acc[itemName].totalRevenue += Number(item.金額) || 0;
+      return acc;
+    }, {} as Record<string, { itemName: string; salesCount: number; totalRevenue: number }>);
+
+  const singleItemDetails = Object.values(singleItemStats)
+    .map(item => ({
+      ...item,
+      averagePrice: item.totalRevenue / item.salesCount
+    }))
+    .sort((a, b) => b.salesCount - a.salesCount);
+
+  // 月別プラン詳細分析
+  const monthlyPlanStats = new Map<string, Map<string, { salesCount: number; totalRevenue: number }>>();
+  data
+    .filter(item => item.種類 === 'プラン購入')
+    .forEach(item => {
+      if (!item.日付) return;
+      const date = new Date(item.日付);
+      // 無効な日付の場合はスキップ
+      if (isNaN(date.getTime())) return;
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const planName = item.対象 || '不明なプラン';
+      
+      if (!monthlyPlanStats.has(monthKey)) {
+        monthlyPlanStats.set(monthKey, new Map());
+      }
+      
+      const monthPlans = monthlyPlanStats.get(monthKey)!;
+      if (!monthPlans.has(planName)) {
+        monthPlans.set(planName, { salesCount: 0, totalRevenue: 0 });
+      }
+      
+      const plan = monthPlans.get(planName)!;
+      plan.salesCount += 1;
+      plan.totalRevenue += Number(item.金額) || 0;
+    });
+
+  const monthlyPlanDetails = Array.from(monthlyPlanStats.entries())
+    .map(([month, plans]) => {
+      const plansArray = Array.from(plans.entries())
+        .map(([planName, stats]) => ({
+          planName,
+          ...stats
+        }))
+        .sort((a, b) => b.salesCount - a.salesCount);
+      
+      const totalRevenue = plansArray.reduce((sum, plan) => sum + plan.totalRevenue, 0);
+      
+      return {
+        month,
+        totalRevenue,
+        plans: plansArray
+      };
+    })
+    .sort((a, b) => a.month.localeCompare(b.month));
+
+
+  // 月別単品詳細分析
+  const monthlySingleItemStats = new Map<string, Map<string, { salesCount: number; totalRevenue: number }>>();
+  data
+    .filter(item => item.種類 === '単品販売')
+    .forEach(item => {
+      if (!item.日付) return;
+      const date = new Date(item.日付);
+      // 無効な日付の場合はスキップ
+      if (isNaN(date.getTime())) return;
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const itemName = item.対象 || '不明な商品';
+      
+      if (!monthlySingleItemStats.has(monthKey)) {
+        monthlySingleItemStats.set(monthKey, new Map());
+      }
+      
+      const monthItems = monthlySingleItemStats.get(monthKey)!;
+      if (!monthItems.has(itemName)) {
+        monthItems.set(itemName, { salesCount: 0, totalRevenue: 0 });
+      }
+      
+      const singleItem = monthItems.get(itemName)!;
+      singleItem.salesCount += 1;
+      singleItem.totalRevenue += Number(item.金額) || 0;
+    });
+
+  const monthlySingleItemDetails = Array.from(monthlySingleItemStats.entries())
+    .map(([month, items]) => {
+      const itemsArray = Array.from(items.entries())
+        .map(([itemName, stats]) => ({
+          itemName,
+          ...stats
+        }))
+        .sort((a, b) => b.salesCount - a.salesCount);
+      
+      const totalRevenue = itemsArray.reduce((sum, item) => sum + item.totalRevenue, 0);
+      
+      return {
+        month,
+        totalRevenue,
+        items: itemsArray
+      };
+    })
+    .sort((a, b) => a.month.localeCompare(b.month));
+
+
   // 月次売上
   const monthlyRevenue = data.reduce((acc, item) => {
     if (!item.日付) return acc;
     const date = new Date(item.日付);
+    // 無効な日付の場合はスキップ
+    if (isNaN(date.getTime())) return acc;
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     if (!acc[monthKey]) {
       acc[monthKey] = { month: monthKey, revenue: 0, fees: 0, transactions: 0 };
@@ -146,6 +280,10 @@ export const analyzeFanClubRevenue = (data: FanClubRevenueData[]): RevenueAnalys
     singlePurchases,
     topBuyers,
     topProducts,
+    planDetails,
+    singleItemDetails,
+    monthlyPlanDetails,
+    monthlySingleItemDetails,
     monthlyRevenue: monthlyRevenueArray,
     averageTransactionValue,
     averageSpendingPerCustomer,
@@ -160,6 +298,31 @@ export const formatCurrency = (amount: number): string => {
     style: 'currency',
     currency: 'JPY'
   }).format(amount);
+};
+
+// 購入頻度を計算する関数
+export const calculatePurchaseFrequency = (
+  firstPurchaseDate: string, 
+  lastPurchaseDate: string, 
+  purchaseCount: number
+): number => {
+  if (purchaseCount <= 1) return 0;
+  
+  const firstDate = new Date(firstPurchaseDate);
+  const lastDate = new Date(lastPurchaseDate);
+  
+  // 日数の差を計算
+  const timeDiff = lastDate.getTime() - firstDate.getTime();
+  const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+  
+  // 最低1日として計算（同じ日の購入でも1日として扱う）
+  const actualDays = Math.max(1, daysDiff);
+  
+  // 月数に変換（30日 = 1ヶ月）
+  const months = actualDays / 30;
+  
+  // 購入頻度 = 購入回数 / 月数
+  return purchaseCount / Math.max(1, months);
 };
 
 // 顧客データを分析
@@ -249,7 +412,7 @@ export const analyzeCustomerData = (data: FanClubRevenueData[]): CustomerAnalysi
       averageTransactionValue: customer.totalSpent / customer.purchaseCount,
       firstPurchaseDate: customer.firstPurchaseDate,
       lastPurchaseDate: customer.lastPurchaseDate,
-      purchaseFrequency: customer.purchaseCount / Math.max(1, Math.ceil((new Date(customer.lastPurchaseDate).getTime() - new Date(customer.firstPurchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 30))),
+      purchaseFrequency: calculatePurchaseFrequency(customer.firstPurchaseDate, customer.lastPurchaseDate, customer.purchaseCount),
       models: [],
       monthlySpending: []
     }));
@@ -265,7 +428,7 @@ export const analyzeCustomerData = (data: FanClubRevenueData[]): CustomerAnalysi
       averageTransactionValue: customer.totalSpent / customer.purchaseCount,
       firstPurchaseDate: customer.firstPurchaseDate,
       lastPurchaseDate: customer.lastPurchaseDate,
-      purchaseFrequency: customer.purchaseCount / Math.max(1, Math.ceil((new Date(customer.lastPurchaseDate).getTime() - new Date(customer.firstPurchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 30))),
+      purchaseFrequency: calculatePurchaseFrequency(customer.firstPurchaseDate, customer.lastPurchaseDate, customer.purchaseCount),
       models: [],
       monthlySpending: []
     }));
@@ -280,7 +443,7 @@ export const analyzeCustomerData = (data: FanClubRevenueData[]): CustomerAnalysi
       averageTransactionValue: customer.totalSpent / customer.purchaseCount,
       firstPurchaseDate: customer.firstPurchaseDate,
       lastPurchaseDate: customer.lastPurchaseDate,
-      purchaseFrequency: customer.purchaseCount / Math.max(1, Math.ceil((new Date(customer.lastPurchaseDate).getTime() - new Date(customer.firstPurchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 30))),
+      purchaseFrequency: calculatePurchaseFrequency(customer.firstPurchaseDate, customer.lastPurchaseDate, customer.purchaseCount),
       models: [],
       monthlySpending: []
     }));

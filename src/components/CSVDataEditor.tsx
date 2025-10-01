@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Save, 
   X, 
@@ -8,7 +8,9 @@ import {
   Trash2, 
   Edit3,
   DollarSign,
-  Package
+  Package,
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import { FanClubRevenueData } from '@/types/csv';
 import { formatCurrency } from '@/utils/csvUtils';
@@ -33,6 +35,46 @@ export default function CSVDataEditor({
 }: CSVDataEditorProps) {
   const [editedData, setEditedData] = useState<FanClubRevenueData[]>(data);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  const handleAutoSave = useCallback(async () => {
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    setSaveStatus('saving');
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500)); // 保存のシミュレーション
+      onSave(editedData);
+      setHasChanges(false);
+      setSaveStatus('saved');
+      
+      // 3秒後にステータスをリセット
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 3000);
+    } catch {
+      setSaveStatus('error');
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 3000);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [isSaving, editedData, onSave]);
+
+  // 変更を検知して自動保存
+  useEffect(() => {
+    if (hasChanges && editedData.length > 0) {
+      const timer = setTimeout(() => {
+        handleAutoSave();
+      }, 2000); // 2秒後に自動保存
+      
+      return () => clearTimeout(timer);
+    }
+  }, [editedData, hasChanges, handleAutoSave]);
 
   const handleEdit = (index: number) => {
     setEditingIndex(index);
@@ -41,6 +83,7 @@ export default function CSVDataEditor({
   const handleDelete = (index: number) => {
     const newData = editedData.filter((_, i) => i !== index);
     setEditedData(newData);
+    setHasChanges(true);
   };
 
   const handleAddNew = () => {
@@ -54,6 +97,7 @@ export default function CSVDataEditor({
     };
     setEditedData([...editedData, newRecord]);
     setEditingIndex(editedData.length);
+    setHasChanges(true);
   };
 
   const handleSaveEdit = (index: number, updatedRecord: FanClubRevenueData) => {
@@ -61,6 +105,7 @@ export default function CSVDataEditor({
     newData[index] = updatedRecord;
     setEditedData(newData);
     setEditingIndex(null);
+    setHasChanges(true);
   };
 
   const handleCancelEdit = () => {
@@ -77,32 +122,64 @@ export default function CSVDataEditor({
   return (
     <div className="space-y-6">
       {/* ヘッダー */}
-      <div className="bg-white p-6 rounded-lg shadow-md border">
+      <div className="bg-gradient-to-r from-white to-gray-50 p-6 rounded-xl shadow-lg border-2 border-gray-200">
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-              <Edit3 className="h-6 w-6 mr-2" />
+              <Edit3 className="h-6 w-6 mr-2 text-blue-600" />
               CSVデータ編集
             </h2>
             <p className="text-gray-600 mt-1">
               {modelName} - {year}年{month}月
             </p>
           </div>
-          <div className="flex space-x-3">
-            <button
-              onClick={onCancel}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 flex items-center"
-            >
-              <X className="h-4 w-4 mr-2" />
-              キャンセル
-            </button>
-            <button
-              onClick={handleSaveAll}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              保存
-            </button>
+          
+          <div className="flex items-center space-x-4">
+            {/* 保存ステータス表示 */}
+            <div className="flex items-center space-x-2">
+              {saveStatus === 'saving' && (
+                <div className="flex items-center space-x-2 text-blue-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="text-sm">保存中...</span>
+                </div>
+              )}
+              {saveStatus === 'saved' && (
+                <div className="flex items-center space-x-2 text-green-600">
+                  <Check className="h-4 w-4" />
+                  <span className="text-sm">保存完了</span>
+                </div>
+              )}
+              {saveStatus === 'error' && (
+                <div className="flex items-center space-x-2 text-blue-600">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="text-sm">保存エラー</span>
+                </div>
+              )}
+              {hasChanges && saveStatus === 'idle' && (
+                <div className="flex items-center space-x-2 text-orange-600">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  <span className="text-sm">未保存の変更</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={onCancel}
+                className="px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 flex items-center font-medium"
+              >
+                <X className="h-4 w-4 mr-2" />
+                閉じる
+              </button>
+              <button
+                onClick={handleSaveAll}
+                disabled={isSaving}
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center font-medium shadow-md hover:shadow-lg"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                手動保存
+              </button>
+            </div>
           </div>
         </div>
 
@@ -117,12 +194,12 @@ export default function CSVDataEditor({
               </div>
             </div>
           </div>
-          <div className="bg-red-50 p-4 rounded-lg">
+          <div className="bg-blue-50 p-4 rounded-lg">
             <div className="flex items-center">
-              <DollarSign className="h-5 w-5 text-red-600 mr-2" />
+              <DollarSign className="h-5 w-5 text-blue-600 mr-2" />
               <div>
-                <p className="text-sm font-medium text-red-800">総手数料</p>
-                <p className="text-lg font-bold text-red-900">{formatCurrency(totalFees)}</p>
+                <p className="text-sm font-medium text-blue-800">総手数料</p>
+                <p className="text-lg font-bold text-blue-900">{formatCurrency(totalFees)}</p>
               </div>
             </div>
           </div>
@@ -252,7 +329,7 @@ function DisplayRow({
           </button>
           <button
             onClick={onDelete}
-            className="text-red-600 hover:text-red-900"
+            className="text-blue-600 hover:text-blue-900"
           >
             <Trash2 className="h-4 w-4" />
           </button>
