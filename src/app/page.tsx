@@ -27,8 +27,8 @@ export default function Home() {
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('upload');
   const [message, setMessage] = useState<string>('');
-  const [models, setModels] = useState<Model[]>([]);
-  const [modelData, setModelData] = useState<Record<string, unknown>>({});
+  const [_models, setModels] = useState<Model[]>([]);
+  const [_modelData, setModelData] = useState<Record<string, unknown>>({});
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
