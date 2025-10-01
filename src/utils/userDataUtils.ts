@@ -72,7 +72,7 @@ export class UserDataManager {
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (data as any[]).map(row => ({
+      return (data || []).map((row: any) => ({
         id: row.id,
         name: row.name,
         displayName: row.display_name,
@@ -136,7 +136,7 @@ export class UserDataManager {
         return [];
       }
 
-      return data;
+      return data || [];
     } catch (error) {
       console.error('User monthly data fetch error:', error);
       return [];
