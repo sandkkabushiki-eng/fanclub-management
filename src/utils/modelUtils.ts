@@ -1,16 +1,25 @@
 import { Model, ModelMonthlyData, ModelRevenueSummary, FanClubRevenueData } from '@/types/csv';
 import { analyzeFanClubRevenue } from './csvUtils';
 import { saveModelToSupabase, deleteModelFromSupabase } from './supabaseUtils';
+import { authManager } from '@/lib/auth';
 
 const MODEL_STORAGE_KEY = 'fanclub-models';
 const MODEL_DATA_STORAGE_KEY = 'fanclub-model-data';
+
+// ユーザーIDを含むストレージキーを生成
+const getUserStorageKey = (baseKey: string): string => {
+  const currentUser = authManager.getCurrentUser();
+  const userId = currentUser?.id || 'default';
+  return `${baseKey}-${userId}`;
+};
 
 // モデル管理
 export const getModels = (): Model[] => {
   if (typeof window === 'undefined') return [];
   
   try {
-    const stored = localStorage.getItem(MODEL_STORAGE_KEY);
+    const userKey = getUserStorageKey(MODEL_STORAGE_KEY);
+    const stored = localStorage.getItem(userKey);
     return stored ? JSON.parse(stored) : [];
   } catch (error) {
     console.error('Failed to load models:', error);
@@ -22,7 +31,8 @@ export const saveModels = (models: Model[]): void => {
   if (typeof window === 'undefined') return;
   
   try {
-    localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(models));
+    const userKey = getUserStorageKey(MODEL_STORAGE_KEY);
+    localStorage.setItem(userKey, JSON.stringify(models));
   } catch (error) {
     console.error('Failed to save models:', error);
   }
@@ -54,29 +64,45 @@ export const addModel = async (name: string, displayName: string, description?: 
   return newModel;
 };
 
-export const updateModel = async (id: string, name: string, displayName: string, description?: string, status?: 'active' | 'inactive'): Promise<boolean> => {
+export const updateModel = async (id: string, updateData: string | Partial<Model>, displayName?: string, description?: string, status?: 'active' | 'inactive'): Promise<boolean> => {
   const models = getModels();
   const index = models.findIndex(model => model.id === id);
   
   if (index === -1) return false;
   
-  const updatedModel = {
-    ...models[index],
-    name,
-    displayName,
-    description,
-    status: status || models[index].status
-  };
+  let updatedModel: Model;
+  
+  // updateDataがオブジェクトの場合（Modelの部分更新）
+  if (typeof updateData === 'object') {
+    updatedModel = {
+      ...models[index],
+      ...updateData
+    };
+  } else {
+    // updateDataが文字列の場合（従来の引数形式）
+    updatedModel = {
+      ...models[index],
+      name: updateData,
+      displayName: displayName || models[index].displayName,
+      description,
+      status: status || models[index].status
+    };
+  }
   
   models[index] = updatedModel;
   saveModels(models);
   
-  // Supabaseにも更新
+  // Supabaseにも更新（エラーが出ても続行）
   try {
-    await saveModelToSupabase(updatedModel);
-    console.log('Model updated in Supabase successfully');
+    const saved = await saveModelToSupabase(updatedModel);
+    if (saved) {
+      console.log('✅ モデルをSupabaseに保存しました');
+    } else {
+      console.log('ℹ️ ローカルストレージに保存しました（Supabaseはオフライン）');
+    }
   } catch (error) {
-    console.error('Failed to update model in Supabase:', error);
+    console.log('ℹ️ ローカルストレージに保存しました（Supabaseはオフライン）');
+    // Supabaseへの保存に失敗してもローカルストレージには保存されているのでtrueを返す
   }
   
   return true;
@@ -113,7 +139,8 @@ export const getModelMonthlyData = (): ModelMonthlyData[] => {
   if (typeof window === 'undefined') return [];
   
   try {
-    const stored = localStorage.getItem(MODEL_DATA_STORAGE_KEY);
+    const userKey = getUserStorageKey(MODEL_DATA_STORAGE_KEY);
+    const stored = localStorage.getItem(userKey);
     if (!stored) return [];
     
     const parsed = JSON.parse(stored);
@@ -135,7 +162,8 @@ export const saveModelMonthlyData = (data: ModelMonthlyData[]): void => {
   if (typeof window === 'undefined') return;
   
   try {
-    localStorage.setItem(MODEL_DATA_STORAGE_KEY, JSON.stringify(data));
+    const userKey = getUserStorageKey(MODEL_DATA_STORAGE_KEY);
+    localStorage.setItem(userKey, JSON.stringify(data));
   } catch (error) {
     console.error('Failed to save model monthly data:', error);
   }

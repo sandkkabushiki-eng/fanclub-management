@@ -10,7 +10,53 @@ export const parseCSV = (csvText: string): Promise<CSVData[]> => {
         if (results.errors.length > 0) {
           reject(new Error(`CSV解析エラー: ${results.errors[0].message}`));
         } else {
-          resolve(results.data as CSVData[]);
+          // 日付フォーマットを正規化
+          const normalizedData = (results.data as CSVData[]).map(row => {
+            if (row.日付) {
+              const dateStr = String(row.日付);
+              
+              // 日付フォーマットを解析して正規化
+              let normalizedDate = '';
+              
+              // パターン1: "10月21日 14:41:21" 形式
+              const match1 = dateStr.match(/(\d+)月(\d+)日\s+(\d+):(\d+):(\d+)/);
+              if (match1) {
+                const month = parseInt(match1[1]);
+                const day = parseInt(match1[2]);
+                const hour = parseInt(match1[3]);
+                const minute = parseInt(match1[4]);
+                const second = parseInt(match1[5]);
+                
+                // 年を推定（現在の年を使用、ただし月が未来の場合は前年）
+                const currentDate = new Date();
+                const currentYear = currentDate.getFullYear();
+                const currentMonth = currentDate.getMonth() + 1;
+                
+                let year = currentYear;
+                if (month > currentMonth) {
+                  year = currentYear - 1;
+                }
+                
+                const date = new Date(year, month - 1, day, hour, minute, second);
+                normalizedDate = date.toISOString();
+              }
+              // パターン2: 標準的な日付形式
+              else {
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                  normalizedDate = date.toISOString();
+                }
+              }
+              
+              if (normalizedDate) {
+                row.日付 = normalizedDate;
+              } else {
+                console.warn('無効な日付フォーマット:', dateStr);
+              }
+            }
+            return row;
+          });
+          resolve(normalizedData);
         }
       },
       error: (error: Error) => {
@@ -29,7 +75,53 @@ export const parseCSVFile = (file: File): Promise<CSVData[]> => {
         if (results.errors.length > 0) {
           reject(new Error(`CSV解析エラー: ${results.errors[0].message}`));
         } else {
-          resolve(results.data as CSVData[]);
+          // 日付フォーマットを正規化
+          const normalizedData = (results.data as CSVData[]).map(row => {
+            if (row.日付) {
+              const dateStr = String(row.日付);
+              
+              // 日付フォーマットを解析して正規化
+              let normalizedDate = '';
+              
+              // パターン1: "10月21日 14:41:21" 形式
+              const match1 = dateStr.match(/(\d+)月(\d+)日\s+(\d+):(\d+):(\d+)/);
+              if (match1) {
+                const month = parseInt(match1[1]);
+                const day = parseInt(match1[2]);
+                const hour = parseInt(match1[3]);
+                const minute = parseInt(match1[4]);
+                const second = parseInt(match1[5]);
+                
+                // 年を推定（現在の年を使用、ただし月が未来の場合は前年）
+                const currentDate = new Date();
+                const currentYear = currentDate.getFullYear();
+                const currentMonth = currentDate.getMonth() + 1;
+                
+                let year = currentYear;
+                if (month > currentMonth) {
+                  year = currentYear - 1;
+                }
+                
+                const date = new Date(year, month - 1, day, hour, minute, second);
+                normalizedDate = date.toISOString();
+              }
+              // パターン2: 標準的な日付形式
+              else {
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                  normalizedDate = date.toISOString();
+                }
+              }
+              
+              if (normalizedDate) {
+                row.日付 = normalizedDate;
+              } else {
+                console.warn('無効な日付フォーマット:', dateStr);
+              }
+            }
+            return row;
+          });
+          resolve(normalizedData);
         }
       },
       error: (error: Error) => {
@@ -41,7 +133,8 @@ export const parseCSVFile = (file: File): Promise<CSVData[]> => {
 
 // ファンクラブ売上データの分析
 export const analyzeFanClubRevenue = (data: FanClubRevenueData[]): RevenueAnalysis => {
-  if (data.length === 0) {
+  // データが配列でない場合は空の結果を返す
+  if (!Array.isArray(data) || data.length === 0) {
     return {
       totalRevenue: 0,
       totalFees: 0,
@@ -437,20 +530,44 @@ export const analyzeCustomerData = (data: FanClubRevenueData[]): CustomerAnalysi
       monthlySpending: []
     }));
 
-  // 全リピーター（2回以上購入）
+  // 全リピーター（2回以上購入）- 詳細情報付き
   const allRepeaters: RepeatCustomer[] = customers
     .filter(c => c.purchaseCount > 1)
-    .map(customer => ({
-      buyerName: customer.name,
-      totalTransactions: customer.purchaseCount,
-      totalSpent: customer.totalSpent,
-      averageTransactionValue: customer.totalSpent / customer.purchaseCount,
-      firstPurchaseDate: customer.firstPurchaseDate,
-      lastPurchaseDate: customer.lastPurchaseDate,
-      purchaseFrequency: calculatePurchaseFrequency(customer.firstPurchaseDate, customer.lastPurchaseDate, customer.purchaseCount),
-      models: [],
-      monthlySpending: []
-    }));
+    .map(customer => {
+      // 月別支出を集計
+      const monthlySpendingMap = new Map<string, { year: number; month: number; amount: number; transactions: number }>();
+      customer.purchases.forEach(purchase => {
+        const date = new Date(purchase.日付 || new Date().toISOString());
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+        
+        if (!monthlySpendingMap.has(monthKey)) {
+          monthlySpendingMap.set(monthKey, { year, month, amount: 0, transactions: 0 });
+        }
+        
+        const monthData = monthlySpendingMap.get(monthKey)!;
+        const amount = typeof purchase.金額 === 'number' ? purchase.金額 : Number(purchase.金額) || 0;
+        monthData.amount += amount;
+        monthData.transactions += 1;
+      });
+      
+      const monthlySpending = Array.from(monthlySpendingMap.values())
+        .sort((a, b) => a.year - b.year || a.month - b.month);
+      
+      return {
+        buyerName: customer.name,
+        totalTransactions: customer.purchaseCount,
+        totalSpent: customer.totalSpent,
+        averageTransactionValue: customer.totalSpent / customer.purchaseCount,
+        firstPurchaseDate: customer.firstPurchaseDate,
+        lastPurchaseDate: customer.lastPurchaseDate,
+        purchaseFrequency: calculatePurchaseFrequency(customer.firstPurchaseDate, customer.lastPurchaseDate, customer.purchaseCount),
+        models: [], // モデル別データ（将来の拡張用）
+        monthlySpending
+      };
+    })
+    .sort((a, b) => b.totalSpent - a.totalSpent);
 
   // 顧客セグメント分析（修正版）
   const sortedCustomers = customers.sort((a, b) => b.totalSpent - a.totalSpent);
@@ -556,4 +673,155 @@ export const analyzeCustomerData = (data: FanClubRevenueData[]): CustomerAnalysi
 
 export const formatPercentage = (value: number): string => {
   return `${value.toFixed(1)}%`;
+};
+
+// リピーター顧客の詳細情報を取得（購入タイプ別）
+export interface CustomerDetailInfo extends RepeatCustomer {
+  planPurchaseCount: number;  // プラン購入回数
+  singlePurchaseCount: number;  // 単品購入回数
+  tipCount: number;  // チップ回数（対象が「チップ」や「投げ銭」などを含む場合）
+  planTotal: number;  // プラン購入合計額
+  singleTotal: number;  // 単品購入合計額
+  tipTotal: number;  // チップ合計額
+  purchases: FanClubRevenueData[];  // 全購入履歴
+}
+
+export const getCustomerDetailInfo = (data: FanClubRevenueData[]): CustomerDetailInfo[] => {
+  // データが配列でない場合は空の結果を返す
+  if (!Array.isArray(data) || data.length === 0) {
+    return [];
+  }
+
+  // 顧客ごとの購入データを集計
+  const customerData = new Map<string, {
+    name: string;
+    totalSpent: number;
+    purchaseCount: number;
+    planPurchaseCount: number;
+    singlePurchaseCount: number;
+    tipCount: number;
+    planTotal: number;
+    singleTotal: number;
+    tipTotal: number;
+    purchases: FanClubRevenueData[];
+    firstPurchaseDate: string;
+    lastPurchaseDate: string;
+  }>();
+
+  data.forEach(record => {
+    const customerName = record.購入者 || record.顧客名 || '不明';
+    const amount = typeof record.金額 === 'number' ? record.金額 : Number(record.金額) || 0;
+    const purchaseDate = record.日付 || '';
+    const purchaseType = record.種類 || '';
+    const target = (record.対象 || '').toLowerCase();
+    
+    
+    // チップかどうかを判定（対象に「チップ」「投げ銭」「tip」などが含まれる場合）
+    const isTip = target.includes('チップ') || target.includes('投げ銭') || target.includes('tip') || target.includes('donation');
+    
+    if (!customerData.has(customerName)) {
+      customerData.set(customerName, {
+        name: customerName,
+        totalSpent: 0,
+        purchaseCount: 0,
+        planPurchaseCount: 0,
+        singlePurchaseCount: 0,
+        tipCount: 0,
+        planTotal: 0,
+        singleTotal: 0,
+        tipTotal: 0,
+        purchases: [],
+        firstPurchaseDate: '',
+        lastPurchaseDate: ''
+      });
+    }
+    
+    const customer = customerData.get(customerName)!;
+    customer.totalSpent += amount;
+    customer.purchaseCount += 1;
+    customer.purchases.push(record);
+    
+    // 購入タイプ別に集計
+    if (isTip) {
+      customer.tipCount += 1;
+      customer.tipTotal += amount;
+    } else if (purchaseType === 'プラン購入') {
+      customer.planPurchaseCount += 1;
+      customer.planTotal += amount;
+    } else if (purchaseType === '単品販売') {
+      customer.singlePurchaseCount += 1;
+      customer.singleTotal += amount;
+    }
+    
+    // 最初と最後の購入日を更新（日付が有効な場合のみ）
+    if (purchaseDate) {
+      // 初回購入日が空、または現在の日付の方が古い場合
+      if (!customer.firstPurchaseDate || purchaseDate < customer.firstPurchaseDate) {
+        customer.firstPurchaseDate = purchaseDate;
+      }
+      // 最終購入日が空、または現在の日付の方が新しい場合
+      if (!customer.lastPurchaseDate || purchaseDate > customer.lastPurchaseDate) {
+        customer.lastPurchaseDate = purchaseDate;
+      }
+    }
+  });
+
+  // リピーター（2回以上購入）のみを返す
+  return Array.from(customerData.values())
+    .filter(c => c.purchaseCount > 1)
+    .map(customer => {
+      // 月別支出を集計
+      const monthlySpendingMap = new Map<string, { year: number; month: number; amount: number; transactions: number }>();
+      customer.purchases.forEach(purchase => {
+        // 日付が存在しない、または無効な場合はスキップ
+        if (!purchase.日付) {
+          console.warn('日付がありません:', purchase);
+          return;
+        }
+        
+        const date = new Date(purchase.日付);
+        
+        // 無効な日付の場合はスキップ
+        if (isNaN(date.getTime())) {
+          console.warn('無効な日付:', purchase.日付);
+          return;
+        }
+        
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+        
+        if (!monthlySpendingMap.has(monthKey)) {
+          monthlySpendingMap.set(monthKey, { year, month, amount: 0, transactions: 0 });
+        }
+        
+        const monthData = monthlySpendingMap.get(monthKey)!;
+        const amount = typeof purchase.金額 === 'number' ? purchase.金額 : Number(purchase.金額) || 0;
+        monthData.amount += amount;
+        monthData.transactions += 1;
+      });
+      
+      const monthlySpending = Array.from(monthlySpendingMap.values())
+        .sort((a, b) => a.year - b.year || a.month - b.month);
+      
+      return {
+        buyerName: customer.name,
+        totalTransactions: customer.purchaseCount,
+        totalSpent: customer.totalSpent,
+        averageTransactionValue: customer.totalSpent / customer.purchaseCount,
+        firstPurchaseDate: customer.firstPurchaseDate,
+        lastPurchaseDate: customer.lastPurchaseDate,
+        purchaseFrequency: calculatePurchaseFrequency(customer.firstPurchaseDate, customer.lastPurchaseDate, customer.purchaseCount),
+        models: [],
+        monthlySpending,
+        planPurchaseCount: customer.planPurchaseCount,
+        singlePurchaseCount: customer.singlePurchaseCount,
+        tipCount: customer.tipCount,
+        planTotal: customer.planTotal,
+        singleTotal: customer.singleTotal,
+        tipTotal: customer.tipTotal,
+        purchases: customer.purchases
+      };
+    })
+    .sort((a, b) => b.totalSpent - a.totalSpent);
 };

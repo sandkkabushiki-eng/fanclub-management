@@ -1,4 +1,12 @@
 import { ModelMonthlyData } from '@/types/csv';
+import { authManager } from '@/lib/auth';
+
+// ユーザーIDを含むストレージキーを生成
+const getUserStorageKey = (baseKey: string): string => {
+  const currentUser = authManager.getCurrentUser();
+  const userId = currentUser?.id || 'default';
+  return `${baseKey}-${userId}`;
+};
 
 // 月別データの管理
 export const getYearMonthOptions = () => {
@@ -24,7 +32,8 @@ export const formatYearMonth = (year: number, month: number): string => {
 
 // 月別データの取得
 export const getMonthlyData = (): ModelMonthlyData[] => {
-  const data = localStorage.getItem('fanclub-model-data');
+  const userKey = getUserStorageKey('fanclub-model-data');
+  const data = localStorage.getItem(userKey);
   return data ? JSON.parse(data) : [];
 };
 

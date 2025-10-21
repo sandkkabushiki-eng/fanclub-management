@@ -47,35 +47,32 @@ export class UserDataManager {
   // ユーザー専用のモデル一覧を取得
   async getUserModels(): Promise<Model[]> {
     try {
-      // まずuser_idでフィルタリングを試行
-      let { data, error } = await supabaseAdmin
+      // ユーザー固有のモデルのみを取得（他のユーザーのデータは絶対に取得しない）
+      const { data, error } = await supabaseAdmin
         .from('models')
         .select('*')
         .eq('user_id', this.userId)
         .order('created_at', { ascending: true });
 
-      // user_idでデータが見つからない場合は、全モデルを取得（フォールバック）
-      if (error || !data || data.length === 0) {
-        console.log('No user-specific models found, fetching all models as fallback');
-        const fallbackResult = await supabaseAdmin
-          .from('models')
-          .select('*')
-          .order('created_at', { ascending: true });
-        
-        data = fallbackResult.data;
-        error = fallbackResult.error;
-      }
-
       if (error) {
-        console.error('User models fetch error:', error);
+        console.error('🔒 User models fetch error:', error);
         return [];
       }
 
+      // データが見つからない場合も空配列を返す（セキュリティ上、他のユーザーのデータは返さない）
+      if (!data || data.length === 0) {
+        console.log('🔒 このユーザーにはモデルがありません:', this.userId);
+        return [];
+      }
+
+      console.log('🔒 ユーザー固有のモデルを取得:', data.length, '件 (user_id:', this.userId, ')');
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (data || []).map((row: any) => ({
+      return data.map((row: any) => ({
         id: row.id,
         name: row.name,
         displayName: row.display_name,
+        isMainModel: row.is_main_model || false,
         status: 'active' as const,
         createdAt: row.created_at,
         updatedAt: row.updated_at
@@ -108,40 +105,31 @@ export class UserDataManager {
         query = query.eq('model_id', modelId);
       }
 
-      let { data, error } = await query
+      const { data, error } = await query
         .order('year', { ascending: false })
         .order('month', { ascending: false });
 
-      // user_idでデータが見つからない場合は、全データを取得（フォールバック）
-      if (error || !data || data.length === 0) {
-        console.log('No user-specific monthly data found, fetching all data as fallback');
-        let fallbackQuery = supabaseAdmin
-          .from('monthly_data')
-          .select('*');
-
-        if (modelId) {
-          fallbackQuery = fallbackQuery.eq('model_id', modelId);
-        }
-
-        const fallbackResult = await fallbackQuery
-          .order('year', { ascending: false })
-          .order('month', { ascending: false });
-        
-        data = fallbackResult.data;
-        error = fallbackResult.error;
-      }
-
+      // エラーがある場合は空配列を返す（セキュリティ上、他のユーザーのデータは絶対に返さない）
       if (error) {
-        console.error('User monthly data fetch error:', error);
+        console.error('🔒 User monthly data fetch error:', error);
         return [];
       }
 
-      return data || [];
+      // データが見つからない場合も空配列を返す
+      if (!data || data.length === 0) {
+        console.log('🔒 このユーザーには月別データがありません:', this.userId);
+        return [];
+      }
+
+      console.log('🔒 ユーザー固有の月別データを取得:', data.length, '件 (user_id:', this.userId, ')');
+
+      return data;
     } catch (error) {
       console.error('User monthly data fetch error:', error);
       return [];
     }
   }
+
 
   // ユーザー専用のデータを削除
   async deleteUserModel(modelId: string): Promise<boolean> {

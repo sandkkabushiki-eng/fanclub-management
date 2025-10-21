@@ -18,6 +18,7 @@ import ModelDataManagement from '@/components/ModelDataManagement';
 import NotificationSystem, { Notification, generateNotifications } from '@/components/NotificationSystem';
 import SecureAuth from '@/components/SecureAuth';
 import AdminDashboard from '@/components/AdminDashboard';
+import FanClubDashboard from '@/components/FanClubDashboard';
 import { authManager } from '@/lib/auth';
 import { AuthSession } from '@/types/auth';
 
@@ -155,7 +156,7 @@ export default function Home() {
         }
         
         // 月別データをクラウドに保存
-        const success = await saveModelMonthlyDataToSupabase(modelId, year, month, data as FanClubRevenueData[]);
+        const success = await saveModelMonthlyDataToSupabase(modelId, model?.displayName || 'Unknown', year, month, data as FanClubRevenueData[]);
         
         if (success) {
           setMessage('✅ データが正常にアップロードされ、全員に自動共有されました！');
@@ -288,6 +289,9 @@ export default function Home() {
     return <AdminDashboard onLogout={handleLogout} />;
   }
 
+  // 新しいモダンなダッシュボードを表示
+  return <FanClubDashboard />;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* ヘッダー */}
@@ -315,12 +319,12 @@ export default function Home() {
               <div className="hidden md:flex items-center space-x-3 px-4 py-2 bg-blue-50/80 rounded-2xl">
                 <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center">
                   <span className="text-blue-700 text-sm font-medium">
-                    {authSession.user.name.charAt(0)}
+                    {authSession?.user?.name?.charAt(0) || 'U'}
                   </span>
                 </div>
                 <div className="text-sm">
-                  <p className="font-medium text-blue-900">{authSession.user.name}</p>
-                  <p className="text-blue-600">{authSession.user.email}</p>
+                  <p className="font-medium text-blue-900">{authSession?.user?.name || 'User'}</p>
+                  <p className="text-blue-600">{authSession?.user?.email || 'user@example.com'}</p>
                 </div>
               </div>
               

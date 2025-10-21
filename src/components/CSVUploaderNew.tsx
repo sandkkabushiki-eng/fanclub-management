@@ -107,112 +107,132 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
 
   return (
     <div className="space-y-6">
+      {/* ヘッダー */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xl font-semibold text-gray-900">CSVデータアップロード</h3>
+          <p className="text-sm text-gray-600 mt-1">ファンクラブの売上データをCSVファイルでアップロードできます</p>
+        </div>
+      </div>
+
       {/* ファイルアップロード */}
       <div className="text-center">
         <div
-          className={`border-2 border-dashed rounded-lg p-8 transition-colors ${
+          className={`border-2 border-dashed rounded-xl p-12 transition-all duration-200 ${
             isDragging 
-              ? 'border-blue-500 bg-blue-50' 
-              : 'border-blue-300 hover:border-blue-400'
+              ? 'border-blue-500 bg-blue-50 shadow-lg' 
+              : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
           }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
         >
-          <Upload className="h-12 w-12 text-blue-500 mx-auto mb-4" />
-          <p className="text-lg font-medium text-gray-700 mb-2">
-            CSVファイルをドラッグ&ドロップ
-          </p>
-          <p className="text-sm text-gray-500 mb-4">
-            または
-          </p>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            ファイルを選択
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleFileInput}
-            className="hidden"
-          />
+          <div className="flex flex-col items-center">
+            <div className="p-4 bg-blue-100 rounded-full mb-4">
+              <Upload className="h-8 w-8 text-blue-600" />
+            </div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">
+              CSVファイルをアップロード
+            </h4>
+            <p className="text-sm text-gray-600 mb-6 max-w-md">
+              ファイルをドラッグ&ドロップするか、下のボタンから選択してください
+            </p>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+            >
+              ファイルを選択
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileInput}
+              className="hidden"
+            />
+          </div>
         </div>
       </div>
 
       {/* ファイル情報 */}
       {fileName && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center space-x-2">
-            <FileText className="h-5 w-5 text-green-600" />
-            <span className="text-green-800 font-medium">{fileName}</span>
-            <CheckCircle className="h-5 w-5 text-green-600" />
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <FileText className="h-5 w-5 text-green-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-green-800">{fileName}</p>
+              <p className="text-xs text-green-600">ファイルが正常に読み込まれました</p>
+            </div>
+            <CheckCircle className="h-6 w-6 text-green-600" />
           </div>
         </div>
       )}
 
       {/* 設定 */}
       {parsedData && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* 年月選択 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Calendar className="h-4 w-4 inline mr-1" />
-              年月
-            </label>
-            <div className="flex space-x-2">
+        <div className="bg-gray-50 rounded-xl p-6">
+          <h4 className="text-lg font-semibold text-gray-900 mb-4">アップロード設定</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* 年月選択 */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                <Calendar className="h-4 w-4 inline mr-2" />
+                年月設定
+              </label>
+              <div className="flex space-x-3">
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                >
+                  {generateYearOptions().map(year => (
+                    <option key={year} value={year}>{year}年</option>
+                  ))}
+                </select>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                >
+                  {generateMonthOptions().map(month => (
+                    <option key={month} value={month}>{month}月</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* モデル選択 */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                <Users className="h-4 w-4 inline mr-2" />
+                モデル選択
+              </label>
               <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={selectedModelId}
+                onChange={(e) => setSelectedModelId(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
               >
-                {generateYearOptions().map(year => (
-                  <option key={year} value={year}>{year}年</option>
-                ))}
-              </select>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {generateMonthOptions().map(month => (
-                  <option key={month} value={month}>{month}月</option>
+                <option value="">モデルを選択してください</option>
+                {models.map(model => (
+                  <option key={model.id} value={model.id}>
+                    {model.displayName}
+                  </option>
                 ))}
               </select>
             </div>
-          </div>
 
-          {/* モデル選択 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Users className="h-4 w-4 inline mr-1" />
-              モデル
-            </label>
-            <select
-              value={selectedModelId}
-              onChange={(e) => setSelectedModelId(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">モデルを選択</option>
-              {models.map(model => (
-                <option key={model.id} value={model.id}>
-                  {model.displayName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* アップロードボタン */}
-          <div className="flex items-end">
-            <button
-              onClick={handleUpload}
-              disabled={isLoading}
-              className="w-full bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
-            >
-              {isLoading ? '処理中...' : 'アップロード'}
-            </button>
+            {/* アップロードボタン */}
+            <div className="flex items-end">
+              <button
+                onClick={handleUpload}
+                disabled={isLoading}
+                className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors font-semibold shadow-sm"
+              >
+                {isLoading ? '処理中...' : 'データをアップロード'}
+              </button>
+            </div>
           </div>
         </div>
       )}

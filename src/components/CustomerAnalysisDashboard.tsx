@@ -22,10 +22,17 @@ export default function CustomerAnalysisDashboard({ selectedModelId }: CustomerA
         console.log('Loading model data for customer analysis...');
         console.log('Selected model ID:', selectedModelId);
         
-        // まず全データを取得してからフィルタリング
+        // 現在のユーザーのデータのみ取得
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error('🔒 ユーザーが認証されていません');
+          return;
+        }
+        
         const { data: monthlyData, error } = await supabase
           .from('monthly_data')
           .select('*')
+          .eq('user_id', user.id)
           .order('year', { ascending: false })
           .order('month', { ascending: false });
           

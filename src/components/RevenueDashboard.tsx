@@ -22,10 +22,17 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
         console.log('Loading model data for revenue dashboard...');
         console.log('Selected model ID:', selectedModelId);
         
-        // まず全データを取得してからフィルタリング
+        // 現在のユーザーのデータのみ取得
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error('ユーザーが認証されていません');
+          return;
+        }
+        
         const { data: monthlyData, error } = await supabase
           .from('monthly_data')
           .select('*')
+          .eq('user_id', user.id)
           .order('year', { ascending: false })
           .order('month', { ascending: false });
           
@@ -37,8 +44,8 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
         } else if (monthlyData && monthlyData.length > 0) {
           console.log('Found monthly data from Supabase:', monthlyData.length, 'records');
           
-          // 選択されたモデルのデータのみをフィルタリング
-          const filteredData = selectedModelId 
+          // 選択されたモデルのデータのみをフィルタリング（"all"の場合は全データ）
+          const filteredData = selectedModelId && selectedModelId !== 'all'
             ? monthlyData.filter(row => row.model_id === selectedModelId)
             : monthlyData;
             
@@ -64,7 +71,7 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
         } else {
           console.log('No monthly data in Supabase, using local storage');
           const localData = getModelMonthlyData();
-          const filteredLocalData = selectedModelId 
+          const filteredLocalData = selectedModelId && selectedModelId !== 'all'
             ? localData.filter(d => d.modelId === selectedModelId)
             : localData;
           console.log('Local model data count:', filteredLocalData.length);
@@ -73,7 +80,7 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
       } catch (error) {
         console.error('Error loading model data:', error);
         const localData = getModelMonthlyData();
-        const filteredLocalData = selectedModelId 
+        const filteredLocalData = selectedModelId && selectedModelId !== 'all'
           ? localData.filter(d => d.modelId === selectedModelId)
           : localData;
         console.log('Fallback to local model data:', filteredLocalData.length);
@@ -87,19 +94,31 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
   useEffect(() => {
     if (modelData.length > 0) {
       const allData = modelData.flatMap(d => d.data);
-      setAnalysis(analyzeFanClubRevenue(allData));
+      console.log('RevenueDashboard - Total data count:', allData.length);
+      console.log('RevenueDashboard - Sample data:', allData.slice(0, 3));
+      console.log('RevenueDashboard - Model data months:', modelData.map(d => `${d.year}-${d.month}`));
+      const analysis = analyzeFanClubRevenue(allData);
+      console.log('RevenueDashboard - Monthly revenue:', analysis.monthlyRevenue);
+      setAnalysis(analysis);
     } else {
       setAnalysis(null);
     }
   }, [modelData]);
 
-  const COLORS = ['#dc2626', '#059669', '#d97706', '#7c3aed', '#db2777'];
+  const COLORS = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe'];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <BarChart3 className="h-8 w-8 text-red-600" />
-        <h2 className="text-2xl font-bold text-red-600">売上分析</h2>
+      {/* ヘッダー */}
+      <div className="bg-white rounded-lg p-6 border border-gray-200">
+        <h1 className="text-2xl font-semibold text-gray-900 mb-2">
+          {selectedModelId === 'all' ? '全体売上分析' : '売上分析'}
+        </h1>
+        <p className="text-gray-600">
+          {selectedModelId === 'all' 
+            ? '全モデルの統合売上データの分析とレポート' 
+            : '詳細な売上データの分析とレポート'}
+        </p>
       </div>
 
       {/* 分析結果 */}
@@ -107,51 +126,51 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
         <div className="space-y-6">
           {/* 基本統計 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white border border-red-200 rounded-lg p-4">
-              <div className="flex items-center space-x-3">
-                <DollarSign className="h-8 w-8 text-green-600" />
+            <div className="bg-white rounded-lg p-6 border border-gray-200">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">総売上</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm text-gray-600">総売上</p>
+                  <p className="text-2xl font-semibold text-gray-900">
                     {formatCurrency(analysis.totalRevenue)}
                   </p>
                 </div>
+                <DollarSign className="w-8 h-8 text-gray-400" />
               </div>
             </div>
 
-            <div className="bg-white border border-red-200 rounded-lg p-4">
-              <div className="flex items-center space-x-3">
-                <Users className="h-8 w-8 text-blue-600" />
+            <div className="bg-white rounded-lg p-6 border border-gray-200">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">総顧客数</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm text-gray-600">総顧客数</p>
+                  <p className="text-2xl font-semibold text-gray-900">
                     {analysis.totalCustomers}
                   </p>
                 </div>
+                <Users className="w-8 h-8 text-gray-400" />
               </div>
             </div>
 
-            <div className="bg-white border border-red-200 rounded-lg p-4">
-              <div className="flex items-center space-x-3">
-                <TrendingUp className="h-8 w-8 text-purple-600" />
+            <div className="bg-white rounded-lg p-6 border border-gray-200">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">平均購入額</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm text-gray-600">平均購入額</p>
+                  <p className="text-2xl font-semibold text-gray-900">
                     {formatCurrency(analysis.averageSpendingPerCustomer)}
                   </p>
                 </div>
+                <TrendingUp className="w-8 h-8 text-gray-400" />
               </div>
             </div>
 
-            <div className="bg-white border border-red-200 rounded-lg p-4">
-              <div className="flex items-center space-x-3">
-                <BarChart3 className="h-8 w-8 text-orange-600" />
+            <div className="bg-white rounded-lg p-6 border border-gray-200">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">リピート率</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm text-gray-600">リピート率</p>
+                  <p className="text-2xl font-semibold text-gray-900">
                     {analysis.repeatRate.toFixed(1)}%
                   </p>
                 </div>
+                <BarChart3 className="w-8 h-8 text-gray-400" />
               </div>
             </div>
           </div>
@@ -159,11 +178,8 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
           {/* グラフエリア */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 購入タイプ別円グラフ */}
-            <div className="bg-white border border-red-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                <PieChart className="h-5 w-5 text-red-600" />
-                <span>購入タイプ別売上</span>
-              </h3>
+            <div className="bg-white rounded-lg p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">購入タイプ別売上</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsPieChart>
@@ -189,15 +205,13 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
             </div>
 
             {/* 月別売上トレンド */}
-            <div className="bg-white border border-red-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-red-600" />
-                <span>月別売上分析</span>
-              </h3>
+            <div className="bg-white rounded-lg p-6 border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">月別売上分析</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={analysis.monthlyRevenue.map(item => ({
+                  <BarChart data={analysis.monthlyRevenue.map(item => ({
                     ...item,
+                    売上: item.revenue,
                     month: (() => {
                       const [year, monthNum] = item.month.split('-');
                       return `${year}年${parseInt(monthNum)}月`;
@@ -206,9 +220,9 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                    <Line type="monotone" dataKey="revenue" stroke="#dc2626" strokeWidth={3} />
-                  </LineChart>
+                    <Tooltip formatter={(value, name) => [formatCurrency(Number(value)), '売上']} />
+                    <Bar dataKey="売上" fill="#3b82f6" name="売上" />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
@@ -217,11 +231,8 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
 
           {/* 月別売上分析（プラン・単品統合） */}
           {modelData.length > 0 ? (
-            <div className="bg-white border border-red-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                <BarChart3 className="h-5 w-5 text-red-600" />
-                <span>月別売上分析</span>
-              </h3>
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">月別売上分析</h3>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={(() => {
@@ -283,17 +294,14 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
                       }}
                     />
                     <Bar dataKey="planRevenue" fill="#3b82f6" name="プラン売上" />
-                    <Bar dataKey="singleRevenue" fill="#10b981" name="単品売上" />
+                    <Bar dataKey="singleRevenue" fill="#60a5fa" name="単品売上" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
           ) : (
-            <div className="bg-white border border-red-200 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                <BarChart3 className="h-5 w-5 text-red-600" />
-                <span>月別売上分析</span>
-              </h3>
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">月別売上分析</h3>
               <div className="text-center py-8 text-gray-500">
                 <p>月別の売上データがありません</p>
                 <p className="text-sm mt-2">モデル管理で月データを登録してください</p>

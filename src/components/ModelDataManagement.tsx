@@ -9,14 +9,13 @@ import { getCurrentUserDataManager } from '@/utils/userDataUtils';
 import CSVDataEditor from './CSVDataEditor';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import RevenueDashboard from './RevenueDashboard';
-import CustomerAnalysisDashboard from './CustomerAnalysisDashboard';
-import OverallDashboard from './OverallDashboard';
 
 export default function ModelDataManagement() {
   const [models, setModels] = useState<Model[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>('');
   const [modelData, setModelData] = useState<ModelMonthlyData[]>([]);
-  const [activeTab, setActiveTab] = useState<'data' | 'revenue' | 'customers' | 'trends' | 'overall'>('data');
+  const [activeTab, setActiveTab] = useState<'data' | 'revenue' | 'trends'>('revenue');
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [editingData, setEditingData] = useState<{
     modelId: string;
     modelName: string;
@@ -46,12 +45,29 @@ export default function ModelDataManagement() {
           
           if (userModels.length > 0) {
             setModels(userModels);
+            // メインモデルが変更された可能性があるので、常にチェック
+            const mainModel = userModels.find(m => m.isMainModel);
+            if (isInitialLoad) {
+              setSelectedModelId(mainModel ? mainModel.id : userModels[0].id);
+              setIsInitialLoad(false);
+            } else if (mainModel && selectedModelId === '') {
+              // モデルが選択されていない場合はメインモデルを選択
+              setSelectedModelId(mainModel.id);
+            }
           } else {
             // ユーザー専用データが空の場合は、ローカルストレージからも取得
             console.log('No user models found, checking local storage...');
             const localModels = getModels();
             console.log('Local models found:', localModels.length, localModels);
             setModels(localModels);
+            // メインモデルが変更された可能性があるので、常にチェック
+            const mainModel = localModels.find(m => m.isMainModel);
+            if (isInitialLoad && localModels.length > 0) {
+              setSelectedModelId(mainModel ? mainModel.id : localModels[0].id);
+              setIsInitialLoad(false);
+            } else if (mainModel && selectedModelId === '') {
+              setSelectedModelId(mainModel.id);
+            }
           }
         } else {
           // フォールバック: ローカルストレージから取得
@@ -59,16 +75,53 @@ export default function ModelDataManagement() {
           const localModels = getModels();
           console.log('Local models:', localModels.length, localModels);
           setModels(localModels);
+          // メインモデルが変更された可能性があるので、常にチェック
+          const mainModel = localModels.find(m => m.isMainModel);
+          if (isInitialLoad && localModels.length > 0) {
+            setSelectedModelId(mainModel ? mainModel.id : localModels[0].id);
+            setIsInitialLoad(false);
+          } else if (mainModel && selectedModelId === '') {
+            setSelectedModelId(mainModel.id);
+          }
         }
       } catch (error) {
         console.error('Error loading models:', error);
         const localModels = getModels();
         console.log('Fallback to local models:', localModels.length, localModels);
         setModels(localModels);
+        // メインモデルが変更された可能性があるので、常にチェック
+        const mainModel = localModels.find(m => m.isMainModel);
+        if (isInitialLoad && localModels.length > 0) {
+          setSelectedModelId(mainModel ? mainModel.id : localModels[0].id);
+          setIsInitialLoad(false);
+        } else if (mainModel && selectedModelId === '') {
+          setSelectedModelId(mainModel.id);
+        }
       }
     };
 
     loadModels();
+  }, []);
+
+  // メインモデル変更イベントをリッスン
+  useEffect(() => {
+    const handleMainModelChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { modelId } = customEvent.detail;
+      console.log('売上分析: メインモデル変更イベント受信:', modelId);
+      // モデルリストを再読み込み
+      const modelsData = getModels();
+      setModels(modelsData);
+      // 売上分析のモデル選択をメインモデルに更新
+      setSelectedModelId(modelId);
+      setIsInitialLoad(false);
+    };
+
+    window.addEventListener('mainModelChanged', handleMainModelChange);
+    
+    return () => {
+      window.removeEventListener('mainModelChanged', handleMainModelChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -246,10 +299,8 @@ export default function ModelDataManagement() {
   };
 
   const tabs = [
-    { id: 'data' as const, label: 'データ管理', icon: Calendar },
     { id: 'revenue' as const, label: '売上分析', icon: DollarSign },
-    { id: 'customers' as const, label: '顧客分析', icon: Users },
-    { id: 'overall' as const, label: '全体ダッシュボード', icon: BarChart3 },
+    { id: 'data' as const, label: 'データ管理', icon: Calendar },
   ];
 
   return (
@@ -281,95 +332,55 @@ export default function ModelDataManagement() {
         })}
       </div>
 
-      {/* モデル選択（全体ダッシュボード以外では表示） */}
-      {activeTab !== 'overall' && (
-        <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <User className="h-5 w-5 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">モデル選択</h3>
-          </div>
-          
+      {/* モデル選択 */}
+      <div className="bg-white rounded-lg p-6 border border-gray-200">
           {models.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-xl">
-              <User className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+            <div className="text-center py-8 text-gray-500">
+              <User className="w-12 h-12 mx-auto mb-2 text-gray-400" />
               <p>モデルが登録されていません</p>
               <p className="text-sm">モデル管理タブでモデルを追加してください</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {models.map(model => (
-                <div
-                  key={model.id}
-                  onClick={() => setSelectedModelId(model.id)}
-                  className={`relative cursor-pointer transition-all duration-200 transform hover:scale-105 ${
-                    selectedModelId === model.id
-                      ? 'ring-2 ring-blue-500 shadow-lg'
-                      : 'hover:shadow-md'
-                  }`}
-                >
-                  <div className={`bg-gradient-to-br from-white to-gray-50 rounded-xl p-6 border-2 transition-all duration-200 ${
-                    selectedModelId === model.id
-                      ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-white'
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}>
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                        selectedModelId === model.id
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-200 text-gray-600'
-                      }`}>
-                        <User className="h-6 w-6" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className={`font-semibold truncate ${
-                          selectedModelId === model.id ? 'text-blue-700' : 'text-gray-900'
-                        }`}>
-                          {model.displayName}
-                        </h4>
-                        <p className={`text-sm truncate ${
-                          selectedModelId === model.id ? 'text-blue-600' : 'text-gray-500'
-                        }`}>
-                          {model.name}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {selectedModelId === model.id && (
-                      <div className="absolute top-2 right-2">
-                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center space-x-3">
+              <label htmlFor="revenue-model-select" className="text-sm font-medium text-gray-700">
+                モデル選択:
+              </label>
+              <select
+                id="revenue-model-select"
+                value={selectedModelId}
+                onChange={(e) => setSelectedModelId(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white text-gray-900 min-w-[200px]"
+              >
+                <option value="all">全体売上</option>
+                {models.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.isMainModel ? '⭐ ' : ''}{model.displayName}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>
-      )}
 
       {/* タブコンテンツ */}
       {activeTab === 'data' && selectedModelId && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            月別データ一覧
-          </h3>
+        <div className="bg-white rounded-lg p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">月別データ一覧</h3>
           
           {modelData.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 bg-gradient-to-br from-gray-50 to-white rounded-xl border-2 border-dashed border-gray-300">
-              <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-semibold mb-2">データがありません</h3>
+            <div className="text-center py-12 text-gray-500">
+              <Calendar className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+              <p className="font-medium">データがありません</p>
               <p className="text-sm">CSVアップロードタブでデータをアップロードしてください</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {modelData.map((data) => (
-                <div key={`${data.modelId}-${data.year}-${data.month}`} className="group bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-blue-300 transition-all duration-200 transform hover:scale-105">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                      <Calendar className="h-6 w-6 text-white" />
-                    </div>
+                <div key={`${data.modelId}-${data.year}-${data.month}`} className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <Calendar className="w-8 h-8 text-gray-400" />
                     <div className="flex-1">
-                      <h4 className="font-bold text-gray-900 text-lg">
+                      <h4 className="font-semibold text-gray-900">
                         {formatYearMonth(data.year, data.month)}
                       </h4>
                       <p className="text-sm text-gray-600">
@@ -378,19 +389,19 @@ export default function ModelDataManagement() {
                     </div>
                   </div>
                   
-                  <div className="flex space-x-3">
+                  <div className="flex space-x-2">
                     <button
                       onClick={() => handleEdit(data)}
-                      className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
+                      className="flex-1 bg-white border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center space-x-1"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit className="w-4 h-4" />
                       <span>編集</span>
                     </button>
                     <button
                       onClick={() => handleDelete(data)}
-                      className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
+                      className="flex-1 bg-white border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center space-x-1"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="w-4 h-4" />
                       <span>削除</span>
                     </button>
                   </div>
@@ -402,8 +413,6 @@ export default function ModelDataManagement() {
       )}
 
       {activeTab === 'revenue' && selectedModelId && <RevenueDashboard selectedModelId={selectedModelId} />}
-      {activeTab === 'customers' && selectedModelId && <CustomerAnalysisDashboard selectedModelId={selectedModelId} />}
-      {activeTab === 'overall' && <OverallDashboard />}
 
       {/* 編集ダイアログ */}
       {editingData && (

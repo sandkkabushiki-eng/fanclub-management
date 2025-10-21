@@ -237,6 +237,7 @@ export interface Model {
   displayName: string; // 表示用の名前
   description?: string;
   status: 'active' | 'inactive';
+  isMainModel?: boolean; // メインモデルフラグ
   createdAt: string;
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, User } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Star } from 'lucide-react';
 import { Model } from '@/types/csv';
 import { getModels, addModel, updateModel, deleteModel } from '@/utils/modelUtils';
 import { getCurrentUserDataManager } from '@/utils/userDataUtils';
@@ -95,6 +95,30 @@ export default function ModelManagement() {
       displayName: model.displayName
     });
     setShowForm(true);
+  };
+
+  const handleSetMainModel = async (modelId: string) => {
+    try {
+      // 全てのモデルのisMainModelをfalseにして、選択されたモデルだけtrueにする
+      const updatedModels = models.map(model => ({
+        ...model,
+        isMainModel: model.id === modelId
+      }));
+      
+      // 各モデルを更新
+      for (const model of updatedModels) {
+        await updateModel(model.id, model);
+      }
+      
+      setModels(updatedModels);
+      
+      // 他のコンポーネントに通知するためにカスタムイベントを発火
+      console.log('🌟 メインモデル変更イベント発火:', modelId);
+      window.dispatchEvent(new CustomEvent('mainModelChanged', { detail: { modelId } }));
+    } catch (error) {
+      console.error('Error setting main model:', error);
+      alert('メインモデルの設定中にエラーが発生しました。');
+    }
   };
 
   const handleDelete = async (modelId: string) => {
@@ -230,32 +254,60 @@ export default function ModelManagement() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {models.map((model) => (
-            <div key={model.id} className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105 group">
+            <div key={model.id} className={`bg-white border-2 rounded-2xl p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105 group ${
+              model.isMainModel ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-white' : 'border-gray-200'
+            }`}>
               <div className="flex items-center space-x-4 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300">
-                  <User className="h-6 w-6 text-white" />
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300 ${
+                  model.isMainModel 
+                    ? 'bg-gradient-to-br from-yellow-400 to-yellow-500'
+                    : 'bg-gradient-to-br from-blue-500 to-blue-600'
+                }`}>
+                  {model.isMainModel ? (
+                    <Star className="h-6 w-6 text-white" />
+                  ) : (
+                    <User className="h-6 w-6 text-white" />
+                  )}
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-gray-900 text-lg">{model.displayName}</h3>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="font-bold text-gray-900 text-lg">{model.displayName}</h3>
+                    {model.isMainModel && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800">
+                        メイン
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500 font-mono">{model.name}</p>
                 </div>
               </div>
               
-              <div className="flex gap-3">
-                <button
-                  onClick={() => handleEdit(model)}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-xl text-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transform hover:scale-105"
-                >
-                  <Edit className="h-4 w-4" />
-                  <span className="font-semibold">編集</span>
-                </button>
-                <button
-                  onClick={() => handleDelete(model.id)}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-xl text-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transform hover:scale-105"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span className="font-semibold">削除</span>
-                </button>
+              <div className="flex flex-col gap-2">
+                {!model.isMainModel && (
+                  <button
+                    onClick={() => handleSetMainModel(model.id)}
+                    className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 text-white px-4 py-2 rounded-xl text-sm hover:from-yellow-500 hover:to-yellow-600 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
+                  >
+                    <Star className="h-4 w-4" />
+                    <span className="font-semibold">メインに設定</span>
+                  </button>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleEdit(model)}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-xl text-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span className="font-semibold">編集</span>
+                  </button>
+                  <button
+                    onClick={() => handleDelete(model.id)}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-xl text-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="font-semibold">削除</span>
+                  </button>
+                </div>
               </div>
             </div>
           ))}

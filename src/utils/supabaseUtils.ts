@@ -14,18 +14,19 @@ export const saveModelToSupabase = async (model: Model, userId?: string): Promis
         id: model.id,
         name: model.name,
         display_name: model.displayName,
+        is_main_model: model.isMainModel || false,
         user_id: currentUserId,
         created_at: model.createdAt || new Date().toISOString(),
         updated_at: new Date().toISOString()
       });
 
     if (error) {
-      console.error('Error saving model:', error);
+      console.warn('Supabaseへのモデル保存をスキップ（開発中はローカルストレージのみ使用）:', error.message || error);
       return false;
     }
     return true;
   } catch (error) {
-    console.error('Error saving model:', error);
+    console.warn('Supabaseへのモデル保存をスキップ（開発中はローカルストレージのみ使用）');
     return false;
   }
 };
@@ -33,6 +34,7 @@ export const saveModelToSupabase = async (model: Model, userId?: string): Promis
 // 月別データをSupabaseに保存
 export const saveModelMonthlyDataToSupabase = async (
   modelId: string,
+  modelName: string,
   year: number,
   month: number,
   data: FanClubRevenueData[],
@@ -41,12 +43,20 @@ export const saveModelMonthlyDataToSupabase = async (
   try {
     const { data: { user } } = await supabase.auth.getUser();
     const currentUserId = userId || user?.id;
+    
+    // データが配列であることを確認
+    if (!Array.isArray(data)) {
+      console.error('Data is not an array:', data);
+      return false;
+    }
+    
     const analysis = analyzeFanClubRevenue(data);
     
-    // 既存のデータがあるかチェック
+    // 既存のデータがあるかチェック（セキュリティ: 自分のデータのみ）
     const { data: existingData, error: fetchError } = await supabase
       .from('monthly_data')
       .select('id')
+      .eq('user_id', currentUserId)
       .eq('model_id', modelId)
       .eq('year', year)
       .eq('month', month)
@@ -58,7 +68,7 @@ export const saveModelMonthlyDataToSupabase = async (
     }
 
     if (existingData) {
-      // 既存データを更新
+      // 既存データを更新（セキュリティ: 自分のデータのみ更新）
       const { error } = await supabase
         .from('monthly_data')
         .update({
@@ -67,7 +77,8 @@ export const saveModelMonthlyDataToSupabase = async (
           user_id: currentUserId,
           updated_at: new Date().toISOString()
         })
-        .eq('id', existingData.id);
+        .eq('id', existingData.id)
+        .eq('user_id', currentUserId);
 
       if (error) {
         console.error('Error updating monthly data:', error);
@@ -103,11 +114,21 @@ export const saveModelMonthlyDataToSupabase = async (
 };
 
 // Supabaseからモデル一覧を取得
-export const getModelsFromSupabase = async (): Promise<Model[]> => {
+export const getModelsFromSupabase = async (userId?: string): Promise<Model[]> => {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentUserId = userId || user?.id;
+    
+    if (!currentUserId) {
+      console.error('🔒 ユーザーが認証されていません');
+      return [];
+    }
+    
+    // セキュリティ: 自分のモデルのみ取得
     const { data, error } = await supabase
       .from('models')
       .select('*')
+      .eq('user_id', currentUserId)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -115,10 +136,13 @@ export const getModelsFromSupabase = async (): Promise<Model[]> => {
       return [];
     }
 
-    return data.map(row => ({
+    console.log('🔒 ユーザー固有のモデルを取得:', data?.length || 0, '件');
+
+    return (data || []).map(row => ({
       id: row.id,
       name: row.name,
       displayName: row.display_name,
+      isMainModel: row.is_main_model || false,
       status: 'active' as const,
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -130,11 +154,21 @@ export const getModelsFromSupabase = async (): Promise<Model[]> => {
 };
 
 // Supabaseから月別データを取得
-export const getModelMonthlyDataFromSupabase = async (): Promise<ModelMonthlyData[]> => {
+export const getModelMonthlyDataFromSupabase = async (userId?: string): Promise<ModelMonthlyData[]> => {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentUserId = userId || user?.id;
+    
+    if (!currentUserId) {
+      console.error('🔒 ユーザーが認証されていません');
+      return [];
+    }
+    
+    // セキュリティ: 自分のデータのみ取得
     const { data, error } = await supabase
       .from('monthly_data')
       .select('*')
+      .eq('user_id', currentUserId)
       .order('year', { ascending: false })
       .order('month', { ascending: false });
 
@@ -143,7 +177,9 @@ export const getModelMonthlyDataFromSupabase = async (): Promise<ModelMonthlyDat
       return [];
     }
 
-    return data.map(row => ({
+    console.log('🔒 ユーザー固有の月別データを取得:', data?.length || 0, '件');
+
+    return (data || []).map(row => ({
       id: row.id,
       modelId: row.model_id,
       modelName: '',
@@ -163,19 +199,29 @@ export const getModelMonthlyDataFromSupabase = async (): Promise<ModelMonthlyDat
 };
 
 // Supabaseからモデルを削除
-export const deleteModelFromSupabase = async (modelId: string): Promise<boolean> => {
+export const deleteModelFromSupabase = async (modelId: string, userId?: string): Promise<boolean> => {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentUserId = userId || user?.id;
+    
+    if (!currentUserId) {
+      console.error('🔒 ユーザーが認証されていません');
+      return false;
+    }
+    
+    // セキュリティ: 自分のモデルのみ削除
     const { error } = await supabase
       .from('models')
       .delete()
-      .eq('id', modelId);
+      .eq('id', modelId)
+      .eq('user_id', currentUserId);
 
     if (error) {
       console.error('Error deleting model from Supabase:', error);
       return false;
     }
     
-    console.log('Model deleted from Supabase successfully');
+    console.log('🔒 ユーザー固有のモデルを削除しました');
     return true;
   } catch (error) {
     console.error('Error deleting model:', error);
@@ -187,12 +233,23 @@ export const deleteModelFromSupabase = async (modelId: string): Promise<boolean>
 export const deleteModelMonthlyDataFromSupabase = async (
   modelId: string,
   year: number,
-  month: number
+  month: number,
+  userId?: string
 ): Promise<boolean> => {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const currentUserId = userId || user?.id;
+    
+    if (!currentUserId) {
+      console.error('🔒 ユーザーが認証されていません');
+      return false;
+    }
+    
+    // セキュリティ: 自分のデータのみ削除
     const { error } = await supabase
       .from('monthly_data')
       .delete()
+      .eq('user_id', currentUserId)
       .eq('model_id', modelId)
       .eq('year', year)
       .eq('month', month);
@@ -202,7 +259,7 @@ export const deleteModelMonthlyDataFromSupabase = async (
       return false;
     }
     
-    console.log('Monthly data deleted from Supabase successfully');
+    console.log('🔒 ユーザー固有のデータを削除しました');
     return true;
   } catch (error) {
     console.error('Error deleting monthly data:', error);

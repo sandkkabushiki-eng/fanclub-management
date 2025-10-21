@@ -34,10 +34,18 @@ export default function OverallDashboard() {
       try {
         console.log('Loading model data for overall dashboard...');
         
-        // まずモデル情報を取得
+        // 現在のユーザーを取得
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error('ユーザーが認証されていません');
+          return;
+        }
+        
+        // ユーザーのモデル情報のみ取得
         const { data: modelsData, error: modelsError } = await supabase
           .from('models')
-          .select('*');
+          .select('*')
+          .eq('user_id', user.id);
           
         if (!modelsError && modelsData) {
           const formattedModels = modelsData.map(m => ({
@@ -48,10 +56,11 @@ export default function OverallDashboard() {
           console.log('Loaded models:', formattedModels.length);
         }
         
-        // Supabaseから全月別データを取得
+        // ユーザーの月別データのみ取得
         const { data: monthlyData, error } = await supabase
           .from('monthly_data')
           .select('*')
+          .eq('user_id', user.id)
           .order('year', { ascending: false })
           .order('month', { ascending: false });
           
