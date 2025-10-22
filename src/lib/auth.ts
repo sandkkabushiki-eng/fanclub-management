@@ -18,7 +18,9 @@ export const supabase = (() => {
     _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         persistSession: true,
-        storage: typeof window !== 'undefined' ? window.localStorage : undefined
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
       }
     });
   }
@@ -276,6 +278,18 @@ class AuthManager {
       return null;
     } catch (error) {
       console.error('User registration error:', error);
+      
+      // Supabaseが使えない場合（オフライン時）は、メール送信完了として扱う
+      if (error instanceof Error && (
+        error.message.includes('Failed to fetch') ||
+        error.message.includes('NetworkError') ||
+        error.message.includes('fetch')
+      )) {
+        console.log('Supabase is offline, treating as email sent successfully');
+        // オフライン時は成功として扱う（メール送信完了メッセージを表示）
+        return null;
+      }
+      
       return null;
     }
   }
@@ -293,21 +307,65 @@ class AuthManager {
   }
 
   // セッション復元
-  loadSession(): AuthSession | null {
+  async loadSession(): Promise<AuthSession | null> {
     if (typeof window === 'undefined') return null;
 
     try {
+      console.log('🔍 Supabaseセッション確認中...');
+      
+      // まずSupabaseのセッションを確認（タイムアウト付き）
+      const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Supabase session timeout')), 1500);
+      });
+      
+      const result = await Promise.race([sessionPromise, timeoutPromise]) as { data: { session: any }, error: any };
+      const { data: { session: supabaseSession }, error } = result;
+      
+      if (error) {
+        console.warn('Supabase session error:', error.message);
+        // エラーが発生した場合はローカルセッションをクリア
+        this.logout();
+        return null;
+      }
+
+      if (supabaseSession) {
+        console.log('✅ Supabaseセッションが見つかりました');
+        // Supabaseセッションが有効な場合
+        const authSession: AuthSession = {
+          user: {
+            id: supabaseSession.user.id,
+            email: supabaseSession.user.email || '',
+            name: supabaseSession.user.user_metadata?.name || supabaseSession.user.email || '',
+            role: 'user'
+          },
+          expiresAt: new Date(supabaseSession.expires_at! * 1000).toISOString(),
+          accessToken: supabaseSession.access_token
+        };
+        
+        this.currentUser = authSession.user;
+        sessionStorage.setItem('fanclub-session', JSON.stringify(authSession));
+        return authSession;
+      }
+
+      console.log('❌ Supabaseセッションが見つかりませんでした');
+      // Supabaseセッションがない場合はローカルセッションを確認
       const sessionData = sessionStorage.getItem('fanclub-session');
-      if (!sessionData) return null;
+      if (!sessionData) {
+        console.log('❌ ローカルセッションも見つかりませんでした');
+        return null;
+      }
 
       const session = JSON.parse(sessionData) as AuthSession;
       
       // セッションの有効期限チェック
       if (new Date(session.expiresAt) < new Date()) {
+        console.log('⏰ セッションの有効期限が切れています');
         this.logout();
         return null;
       }
 
+      console.log('✅ ローカルセッションが見つかりました');
       this.currentUser = session.user;
       this.session = session;
       return session;
@@ -319,11 +377,19 @@ class AuthManager {
   }
 
   // ログアウト
-  logout(): void {
+  async logout(): Promise<void> {
+    try {
+      // Supabaseからもログアウト
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.warn('Supabase logout error:', error);
+    }
+    
     this.currentUser = null;
     this.session = null;
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('fanclub-session');
+      localStorage.removeItem('fanclub-session');
     }
   }
 

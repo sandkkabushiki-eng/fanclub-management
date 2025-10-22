@@ -12,7 +12,7 @@ const supabase = createClient(
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const user = await requireAuth();
   
@@ -27,7 +27,8 @@ export default async function DashboardPage({
   const isAdmin = user.role === 'admin';
 
   // アップグレードが必要な場合のリダイレクト
-  const upgradeRequired = searchParams.upgrade === 'true';
+  const resolvedSearchParams = await searchParams;
+  const upgradeRequired = resolvedSearchParams.upgrade === 'true';
   if (upgradeRequired && !isActive && !isAdmin) {
     // アップグレードページにリダイレクト
     redirect('/upgrade');

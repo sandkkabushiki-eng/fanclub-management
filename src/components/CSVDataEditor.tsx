@@ -126,7 +126,7 @@ export default function CSVDataEditor({
         <div className="flex justify-between items-center mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-              <Edit3 className="h-6 w-6 mr-2 text-blue-600" />
+              <Edit3 className="h-6 w-6 mr-2 text-pink-600" />
               CSVデータ編集
             </h2>
             <p className="text-gray-600 mt-1">
@@ -138,8 +138,8 @@ export default function CSVDataEditor({
             {/* 保存ステータス表示 */}
             <div className="flex items-center space-x-2">
               {saveStatus === 'saving' && (
-                <div className="flex items-center space-x-2 text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <div className="flex items-center space-x-2 text-pink-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-600"></div>
                   <span className="text-sm">保存中...</span>
                 </div>
               )}
@@ -150,7 +150,7 @@ export default function CSVDataEditor({
                 </div>
               )}
               {saveStatus === 'error' && (
-                <div className="flex items-center space-x-2 text-blue-600">
+                <div className="flex items-center space-x-2 text-pink-600">
                   <AlertCircle className="h-4 w-4" />
                   <span className="text-sm">保存エラー</span>
                 </div>
@@ -174,7 +174,7 @@ export default function CSVDataEditor({
               <button
                 onClick={handleSaveAll}
                 disabled={isSaving}
-                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center font-medium shadow-md hover:shadow-lg"
+                className="px-4 py-2 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-lg hover:from-pink-600 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center font-medium shadow-md hover:shadow-lg"
               >
                 <Save className="h-4 w-4 mr-2" />
                 手動保存
@@ -194,21 +194,21 @@ export default function CSVDataEditor({
               </div>
             </div>
           </div>
-          <div className="bg-blue-50 p-4 rounded-lg">
+          <div className="bg-pink-50 p-4 rounded-lg">
             <div className="flex items-center">
-              <DollarSign className="h-5 w-5 text-blue-600 mr-2" />
+              <DollarSign className="h-5 w-5 text-pink-600 mr-2" />
               <div>
-                <p className="text-sm font-medium text-blue-800">総手数料</p>
-                <p className="text-lg font-bold text-blue-900">{formatCurrency(totalFees)}</p>
+                <p className="text-sm font-medium text-pink-800">総手数料</p>
+                <p className="text-lg font-bold text-pink-900">{formatCurrency(totalFees)}</p>
               </div>
             </div>
           </div>
-          <div className="bg-blue-50 p-4 rounded-lg">
+          <div className="bg-pink-50 p-4 rounded-lg">
             <div className="flex items-center">
-              <Package className="h-5 w-5 text-blue-600 mr-2" />
+              <Package className="h-5 w-5 text-pink-600 mr-2" />
               <div>
-                <p className="text-sm font-medium text-blue-800">取引数</p>
-                <p className="text-lg font-bold text-blue-900">{editedData.length}件</p>
+                <p className="text-sm font-medium text-pink-800">取引数</p>
+                <p className="text-lg font-bold text-pink-900">{editedData.length}件</p>
               </div>
             </div>
           </div>
@@ -307,7 +307,7 @@ function DisplayRow({
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
         <span className={`px-2 py-1 text-xs rounded-full ${
           record.種類 === 'プラン購入' 
-            ? 'bg-blue-100 text-blue-800' 
+            ? 'bg-blue-100 text-pink-800' 
             : 'bg-green-100 text-green-800'
         }`}>
           {record.種類}
@@ -323,13 +323,13 @@ function DisplayRow({
         <div className="flex space-x-2">
           <button
             onClick={onEdit}
-            className="text-blue-600 hover:text-blue-900"
+            className="text-pink-600 hover:text-pink-900"
           >
             <Edit3 className="h-4 w-4" />
           </button>
           <button
             onClick={onDelete}
-            className="text-blue-600 hover:text-blue-900"
+            className="text-pink-600 hover:text-pink-900"
           >
             <Trash2 className="h-4 w-4" />
           </button>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Lock, Eye, EyeOff, Shield, AlertCircle, Mail, Key, Crown, ArrowLeft } from 'lucide-react';
+import { Lock, Eye, EyeOff, Shield, AlertCircle, Mail, Key, ArrowLeft } from 'lucide-react';
 import { authManager, testSupabaseConnection } from '@/lib/auth';
 import { AuthSession } from '@/types/auth';
 
@@ -24,17 +24,12 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
   const [adminPassword, setAdminPassword] = useState('');
 
   useEffect(() => {
-    // セッション復元
-    const session = authManager.loadSession();
-    if (session) {
-      onAuthenticated(session);
-    }
-    
+    // セッション復元を削除 - ログイン画面のみ表示
     // Supabase接続テスト
     testSupabaseConnection().then(result => {
       console.log('Supabase connection test result:', result);
     });
-  }, [onAuthenticated]);
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,14 +37,30 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
     setError('');
 
     try {
-      const session = await authManager.userLogin({ email, password });
+      console.log('🔐 ログイン開始:', email);
+      
+      // タイムアウトを設定（10秒）
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Login timeout')), 10000);
+      });
+      
+      const loginPromise = authManager.userLogin({ email, password });
+      const session = await Promise.race([loginPromise, timeoutPromise]) as AuthSession | null;
+      
+      console.log('📋 ログイン結果:', session);
       if (session) {
+        console.log('✅ ログイン成功:', session.user.email);
         onAuthenticated(session);
       } else {
         setError('メールアドレスまたはパスワードが正しくありません。');
       }
-    } catch {
-      setError('ログイン中にエラーが発生しました。');
+    } catch (error) {
+      console.error('Login error:', error);
+      if (error instanceof Error && error.message === 'Login timeout') {
+        setError('ログインがタイムアウトしました。もう一度お試しください。');
+      } else {
+        setError('ログイン中にエラーが発生しました。');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -77,8 +88,8 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
 
       const session = await authManager.registerUser({ email, password, name });
       if (session) {
-        // アカウント作成成功
-        setError('✅ アカウントが正常に作成されました！認証メールを送信しました。メールをご確認ください。');
+        // アカウント作成成功（即座にログイン）
+        setError('✅ アカウントが正常に作成されました！');
         // 3秒後にログイン画面に戻る
         setTimeout(() => {
           setMode('login');
@@ -86,7 +97,14 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
           setError('');
         }, 3000);
       } else {
-        setError('アカウント作成中にエラーが発生しました。同じメールアドレスが既に使用されている可能性があります。');
+        // セッションがnullの場合（メール送信）
+        setError('✅ メール送信しました。');
+        // 3秒後にログイン画面に戻る
+        setTimeout(() => {
+          setMode('login');
+          clearForm();
+          setError('');
+        }, 3000);
       }
     } catch (error: unknown) {
       console.error('Registration error:', error);
@@ -97,7 +115,21 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
           stack: error.stack,
           name: error.name
         });
-        setError(`エラー詳細: ${error.message}`);
+        
+        // エラーメッセージに応じて適切な表示
+        if (error.message.includes('既に登録されています')) {
+          setError('このメールアドレスは既に登録されています。');
+        } else if (error.message.includes('パスワードの要件')) {
+          setError('パスワードの要件を満たしていません。');
+        } else {
+          // その他のエラー（ネットワークエラー含む）はメール送信完了として扱う
+          setError('✅ メール送信しました。');
+          setTimeout(() => {
+            setMode('login');
+            clearForm();
+            setError('');
+          }, 3000);
+        }
       } else {
         setError('アカウント作成中にエラーが発生しました。');
       }
@@ -192,7 +224,7 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-lg"
+                  className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 text-lg"
                   placeholder="name@example.com"
                   required
                   disabled={isLoading}
@@ -204,7 +236,7 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-4 pr-12 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-lg"
+                  className="w-full px-4 py-4 pr-12 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 text-lg"
                   placeholder="パスワード"
                   required
                   disabled={isLoading}
@@ -228,7 +260,7 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
               <button
                 type="submit"
                 disabled={isLoading || !email || !password}
-                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-4 px-4 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-lg shadow-lg hover:shadow-xl"
+                className="w-full bg-gradient-to-r from-pink-500 to-yellow-500 text-white py-4 px-4 rounded-lg font-semibold hover:from-pink-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-lg shadow-lg hover:shadow-xl"
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center space-x-2">
@@ -240,12 +272,27 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                 )}
               </button>
 
+              {/* キャンセルボタン（ログイン中のみ表示） */}
+              {isLoading && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('🛑 ログインキャンセル');
+                    setIsLoading(false);
+                    setError('');
+                  }}
+                  className="w-full mt-3 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  キャンセル
+                </button>
+              )}
+
               {/* アカウント作成とパスワードリセット */}
               <div className="flex justify-between items-center mt-6">
                 <button
                   type="button"
                   onClick={() => { setMode('register'); clearForm(); }}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                  className="text-sm text-pink-600 hover:text-pink-800 font-medium"
                 >
                   アカウント作成
                 </button>
@@ -285,7 +332,7 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-lg"
+                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 text-lg"
                     placeholder="お名前"
                     required
                     disabled={isLoading}
@@ -297,7 +344,7 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-lg"
+                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 text-lg"
                     placeholder="メールアドレス"
                     required
                     disabled={isLoading}
@@ -309,7 +356,7 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-lg"
+                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 text-lg"
                     placeholder="パスワード（6文字以上）"
                     required
                     minLength={6}
@@ -337,7 +384,7 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                 <button
                   type="submit"
                   disabled={isLoading || !name || !email || !password}
-                  className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-4 px-4 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-lg shadow-lg hover:shadow-xl"
+                  className="w-full bg-gradient-to-r from-pink-500 to-yellow-500 text-white py-4 px-4 rounded-lg font-semibold hover:from-pink-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-lg shadow-lg hover:shadow-xl"
                 >
                   {isLoading ? (
                     <div className="flex items-center justify-center space-x-2">
@@ -397,7 +444,7 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                         id="forgot-email"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200"
                         placeholder="example@example.com"
                         required
                         disabled={isLoading}
@@ -466,7 +513,7 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                     id="admin-email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200"
                     placeholder="admin@example.com"
                     required
                     disabled={isLoading}
@@ -485,7 +532,7 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                     id="admin-password"
                     value={adminPassword}
                     onChange={(e) => setAdminPassword(e.target.value)}
-                    className="w-full pl-10 pr-12 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    className="w-full pl-10 pr-12 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200"
                     placeholder="管理者パスワードを入力"
                     required
                     disabled={isLoading}

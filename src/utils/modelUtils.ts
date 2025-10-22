@@ -19,8 +19,12 @@ export const getModels = (): Model[] => {
   
   try {
     const userKey = getUserStorageKey(MODEL_STORAGE_KEY);
+    console.log('📋 モデル取得 - ストレージキー:', userKey);
     const stored = localStorage.getItem(userKey);
-    return stored ? JSON.parse(stored) : [];
+    console.log('📋 モデル取得 - ストレージデータ:', stored ? 'Found' : 'Not found');
+    const models = stored ? JSON.parse(stored) : [];
+    console.log('📋 モデル取得 - 解析結果:', models.length, '件');
+    return models;
   } catch (error) {
     console.error('Failed to load models:', error);
     return [];
@@ -65,10 +69,16 @@ export const addModel = async (name: string, displayName: string, description?: 
 };
 
 export const updateModel = async (id: string, updateData: string | Partial<Model>, displayName?: string, description?: string, status?: 'active' | 'inactive'): Promise<boolean> => {
+  console.log('🔧 updateModel呼び出し:', { id, updateData, displayName, description, status });
   const models = getModels();
   const index = models.findIndex(model => model.id === id);
   
-  if (index === -1) return false;
+  if (index === -1) {
+    console.log('❌ モデルが見つかりません:', id);
+    return false;
+  }
+  
+  console.log('📋 更新前のモデル:', models[index]);
   
   let updatedModel: Model;
   
@@ -90,7 +100,9 @@ export const updateModel = async (id: string, updateData: string | Partial<Model
   }
   
   models[index] = updatedModel;
+  console.log('📋 更新後のモデル:', updatedModel);
   saveModels(models);
+  console.log('💾 ローカルストレージに保存完了');
   
   // Supabaseにも更新（エラーが出ても続行）
   try {

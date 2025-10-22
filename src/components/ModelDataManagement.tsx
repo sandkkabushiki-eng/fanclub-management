@@ -1,21 +1,41 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Calendar, Edit, Trash2, User, BarChart3, Users, DollarSign } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Calendar, Edit, Trash2, User, BarChart3, DollarSign } from 'lucide-react';
 import { Model, ModelMonthlyData, FanClubRevenueData, RevenueAnalysis } from '@/types/csv';
 import { getModels, getModelMonthlyDataByModel, deleteModelMonthlyData, formatYearMonth } from '@/utils/modelUtils';
 import { getCurrentUserDataManager } from '@/utils/userDataUtils';
 // import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
 import CSVDataEditor from './CSVDataEditor';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
+import { useGlobalModelSelectionListener } from '@/hooks/useGlobalModelSelection';
 import RevenueDashboard from './RevenueDashboard';
 
 export default function ModelDataManagement() {
   const [models, setModels] = useState<Model[]>([]);
-  const [selectedModelId, setSelectedModelId] = useState<string>('');
+  const [selectedModelId, setSelectedModelId] = useState<string>(() => {
+    const savedSelection = localStorage.getItem('fanclub-global-model-selection');
+    if (savedSelection) {
+      try {
+        const { selectedModelId: savedModelId } = JSON.parse(savedSelection);
+        return savedModelId || '';
+      } catch (error) {
+        console.warn('Failed to parse saved model selection:', error);
+      }
+    }
+    return '';
+  });
   const [modelData, setModelData] = useState<ModelMonthlyData[]>([]);
   const [activeTab, setActiveTab] = useState<'data' | 'revenue' | 'trends'>('revenue');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // グローバルなモデル選択変更をリッスン
+  const handleGlobalModelSelectionChange = useCallback((globalSelectedModelId: string) => {
+    console.log('💰 売上分析: グローバルモデル選択変更:', globalSelectedModelId);
+    setSelectedModelId(globalSelectedModelId);
+  }, []);
+
+  useGlobalModelSelectionListener(handleGlobalModelSelectionChange);
   const [editingData, setEditingData] = useState<{
     modelId: string;
     modelName: string;
@@ -45,14 +65,31 @@ export default function ModelDataManagement() {
           
           if (userModels.length > 0) {
             setModels(userModels);
-            // メインモデルが変更された可能性があるので、常にチェック
-            const mainModel = userModels.find(m => m.isMainModel);
-            if (isInitialLoad) {
-              setSelectedModelId(mainModel ? mainModel.id : userModels[0].id);
+            // グローバル状態を確認して初期選択を決定
+            const savedSelection = localStorage.getItem('fanclub-global-model-selection');
+            let initialSelection = '';
+            
+            if (savedSelection) {
+              try {
+                const { selectedModelId: savedModelId } = JSON.parse(savedSelection);
+                if (savedModelId && userModels.find(m => m.id === savedModelId)) {
+                  initialSelection = savedModelId;
+                }
+              } catch (error) {
+                console.warn('Failed to parse saved model selection:', error);
+              }
+            }
+            
+            if (!initialSelection) {
+              // メインモデルを優先、なければ最初のモデル
+              const mainModel = userModels.find(m => m.isMainModel);
+              initialSelection = mainModel ? mainModel.id : userModels[0].id;
+            }
+            
+            if (isInitialLoad || selectedModelId === '') {
+              console.log('💰 売上分析: 初期選択:', initialSelection);
+              setSelectedModelId(initialSelection);
               setIsInitialLoad(false);
-            } else if (mainModel && selectedModelId === '') {
-              // モデルが選択されていない場合はメインモデルを選択
-              setSelectedModelId(mainModel.id);
             }
           } else {
             // ユーザー専用データが空の場合は、ローカルストレージからも取得
@@ -60,13 +97,31 @@ export default function ModelDataManagement() {
             const localModels = getModels();
             console.log('Local models found:', localModels.length, localModels);
             setModels(localModels);
-            // メインモデルが変更された可能性があるので、常にチェック
-            const mainModel = localModels.find(m => m.isMainModel);
-            if (isInitialLoad && localModels.length > 0) {
-              setSelectedModelId(mainModel ? mainModel.id : localModels[0].id);
+            // グローバル状態を確認して初期選択を決定
+            const savedSelection = localStorage.getItem('fanclub-global-model-selection');
+            let initialSelection = '';
+            
+            if (savedSelection) {
+              try {
+                const { selectedModelId: savedModelId } = JSON.parse(savedSelection);
+                if (savedModelId && localModels.find(m => m.id === savedModelId)) {
+                  initialSelection = savedModelId;
+                }
+              } catch (error) {
+                console.warn('Failed to parse saved model selection:', error);
+              }
+            }
+            
+            if (!initialSelection) {
+              // メインモデルを優先、なければ最初のモデル
+              const mainModel = localModels.find(m => m.isMainModel);
+              initialSelection = mainModel ? mainModel.id : localModels[0].id;
+            }
+            
+            if (isInitialLoad || selectedModelId === '') {
+              console.log('💰 売上分析: 初期選択（ローカル）:', initialSelection);
+              setSelectedModelId(initialSelection);
               setIsInitialLoad(false);
-            } else if (mainModel && selectedModelId === '') {
-              setSelectedModelId(mainModel.id);
             }
           }
         } else {
@@ -75,13 +130,31 @@ export default function ModelDataManagement() {
           const localModels = getModels();
           console.log('Local models:', localModels.length, localModels);
           setModels(localModels);
-          // メインモデルが変更された可能性があるので、常にチェック
-          const mainModel = localModels.find(m => m.isMainModel);
-          if (isInitialLoad && localModels.length > 0) {
-            setSelectedModelId(mainModel ? mainModel.id : localModels[0].id);
+          // グローバル状態を確認して初期選択を決定
+          const savedSelection = localStorage.getItem('fanclub-global-model-selection');
+          let initialSelection = '';
+          
+          if (savedSelection) {
+            try {
+              const { selectedModelId: savedModelId } = JSON.parse(savedSelection);
+              if (savedModelId && localModels.find(m => m.id === savedModelId)) {
+                initialSelection = savedModelId;
+              }
+            } catch (error) {
+              console.warn('Failed to parse saved model selection:', error);
+            }
+          }
+          
+          if (!initialSelection) {
+            // メインモデルを優先、なければ最初のモデル
+            const mainModel = localModels.find(m => m.isMainModel);
+            initialSelection = mainModel ? mainModel.id : localModels[0].id;
+          }
+          
+          if (isInitialLoad || selectedModelId === '') {
+            console.log('💰 売上分析: 初期選択（フォールバック）:', initialSelection);
+            setSelectedModelId(initialSelection);
             setIsInitialLoad(false);
-          } else if (mainModel && selectedModelId === '') {
-            setSelectedModelId(mainModel.id);
           }
         }
       } catch (error) {
@@ -112,8 +185,15 @@ export default function ModelDataManagement() {
       // モデルリストを再読み込み
       const modelsData = getModels();
       setModels(modelsData);
-      // 売上分析のモデル選択をメインモデルに更新
-      setSelectedModelId(modelId);
+      
+      // メインモデルが解除された場合（modelIdがnull）
+      if (modelId === null) {
+        console.log('売上分析: メインモデル解除、全体売上を選択');
+        setSelectedModelId('all');
+      } else {
+        // 売上分析のモデル選択をメインモデルに更新
+        setSelectedModelId(modelId);
+      }
       setIsInitialLoad(false);
     };
 
@@ -307,8 +387,8 @@ export default function ModelDataManagement() {
     <div className="space-y-6">
       {/* ヘッダー */}
       <div className="flex items-center space-x-4">
-        <BarChart3 className="h-8 w-8 text-blue-600" />
-        <h2 className="text-2xl font-bold text-blue-600">データ管理・分析</h2>
+        <BarChart3 className="h-8 w-8 text-pink-600" />
+        <h2 className="text-2xl font-bold text-pink-600">データ管理・分析</h2>
       </div>
 
       {/* タブナビゲーション */}
@@ -321,8 +401,8 @@ export default function ModelDataManagement() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                 activeTab === tab.id
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-blue-50 shadow-sm border border-blue-200'
+                  ? 'bg-pink-600 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-pink-50 shadow-sm border border-pink-200'
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -348,7 +428,15 @@ export default function ModelDataManagement() {
               <select
                 id="revenue-model-select"
                 value={selectedModelId}
-                onChange={(e) => setSelectedModelId(e.target.value)}
+                onChange={(e) => {
+                  console.log('💰 売上分析: モデル選択変更:', e.target.value);
+                  setSelectedModelId(e.target.value);
+                  // グローバル状態も更新
+                  localStorage.setItem('fanclub-global-model-selection', JSON.stringify({ selectedModelId: e.target.value }));
+                  window.dispatchEvent(new CustomEvent('globalModelSelectionChanged', { 
+                    detail: { selectedModelId: e.target.value } 
+                  }));
+                }}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white text-gray-900 min-w-[200px]"
               >
                 <option value="all">全体売上</option>

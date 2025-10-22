@@ -120,16 +120,16 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
         <div
           className={`border-2 border-dashed rounded-xl p-12 transition-all duration-200 ${
             isDragging 
-              ? 'border-blue-500 bg-blue-50 shadow-lg' 
-              : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+              ? 'border-pink-500 bg-pink-50 shadow-lg' 
+              : 'border-gray-300 hover:border-pink-400 hover:bg-gray-50'
           }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
         >
           <div className="flex flex-col items-center">
-            <div className="p-4 bg-blue-100 rounded-full mb-4">
-              <Upload className="h-8 w-8 text-blue-600" />
+            <div className="p-4 bg-pink-100 rounded-full mb-4">
+              <Upload className="h-8 w-8 text-pink-600" />
             </div>
             <h4 className="text-lg font-semibold text-gray-900 mb-2">
               CSVファイルをアップロード
@@ -139,7 +139,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+              className="bg-pink-600 text-white px-6 py-3 rounded-lg hover:bg-pink-700 transition-colors font-medium shadow-sm"
             >
               ファイルを選択
             </button>
@@ -185,7 +185,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 bg-white shadow-sm"
                 >
                   {generateYearOptions().map(year => (
                     <option key={year} value={year}>{year}年</option>
@@ -194,7 +194,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 bg-white shadow-sm"
                 >
                   {generateMonthOptions().map(month => (
                     <option key={month} value={month}>{month}月</option>
@@ -212,7 +212,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
               <select
                 value={selectedModelId}
                 onChange={(e) => setSelectedModelId(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 bg-white shadow-sm"
               >
                 <option value="">モデルを選択してください</option>
                 {models.map(model => (
@@ -228,7 +228,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
               <button
                 onClick={handleUpload}
                 disabled={isLoading}
-                className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors font-semibold shadow-sm"
+                className="w-full bg-pink-600 text-white px-6 py-3 rounded-lg hover:bg-pink-700 disabled:bg-gray-400 transition-colors font-semibold shadow-sm"
               >
                 {isLoading ? '処理中...' : 'データをアップロード'}
               </button>

@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard,
   Users,
-  FileText,
   TrendingUp,
   Upload,
   Settings,
@@ -12,28 +11,24 @@ import {
   DollarSign,
   Calendar,
   Star,
-  Eye,
   ChevronRight,
-  User,
-  Mail,
-  Phone,
-  Award,
   LogOut,
-  Plus,
-  Download,
-  Filter
+  Menu,
+  X
 } from 'lucide-react';
-import { CSVData, FanClubRevenueData, Model } from '@/types/csv';
-import { upsertModelMonthlyData, getModels, getModelMonthlyData } from '@/utils/modelUtils';
-import { saveModelToSupabase, saveModelMonthlyDataToSupabase } from '@/utils/supabaseUtils';
+import { CSVData, FanClubRevenueData } from '@/types/csv';
+import { upsertModelMonthlyData, getModels } from '@/utils/modelUtils';
+import { getCurrentUserDataManager } from '@/utils/userDataUtils';
+import { saveModelMonthlyDataToSupabase } from '@/utils/supabaseUtils';
 import { authManager } from '@/lib/auth';
 import { AuthSession } from '@/types/auth';
 import { supabase } from '@/lib/supabase';
-import { getCustomerDetailInfo, CustomerDetailInfo, formatCurrency } from '@/utils/csvUtils';
+import { getCustomerDetailInfo, formatCurrency } from '@/utils/csvUtils';
 import CSVUploader from '@/components/CSVUploaderNew';
 import ModelManagement from '@/components/ModelManagement';
 import ModelDataManagement from '@/components/ModelDataManagement';
 import CalendarAnalysis from '@/components/CalendarAnalysis';
+import { useGlobalModelSelection, useGlobalModelSelectionListener } from '@/hooks/useGlobalModelSelection';
 
 
 interface ModelStats {
@@ -53,15 +48,32 @@ interface IndividualModelStats {
 
 const FanClubDashboard: React.FC = () => {
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'models' | 'revenue' | 'customers' | 'csv' | 'calendar'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'models' | 'revenue' | 'customers' | 'csv' | 'calendar' | 'settings'>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [models, setModels] = useState<Model[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [modelData, setModelData] = useState<Record<string, unknown>>({});
   const [message, setMessage] = useState<string>('');
   const [customerViewMode, setCustomerViewMode] = useState<'all' | 'monthly'>('all');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
-  const [selectedCustomerModelId, setSelectedCustomerModelId] = useState<string>('');
+  
+  // グローバルなモデル選択状態を使用
+  const { selectedModelId, setSelectedModelId, models, setModels, mainModel } = useGlobalModelSelection();
+  
+  // グローバル状態の初期化を確認
+  useEffect(() => {
+    if (selectedModelId && models.length > 0) {
+      console.log('🌟 ファン管理: グローバル状態から初期化:', selectedModelId);
+    }
+  }, [selectedModelId, models]);
+
+  // グローバルなモデル選択変更をリッスン
+  const handleGlobalModelSelectionChange = useCallback((globalSelectedModelId: string) => {
+    console.log('🌟 ファン管理: グローバルモデル選択変更:', globalSelectedModelId);
+    setSelectedModelId(globalSelectedModelId);
+  }, []);
+
+  useGlobalModelSelectionListener(handleGlobalModelSelectionChange);
 
   // ユーザー固有のストレージキーを取得
   const getUserStorageKey = (baseKey: string): string => {
@@ -97,37 +109,55 @@ const FanClubDashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!authSession) return;
-    
     const loadInitialData = async () => {
       try {
+        // 認証セッションがない場合はスキップ
+        if (!authSession?.user?.id) {
+          console.log('📊 認証セッションがないため、データ読み込みをスキップ');
+          return;
+        }
+        
         // 古いデータを新しいキーに移行（初回のみ）
         migrateOldData('fanclub-model-data');
         
-        const modelsData = getModels();
-        setModels(modelsData);
+        // ユーザーデータマネージャーを使ってモデルを取得（売上分析と同じ方法）
+        const userDataManager = getCurrentUserDataManager();
+        console.log('📋 ユーザーデータマネージャー:', userDataManager ? 'Found' : 'Not found');
+        
+        if (userDataManager) {
+          const userModels = await userDataManager.getUserModels();
+          console.log('📋 ユーザーモデル:', userModels.length, '件');
+          setModels(userModels);
+        } else {
+          // フォールバック: ローカルストレージから取得
+          const modelsData = getModels();
+          console.log('📋 ローカルモデル:', modelsData.length, '件');
+          setModels(modelsData);
+        }
         
         // メインモデルが変更された可能性があるので、常にチェック
-        const mainModel = modelsData.find(m => m.isMainModel);
-        if (mainModel && (selectedCustomerModelId === '' || selectedCustomerModelId === undefined)) {
-          // 初回または未選択の場合、メインモデルを選択
-          setSelectedCustomerModelId(mainModel.id);
-        }
+        const currentModels = userDataManager ? await userDataManager.getUserModels() : getModels();
+        const mainModel = currentModels.find(m => m.isMainModel);
+        
+        // グローバル状態のモデルリストを更新（自動的に選択も更新される）
+        setModels(currentModels);
         
         // ローカルストレージからデータを読み込み（ユーザー固有）
         const userDataKey = getUserStorageKey('fanclub-model-data');
         const localData = JSON.parse(localStorage.getItem(userDataKey) || '{}') as Record<string, unknown>;
         setModelData(localData);
         console.log('📊 ユーザー固有のデータを読み込みました:', Object.keys(localData).length, '件');
+        console.log('📊 データの詳細:', Object.keys(localData));
         
         // Supabaseからもデータを読み込んで同期（ユーザー固有のデータのみ）
-        try {
-          const { data: supabaseData, error } = await supabase
-            .from('monthly_data')
-            .select('*')
-            .eq('user_id', authSession.user.id)
-            .order('year', { ascending: false })
-            .order('month', { ascending: false });
+        if (authSession?.user?.id) {
+          try {
+            const { data: supabaseData, error } = await supabase
+              .from('monthly_data')
+              .select('*')
+              .eq('user_id', authSession.user.id)
+              .order('year', { ascending: false })
+              .order('month', { ascending: false });
             
           if (error) {
             console.error('Supabase読み込みエラー:', error);
@@ -156,8 +186,11 @@ const FanClubDashboard: React.FC = () => {
             // ローカルストレージも更新
             localStorage.setItem('fanclub-model-data', JSON.stringify(mergedData));
           }
-        } catch (supabaseError) {
-          console.error('Supabase接続エラー:', supabaseError);
+          } catch (supabaseError) {
+            console.error('Supabase接続エラー:', supabaseError);
+          }
+        } else {
+          console.log('📊 認証セッションがないため、Supabase読み込みをスキップ');
         }
       } catch (error) {
         console.error('Error loading initial data:', error);
@@ -165,19 +198,39 @@ const FanClubDashboard: React.FC = () => {
     };
 
     loadInitialData();
-  }, [authSession]);
+  }, [authSession]); // authSessionの依存を追加
 
   // メインモデル変更イベントをリッスン
   useEffect(() => {
-    const handleMainModelChange = (event: Event) => {
+    const handleMainModelChange = async (event: Event) => {
       const customEvent = event as CustomEvent;
       const { modelId } = customEvent.detail;
-      console.log('顧客管理: メインモデル変更イベント受信:', modelId);
-      // モデルリストを再読み込み
-      const modelsData = getModels();
-      setModels(modelsData);
-      // 顧客管理のモデル選択をメインモデルに更新
-      setSelectedCustomerModelId(modelId);
+      console.log('🌟 ファン管理: メインモデル変更イベント受信:', modelId);
+      
+      // ユーザーデータマネージャーを使って最新のモデルデータを取得
+      const userDataManager = getCurrentUserDataManager();
+      if (userDataManager) {
+        const userModels = await userDataManager.getUserModels();
+        console.log('🌟 ファン管理: 最新モデルデータ:', userModels.length, '件');
+        setModels(userModels);
+      } else {
+        // フォールバック
+        const modelsData = getModels();
+        setModels(modelsData);
+      }
+      
+      // メインモデルが解除された場合（modelIdがnull）
+      if (modelId === null) {
+        console.log('🌟 ファン管理: メインモデル解除、最初のモデルを選択');
+        const userDataManager = getCurrentUserDataManager();
+        const currentModels = userDataManager ? await userDataManager.getUserModels() : getModels();
+        if (currentModels.length > 0) {
+          setSelectedModelId(currentModels[0].id);
+        }
+      } else {
+        // ファン管理のモデル選択をメインモデルに更新
+        setSelectedModelId(modelId);
+      }
     };
 
     window.addEventListener('mainModelChanged', handleMainModelChange);
@@ -235,14 +288,16 @@ const FanClubDashboard: React.FC = () => {
     { icon: LayoutDashboard, label: 'ダッシュボード', active: activeTab === 'overview' },
     { icon: Users, label: 'モデル管理', active: activeTab === 'models' },
     { icon: Upload, label: 'CSVデータ', active: activeTab === 'csv' },
-    { icon: Users, label: '顧客管理', active: activeTab === 'customers' },
+    { icon: Users, label: 'ファン管理', active: activeTab === 'customers' },
     { icon: TrendingUp, label: '売上分析', active: activeTab === 'revenue' },
-    { icon: Calendar, label: 'カレンダー分析', active: activeTab === 'calendar' },
-    { icon: Settings, label: '設定', active: false },
-    { icon: LogOut, label: 'ログアウト', active: false, isLogout: true }
+    { icon: Calendar, label: 'カレンダー分析', active: activeTab === 'calendar' }
   ];
 
   const getModelStats = (): ModelStats => {
+    console.log('📊 ダッシュボード統計計算開始');
+    console.log('📊 modelData keys:', Object.keys(modelData));
+    console.log('📊 modelData values:', Object.values(modelData).length);
+    
     // データの構造を正しく処理
     const allData = Object.values(modelData).flatMap(item => {
       if (Array.isArray(item)) return item;
@@ -351,6 +406,7 @@ const FanClubDashboard: React.FC = () => {
   };
 
   const stats = getModelStats();
+  console.log('📊 計算された統計:', stats);
 
   // モデル別統計を計算
   const getIndividualModelStats = (): IndividualModelStats[] => {
@@ -363,9 +419,16 @@ const FanClubDashboard: React.FC = () => {
         
         if (!modelMap.has(monthData.modelId)) {
           const model = models.find(m => m.id === monthData.modelId);
+          const modelName = model?.displayName || monthData.modelName || `モデル${monthData.modelId}`;
+          console.log('モデル名取得:', {
+            modelId: monthData.modelId,
+            modelDisplayName: model?.displayName,
+            monthDataModelName: monthData.modelName,
+            finalName: modelName
+          });
           modelMap.set(monthData.modelId, {
             modelId: monthData.modelId,
-            modelName: model?.displayName || monthData.modelName || monthData.modelId,
+            modelName: modelName,
             revenue: 0,
             customers: 0,
             transactions: 0
@@ -444,7 +507,7 @@ const FanClubDashboard: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
           <p className="text-gray-600">認証中...</p>
         </div>
       </div>
@@ -453,19 +516,42 @@ const FanClubDashboard: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-gradient-to-b from-blue-900 to-blue-600 transition-all duration-300 flex flex-col`}>
+      <div className={`
+        ${sidebarCollapsed ? 'w-16' : 'w-64'} 
+        bg-pink-400 transition-all duration-300 flex flex-col
+        fixed lg:relative inset-y-0 left-0 z-50
+        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
         <div className="p-6">
           <div className="flex items-center justify-between">
             {!sidebarCollapsed && (
-              <h1 className="text-white text-xl font-bold">ファンクラ君</h1>
+              <h1 className="text-white text-xl font-black">ファンクラ君</h1>
             )}
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="text-white hover:bg-blue-700 p-2 rounded-lg transition-colors"
-            >
-              <ChevronRight className={`w-5 h-5 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
-            </button>
+            <div className="flex items-center space-x-2">
+              {/* Mobile close button */}
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-white hover:bg-pink-700 p-2 rounded-lg transition-colors lg:hidden"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              {/* Desktop collapse button */}
+              <button
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="text-white hover:bg-pink-700 p-2 rounded-lg transition-colors hidden lg:block"
+              >
+                <ChevronRight className={`w-5 h-5 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -474,25 +560,23 @@ const FanClubDashboard: React.FC = () => {
             <button
               key={index}
               onClick={() => {
-                if ('isLogout' in item && item.isLogout) {
-                  handleLogout();
-                } else {
-                  setActiveTab(item.label === 'ダッシュボード' ? 'overview' : 
-                              item.label === 'モデル管理' ? 'models' :
-                              item.label === 'CSVデータ' ? 'csv' :
-                              item.label === '売上分析' ? 'revenue' :
-                              item.label === '顧客管理' ? 'customers' :
-                              item.label === 'カレンダー分析' ? 'calendar' : 'overview');
-                }
+                setActiveTab(item.label === 'ダッシュボード' ? 'overview' : 
+                            item.label === 'モデル管理' ? 'models' :
+                            item.label === 'CSVデータ' ? 'csv' :
+                            item.label === '売上分析' ? 'revenue' :
+                            item.label === 'ファン管理' ? 'customers' :
+                            item.label === 'カレンダー分析' ? 'calendar' : 'overview');
+                // モバイルメニューを閉じる
+                setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center px-4 py-3 mb-2 rounded-lg transition-colors ${
                 item.active
-                  ? 'bg-blue-700 text-white'
-                  : 'text-blue-100 hover:bg-blue-700 hover:text-white'
+                  ? 'bg-pink-700 text-white'
+                  : 'text-pink-100 hover:bg-pink-700 hover:text-white'
               }`}
             >
               <item.icon className="w-5 h-5 mr-3" />
-              {!sidebarCollapsed && <span className="font-medium">{item.label}</span>}
+              {!sidebarCollapsed && <span className="font-bold text-base">{item.label}</span>}
             </button>
           ))}
         </nav>
@@ -500,23 +584,39 @@ const FanClubDashboard: React.FC = () => {
 
         {/* User Info */}
         {!sidebarCollapsed && (
-          <div className="p-4 border-t border-blue-700">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-200 rounded-full flex items-center justify-center">
-                <span className="text-blue-700 text-sm font-medium">
+          <div className="p-4 border-t border-pink-700">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-8 h-8 bg-pink-200 rounded-full flex items-center justify-center">
+                <span className="text-pink-700 text-sm font-bold">
                   {authSession.user.name.charAt(0)}
                 </span>
               </div>
               <div className="flex-1">
-                <p className="text-blue-100 text-sm font-medium">{authSession.user.name}</p>
-                <p className="text-blue-300 text-xs">{authSession.user.email}</p>
+                <p className="text-pink-100 text-sm font-bold">{authSession.user.name}</p>
+                <p className="text-pink-300 text-xs">{authSession.user.email}</p>
               </div>
+            </div>
+            
+            {/* 設定とログアウトボタン */}
+            <div className="flex space-x-2">
+              <button
+                onClick={() => {
+                  setActiveTab('settings');
+                  setMobileMenuOpen(false);
+                }}
+                className="flex-1 flex items-center justify-center space-x-2 bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded-lg text-sm transition-colors"
+                title="設定"
+              >
+                <Settings className="w-4 h-4" />
+                <span className="text-xs">設定</span>
+              </button>
               <button
                 onClick={handleLogout}
-                className="text-blue-300 hover:text-white p-1"
+                className="flex-1 flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm transition-colors"
                 title="ログアウト"
               >
                 <LogOut className="w-4 h-4" />
+                <span className="text-xs">ログアウト</span>
               </button>
             </div>
           </div>
@@ -524,17 +624,25 @@ const FanClubDashboard: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+        <header className="bg-white shadow-sm border-b border-gray-200 px-4 lg:px-6 py-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="text-gray-600 hover:text-gray-900 p-2 rounded-lg transition-colors lg:hidden"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
               {activeTab === 'overview' && 'ダッシュボード'}
               {activeTab === 'models' && 'モデル管理'}
               {activeTab === 'csv' && 'CSVデータ'}
               {activeTab === 'revenue' && '売上分析'}
-              {activeTab === 'customers' && '顧客管理'}
+              {activeTab === 'customers' && 'ファン管理'}
               {activeTab === 'calendar' && 'カレンダー分析'}
+              {activeTab === 'settings' && '設定'}
             </h2>
           </div>
         </header>
@@ -544,14 +652,14 @@ const FanClubDashboard: React.FC = () => {
           <div className={`mx-6 mt-4 p-4 rounded-lg ${
             message.includes('✨') ? 'bg-green-100 text-green-800 border border-green-200' :
             message.includes('❌') ? 'bg-red-100 text-red-800 border border-red-200' :
-            'bg-blue-100 text-blue-800 border border-blue-200'
+            'bg-pink-100 text-pink-800 border border-pink-200'
           }`}>
             {message}
           </div>
         )}
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           {activeTab === 'overview' && (
             <div className="space-y-6">
               {/* Header */}
@@ -562,7 +670,7 @@ const FanClubDashboard: React.FC = () => {
 
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white border border-blue-200 rounded-lg p-4">
+                <div className="bg-white border border-pink-200 rounded-lg p-4">
                   <div className="flex items-center space-x-3">
                     <DollarSign className="h-8 w-8 text-green-600 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
@@ -570,13 +678,14 @@ const FanClubDashboard: React.FC = () => {
                       <p className="text-2xl font-bold text-gray-900 truncate" title={`¥${stats.totalRevenue.toLocaleString()}`}>
                         ¥{stats.totalRevenue.toLocaleString()}
                       </p>
+                      <p className="text-xs text-gray-400">データ: {Object.keys(modelData).length}件</p>
                     </div>
                   </div>
                 </div>
                 
-                <div className="bg-white border border-blue-200 rounded-lg p-4">
+                <div className="bg-white border border-pink-200 rounded-lg p-4">
                   <div className="flex items-center space-x-3">
-                    <Users className="h-8 w-8 text-blue-600 flex-shrink-0" />
+                    <Users className="h-8 w-8 text-pink-600 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-gray-500">総顧客数</p>
                       <p className="text-2xl font-bold text-gray-900 truncate">
@@ -586,7 +695,7 @@ const FanClubDashboard: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="bg-white border border-blue-200 rounded-lg p-4">
+                <div className="bg-white border border-pink-200 rounded-lg p-4">
                   <div className="flex items-center space-x-3">
                     <TrendingUp className="h-8 w-8 text-orange-600 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
@@ -598,9 +707,9 @@ const FanClubDashboard: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="bg-white border border-blue-200 rounded-lg p-4">
+                <div className="bg-white border border-pink-200 rounded-lg p-4">
                   <div className="flex items-center space-x-3">
-                    <BarChart3 className="h-8 w-8 text-blue-600 flex-shrink-0" />
+                    <BarChart3 className="h-8 w-8 text-pink-600 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm text-gray-500">リピート率</p>
                       <p className="text-2xl font-bold text-gray-900 truncate">
@@ -652,7 +761,7 @@ const FanClubDashboard: React.FC = () => {
 
               {/* モデル別売上ランキング */}
               {individualModelStats.length > 0 && (
-                <div className="bg-white border border-blue-200 rounded-lg p-6">
+                <div className="bg-white border border-pink-200 rounded-lg p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     モデル別売上ランキング
                   </h3>
@@ -660,7 +769,7 @@ const FanClubDashboard: React.FC = () => {
                     {individualModelStats.map((model, index) => (
                       <div key={model.modelId} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-center space-x-4">
-                          <span className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                          <span className="w-8 h-8 bg-pink-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
                             {index + 1}
                           </span>
                           <div>
@@ -696,21 +805,21 @@ const FanClubDashboard: React.FC = () => {
           )}
 
           {activeTab === 'csv' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-lg p-6 border border-gray-200">
-                <h1 className="text-2xl font-semibold text-gray-900 mb-2">CSVデータ管理</h1>
-                <p className="text-gray-600">売上データをCSVファイルでアップロード・管理します</p>
+            <div className="space-y-4 lg:space-y-6">
+              <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
+                <h1 className="text-xl lg:text-2xl font-semibold text-gray-900 mb-2">CSVデータ管理</h1>
+                <p className="text-sm lg:text-base text-gray-600">売上データをCSVファイルでアップロード・管理します</p>
               </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
                 <CSVUploader onDataLoaded={handleDataLoaded} />
               </div>
             </div>
           )}
 
           {activeTab === 'revenue' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-lg p-6 border border-gray-200">
-                <h1 className="text-2xl font-semibold text-gray-900 mb-2">売上分析</h1>
+            <div className="space-y-4 lg:space-y-6">
+              <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
+                <h1 className="text-xl lg:text-2xl font-semibold text-gray-900 mb-2">売上分析</h1>
                 <p className="text-gray-600">詳細な売上データの分析とレポートを表示します</p>
               </div>
               <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -724,12 +833,20 @@ const FanClubDashboard: React.FC = () => {
             <div className="space-y-6">
               <div className="bg-white rounded-lg p-6 border border-gray-200">
                 <div className="mb-4">
-                  <h1 className="text-2xl font-semibold text-gray-900 mb-2">顧客管理</h1>
-                  <p className="text-gray-600">リピーター顧客の詳細分析</p>
+                  <h1 className="text-2xl font-semibold text-gray-900 mb-2">ファン管理</h1>
+                  <p className="text-gray-600">リピーターファンの詳細分析</p>
+                  <div className="mt-2 text-sm text-gray-500">
+                    モデル数: {models.length} | 選択中: {selectedModelId || 'なし'}
+                    {models.length > 0 && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        メインモデル: {models.find(m => m.isMainModel)?.displayName || 'なし'}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 {/* モデル選択と表示モード切り替え */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
                   {/* モデル選択 */}
                   <div className="flex items-center space-x-3">
                     <label htmlFor="customer-model-select" className="text-sm font-medium text-gray-700">
@@ -737,16 +854,28 @@ const FanClubDashboard: React.FC = () => {
                     </label>
                     <select
                       id="customer-model-select"
-                      value={selectedCustomerModelId}
-                      onChange={(e) => setSelectedCustomerModelId(e.target.value)}
+                      value={selectedModelId}
+                      onChange={(e) => {
+                        console.log('ファン管理: モデル選択変更:', e.target.value);
+                        setSelectedModelId(e.target.value);
+                        // グローバル状態も更新
+                        localStorage.setItem('fanclub-global-model-selection', JSON.stringify({ selectedModelId: e.target.value }));
+                        window.dispatchEvent(new CustomEvent('globalModelSelectionChanged', { 
+                          detail: { selectedModelId: e.target.value } 
+                        }));
+                      }}
                       className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white text-gray-900 min-w-[200px]"
                     >
                       <option value="">全モデル</option>
-                      {models.map((model) => (
-                        <option key={model.id} value={model.id}>
-                          {model.isMainModel ? '⭐ ' : ''}{model.displayName}
-                        </option>
-                      ))}
+                      {models.length > 0 ? (
+                        models.map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.isMainModel ? '⭐ ' : ''}{model.displayName}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="" disabled>モデルが見つかりません</option>
+                      )}
                     </select>
                   </div>
                   
@@ -873,7 +1002,7 @@ const FanClubDashboard: React.FC = () => {
                                 const data = Array.isArray(itemData.data) ? itemData.data : [];
                                 
                                 // モデルフィルタリング
-                                if (selectedCustomerModelId && itemData.modelId !== selectedCustomerModelId) {
+                                if (selectedModelId && itemData.modelId !== selectedModelId) {
                                   return [];
                                 }
                                 
@@ -910,17 +1039,19 @@ const FanClubDashboard: React.FC = () => {
                           : getMonthlyData(selectedYear, selectedMonth);
                         
                         // 選択されたモデルでフィルタリング
-                        const data = selectedCustomerModelId && customerViewMode === 'monthly'
+                        const data = selectedModelId && customerViewMode === 'monthly'
                           ? allModelData.filter(record => {
                               // monthly_dataのキーからmodelIdを確認
                               const matchingKey = Object.keys(modelData).find(key => 
-                                key.startsWith(`${selectedCustomerModelId}_`)
+                                key.startsWith(`${selectedModelId}_`)
                               );
                               return matchingKey !== undefined;
                             })
                           : allModelData;
                         
+                        console.log('📊 ファン管理: 分析対象データ:', data.length, '件');
                         const repeaters = getCustomerDetailInfo(data);
+                        console.log('📊 ファン管理: リピーター数:', repeaters.length, '人');
                         
                         if (repeaters.length === 0) {
                           return (
@@ -932,7 +1063,9 @@ const FanClubDashboard: React.FC = () => {
                           );
                         }
                         
-                        return repeaters.map((customer, index) => {
+                        return (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                            {repeaters.map((customer, index) => {
                               // 日付の安全な表示（年月日のみ）
                               const formatDate = (dateString: string) => {
                                 if (!dateString) return '不明';
@@ -952,88 +1085,88 @@ const FanClubDashboard: React.FC = () => {
                                 return '';
                               };
                           
-                          return (
-                          <div key={index} className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-6 mb-6">
+                              return (
+                                <div key={index} className="bg-white rounded-xl shadow-lg p-4 lg:p-6">
                             {/* ヘッダーセクション */}
-                            <div className="flex justify-between items-start mb-6 border-b border-gray-100 pb-4">
-                              <div>
-                                <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                                  {getMedal(index)}{customer.buyerName} さんの利用状況
+                            <div className="mb-4 border-b border-gray-100 pb-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <h1 className="text-lg lg:text-xl font-bold text-gray-900">
+                                  {getMedal(index)}{customer.buyerName}
                                 </h1>
-                                <p className="text-sm text-gray-600">
-                                  利用開始日: {formatDate(customer.firstPurchaseDate)} | 最終購入日: {formatDate(customer.lastPurchaseDate)}
-                                </p>
+                                <div className="text-right">
+                                  <p className="text-xs lg:text-sm text-gray-600 mb-1">合計利用金額</p>
+                                  <span className="text-2xl lg:text-3xl font-extrabold text-pink-600 block leading-none">
+                                    {formatCurrency(customer.totalSpent)}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="text-right">
-                                <p className="text-sm text-gray-600 mb-1">合計利用金額</p>
-                                <span className="text-4xl font-extrabold text-blue-600 block leading-none">
-                                  {formatCurrency(customer.totalSpent)}
-                                </span>
-                              </div>
+                              <p className="text-xs lg:text-sm text-gray-600">
+                                利用開始: {formatDate(customer.firstPurchaseDate)} | 最終: {formatDate(customer.lastPurchaseDate)}
+                              </p>
                             </div>
 
                             {/* 統計情報グリッド */}
-                            <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="grid grid-cols-2 gap-2 lg:gap-4 mb-4">
                               {/* 合計購入回数 */}
-                              <div className="bg-blue-50 p-4 rounded-lg text-center hover:transform hover:-translate-y-1 transition-transform">
-                                <p className="text-sm font-semibold text-gray-700 mb-1">合計購入回数</p>
-                                <span className="text-2xl font-extrabold text-blue-600 block leading-tight">
-                                  {customer.totalTransactions} 回
+                              <div className="bg-blue-50 p-3 lg:p-4 rounded-lg text-center">
+                                <p className="text-xs lg:text-sm font-semibold text-gray-700 mb-1">購入回数</p>
+                                <span className="text-lg lg:text-xl font-extrabold text-pink-600 block leading-tight">
+                                  {customer.totalTransactions}回
                                 </span>
                               </div>
 
                               {/* 平均単価 */}
-                              <div className="bg-orange-50 p-4 rounded-lg text-center hover:transform hover:-translate-y-1 transition-transform">
-                                <p className="text-sm font-semibold text-gray-700 mb-1">1回あたりの平均単価</p>
-                                <span className="text-2xl font-extrabold text-orange-600 block leading-tight">
+                              <div className="bg-orange-50 p-3 lg:p-4 rounded-lg text-center">
+                                <p className="text-xs lg:text-sm font-semibold text-gray-700 mb-1">平均単価</p>
+                                <span className="text-lg lg:text-xl font-extrabold text-orange-600 block leading-tight">
                                   {formatCurrency(customer.averageTransactionValue)}
                                 </span>
                               </div>
                             </div>
 
                             {/* 内訳セクション */}
-                            <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-dashed border-gray-200">
+                            <div className="grid grid-cols-1 gap-2 lg:gap-3 mt-4 pt-4 border-t border-dashed border-gray-200">
                               {/* 単品アイテム */}
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <h3 className="text-sm font-semibold text-gray-700 mb-2">単品アイテム</h3>
+                              <div className="bg-gray-50 p-3 lg:p-4 rounded-lg">
+                                <h3 className="text-xs lg:text-sm font-semibold text-gray-700 mb-2">単品アイテム</h3>
                                 <div className="flex justify-between items-end">
-                                  <span className="text-lg font-bold text-gray-900">{formatCurrency(customer.singleTotal)}</span>
-                                  <span className="text-xs text-gray-600">{customer.singlePurchaseCount} 個</span>
+                                  <span className="text-sm lg:text-base font-bold text-gray-900">{formatCurrency(customer.singleTotal)}</span>
+                                  <span className="text-xs text-gray-600">{customer.singlePurchaseCount}個</span>
                                 </div>
                               </div>
 
                               {/* 定期プラン */}
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <h3 className="text-sm font-semibold text-gray-700 mb-2">プラン</h3>
+                              <div className="bg-gray-50 p-3 lg:p-4 rounded-lg">
+                                <h3 className="text-xs lg:text-sm font-semibold text-gray-700 mb-2">プラン</h3>
                                 <div className="flex justify-between items-end">
-                                  <span className="text-lg font-bold text-gray-900">{formatCurrency(customer.planTotal)}</span>
-                                  <span className="text-xs text-gray-600">{customer.planPurchaseCount} 回</span>
+                                  <span className="text-sm lg:text-base font-bold text-gray-900">{formatCurrency(customer.planTotal)}</span>
+                                  <span className="text-xs text-gray-600">{customer.planPurchaseCount}回</span>
                                 </div>
                               </div>
 
                               {/* サポート/寄付 */}
-                              <div className="bg-gray-50 p-4 rounded-lg">
-                                <h3 className="text-sm font-semibold text-gray-700 mb-2">チップ・スーパーコメント</h3>
+                              <div className="bg-gray-50 p-3 lg:p-4 rounded-lg">
+                                <h3 className="text-xs lg:text-sm font-semibold text-gray-700 mb-2">チップ・スーパーコメント</h3>
                                 <div className="flex justify-between items-end">
-                                  <span className="text-lg font-bold text-gray-900">{formatCurrency(customer.tipTotal)}</span>
-                                  <span className="text-xs text-gray-600">{customer.tipCount} 回</span>
+                                  <span className="text-sm lg:text-base font-bold text-gray-900">{formatCurrency(customer.tipTotal)}</span>
+                                  <span className="text-xs text-gray-600">{customer.tipCount}回</span>
                                 </div>
                               </div>
                             </div>
                             
                             {/* 月別購入履歴 */}
                             {customer.monthlySpending.length > 0 && (
-                              <details className="mt-6">
-                                <summary className="cursor-pointer text-center text-sm text-gray-600 hover:text-gray-900 bg-gray-50 py-2 px-4 rounded-lg">
+                              <details className="mt-4">
+                                <summary className="cursor-pointer text-center text-xs lg:text-sm text-gray-600 hover:text-gray-900 bg-gray-50 py-2 px-3 lg:px-4 rounded-lg">
                                   購入履歴を詳しく見る ({customer.monthlySpending.length}ヶ月)
                                 </summary>
-                                <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div className="mt-3 grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-3">
                                   {customer.monthlySpending.map((month, idx) => {
                                     const displayYear = month.year && !isNaN(month.year) ? month.year : '不明';
                                     const displayMonth = month.month && !isNaN(month.month) ? month.month : '不明';
                                     
                                     return (
-                                      <div key={idx} className="bg-gray-50 rounded-lg p-3 text-xs">
+                                      <div key={idx} className="bg-gray-50 rounded-lg p-2 lg:p-3 text-xs">
                                         <p className="font-semibold text-gray-900 mb-1">{displayYear}年{displayMonth}月</p>
                                         <p className="text-gray-700 font-medium">{formatCurrency(month.amount)}</p>
                                         <p className="text-gray-500">{month.transactions}回</p>
@@ -1043,9 +1176,11 @@ const FanClubDashboard: React.FC = () => {
                                 </div>
                               </details>
                             )}
+                                </div>
+                              );
+                            })}
                           </div>
-                          );
-                        });
+                        );
                       })()}
                     </div>
                   </div>
@@ -1055,7 +1190,13 @@ const FanClubDashboard: React.FC = () => {
           )}
 
           {activeTab === 'calendar' && (
-            <CalendarAnalysis 
+            <div className="space-y-4 lg:space-y-6">
+              <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
+                <h1 className="text-xl lg:text-2xl font-semibold text-gray-900 mb-2">カレンダー分析</h1>
+                <p className="text-sm lg:text-base text-gray-600">購入パターンの時間的・季節的分析</p>
+              </div>
+              <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
+                <CalendarAnalysis 
               allData={(() => {
                 // 全てのモデルデータを統合
                 return Object.values(modelData).flatMap(item => {
@@ -1141,7 +1282,55 @@ const FanClubDashboard: React.FC = () => {
                 return formatted;
               })()}
               models={models}
-            />
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 設定タブ */}
+          {activeTab === 'settings' && (
+            <div className="space-y-4 lg:space-y-6">
+              <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">設定</h3>
+                <div className="space-y-4">
+                  <div className="border-b border-gray-200 pb-4">
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">アカウント情報</h4>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">名前:</span> {authSession.user.name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">メールアドレス:</span> {authSession.user.email}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="border-b border-gray-200 pb-4">
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">データ管理</h4>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">
+                        登録モデル数: {models.length}件
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        データ件数: {Object.keys(modelData).length}件
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">アプリケーション情報</h4>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">
+                        バージョン: 1.0.0
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        最終更新: {new Date().toLocaleDateString('ja-JP')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </main>
       </div>

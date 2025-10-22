@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Users, DollarSign, PieChart } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, DollarSign } from 'lucide-react';
 import { ModelMonthlyData, RevenueAnalysis, FanClubRevenueData } from '@/types/csv';
 import { getModelMonthlyData } from '@/utils/modelUtils';
 import { supabase } from '@/lib/supabase';
 import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
-import { PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, BarChart, Bar } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 interface RevenueDashboardProps {
   selectedModelId: string;
@@ -105,7 +105,7 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
     }
   }, [modelData]);
 
-  const COLORS = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe'];
+  const COLORS = ['#ec4899', '#f472b6', '#f9a8d4', '#fbcfe8', '#fce7f3'];
 
   return (
     <div className="space-y-6">
@@ -177,30 +177,18 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
 
           {/* グラフエリア */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* 購入タイプ別円グラフ */}
+            {/* 購入タイプ別統計 */}
             <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">購入タイプ別売上</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPieChart>
-                    <Pie
-                      data={[
-                        { name: 'プラン購入', value: analysis.planPurchases, amount: analysis.totalRevenue * 0.7 },
-                        { name: '単品販売', value: analysis.singlePurchases, amount: analysis.totalRevenue * 0.3 }
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      dataKey="value"
-                      label={({ name, value }) => `${name}: ${value}件`}
-                    >
-                      {[0, 1].map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">購入タイプ別統計</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-pink-50 rounded-lg">
+                  <div className="text-2xl font-bold text-pink-600">{analysis.planPurchases}</div>
+                  <div className="text-sm text-gray-600">プラン購入</div>
+                </div>
+                <div className="text-center p-4 bg-pink-50 rounded-lg">
+                  <div className="text-2xl font-bold text-pink-600">{analysis.singlePurchases}</div>
+                  <div className="text-sm text-gray-600">単品販売</div>
+                </div>
               </div>
             </div>
 
@@ -221,7 +209,7 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
                     <XAxis dataKey="month" />
                     <YAxis />
                     <Tooltip formatter={(value, name) => [formatCurrency(Number(value)), '売上']} />
-                    <Bar dataKey="売上" fill="#3b82f6" name="売上" />
+                    <Bar dataKey="売上" fill="#ec4899" name="売上" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -293,8 +281,8 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
                         return [formatCurrency(Number(value)), name];
                       }}
                     />
-                    <Bar dataKey="planRevenue" fill="#3b82f6" name="プラン売上" />
-                    <Bar dataKey="singleRevenue" fill="#60a5fa" name="単品売上" />
+                    <Bar dataKey="planRevenue" fill="#ec4899" name="プラン売上" />
+                    <Bar dataKey="singleRevenue" fill="#f472b6" name="単品売上" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

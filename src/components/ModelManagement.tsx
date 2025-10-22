@@ -99,14 +99,19 @@ export default function ModelManagement() {
 
   const handleSetMainModel = async (modelId: string) => {
     try {
+      console.log('🌟 メインモデル設定開始:', modelId);
+      
       // 全てのモデルのisMainModelをfalseにして、選択されたモデルだけtrueにする
       const updatedModels = models.map(model => ({
         ...model,
         isMainModel: model.id === modelId
       }));
       
-      // 各モデルを更新
+      console.log('📋 更新後のモデル一覧:', updatedModels.map(m => ({ id: m.id, name: m.displayName, isMain: m.isMainModel })));
+      
+      // 各モデルを更新（Supabaseにも保存）
       for (const model of updatedModels) {
+        console.log('💾 モデル更新中:', model.id, model.displayName, 'isMain:', model.isMainModel);
         await updateModel(model.id, model);
       }
       
@@ -115,9 +120,44 @@ export default function ModelManagement() {
       // 他のコンポーネントに通知するためにカスタムイベントを発火
       console.log('🌟 メインモデル変更イベント発火:', modelId);
       window.dispatchEvent(new CustomEvent('mainModelChanged', { detail: { modelId } }));
+      
+      // 成功メッセージ
+      alert(`「${updatedModels.find(m => m.id === modelId)?.displayName}」をメインモデルに設定しました！`);
     } catch (error) {
       console.error('Error setting main model:', error);
       alert('メインモデルの設定中にエラーが発生しました。');
+    }
+  };
+
+  const handleUnsetMainModel = async () => {
+    try {
+      console.log('🌟 メインモデル設定解除開始');
+      
+      // 全てのモデルのisMainModelをfalseにする
+      const updatedModels = models.map(model => ({
+        ...model,
+        isMainModel: false
+      }));
+      
+      console.log('📋 更新後のモデル一覧:', updatedModels.map(m => ({ id: m.id, name: m.displayName, isMain: m.isMainModel })));
+      
+      // 各モデルを更新（Supabaseにも保存）
+      for (const model of updatedModels) {
+        console.log('💾 モデル更新中:', model.id, model.displayName, 'isMain:', model.isMainModel);
+        await updateModel(model.id, model);
+      }
+      
+      setModels(updatedModels);
+      
+      // 他のコンポーネントに通知するためにカスタムイベントを発火
+      console.log('🌟 メインモデル解除イベント発火');
+      window.dispatchEvent(new CustomEvent('mainModelChanged', { detail: { modelId: null } }));
+      
+      // 成功メッセージ
+      alert('メインモデルの設定を解除しました！');
+    } catch (error) {
+      console.error('Error unsetting main model:', error);
+      alert('メインモデルの設定解除中にエラーが発生しました。');
     }
   };
 
@@ -156,14 +196,14 @@ export default function ModelManagement() {
       {/* ヘッダー */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-pink-500 bg-clip-text text-transparent">
             モデル管理
           </h2>
           <p className="text-gray-600 mt-1">モデルの追加・編集・削除を行います</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+          className="bg-gradient-to-r from-pink-500 to-pink-600 text-white px-6 py-3 rounded-xl hover:from-pink-600 hover:to-pink-700 transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
         >
           <Plus className="h-5 w-5" />
           <span className="font-semibold">新規追加</span>
@@ -174,7 +214,7 @@ export default function ModelManagement() {
       {showForm && (
         <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-2xl p-8 shadow-lg">
           <div className="flex items-center space-x-3 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl flex items-center justify-center">
               <Plus className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -197,7 +237,7 @@ export default function ModelManagement() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 bg-white"
                   placeholder="例: model1"
                   required
                 />
@@ -210,7 +250,7 @@ export default function ModelManagement() {
                   type="text"
                   value={formData.displayName}
                   onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 bg-white"
                   placeholder="例: ののちゃん"
                   required
                 />
@@ -220,7 +260,7 @@ export default function ModelManagement() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <button
                 type="submit"
-                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="flex-1 bg-gradient-to-r from-pink-500 to-pink-600 text-white px-6 py-3 rounded-xl hover:from-pink-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 {editingModel ? '更新する' : '追加する'}
               </button>
@@ -246,7 +286,7 @@ export default function ModelManagement() {
           <p className="text-gray-600 mb-6">新しいモデルを追加して始めましょう</p>
           <button
             onClick={() => setShowForm(true)}
-            className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="bg-gradient-to-r from-pink-500 to-pink-600 text-white px-6 py-3 rounded-xl hover:from-pink-600 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
           >
             最初のモデルを追加
           </button>
@@ -261,7 +301,7 @@ export default function ModelManagement() {
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-300 ${
                   model.isMainModel 
                     ? 'bg-gradient-to-br from-yellow-400 to-yellow-500'
-                    : 'bg-gradient-to-br from-blue-500 to-blue-600'
+                    : 'bg-gradient-to-br from-pink-500 to-pink-600'
                 }`}>
                   {model.isMainModel ? (
                     <Star className="h-6 w-6 text-white" />
@@ -282,32 +322,21 @@ export default function ModelManagement() {
                 </div>
               </div>
               
-              <div className="flex flex-col gap-2">
-                {!model.isMainModel && (
-                  <button
-                    onClick={() => handleSetMainModel(model.id)}
-                    className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 text-white px-4 py-2 rounded-xl text-sm hover:from-yellow-500 hover:to-yellow-600 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
-                  >
-                    <Star className="h-4 w-4" />
-                    <span className="font-semibold">メインに設定</span>
-                  </button>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(model)}
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-xl text-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span className="font-semibold">編集</span>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(model.id)}
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-xl text-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span className="font-semibold">削除</span>
-                  </button>
-                </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleEdit(model)}
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-xl text-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
+                >
+                  <Edit className="h-4 w-4" />
+                  <span className="font-semibold">編集</span>
+                </button>
+                <button
+                  onClick={() => handleDelete(model.id)}
+                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-3 rounded-xl text-sm hover:from-red-600 hover:to-red-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="font-semibold">削除</span>
+                </button>
               </div>
             </div>
           ))}
