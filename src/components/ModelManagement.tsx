@@ -197,7 +197,7 @@ export default function ModelManagement() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-pink-500 bg-clip-text text-transparent">
-            モデル管理
+            モデル一覧
           </h2>
           <p className="text-gray-600 mt-1">モデルの追加・編集・削除を行います</p>
         </div>
@@ -325,17 +325,17 @@ export default function ModelManagement() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleEdit(model)}
-                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-xl text-sm hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
+                  className="flex-1 border border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center space-x-2"
                 >
                   <Edit className="h-4 w-4" />
-                  <span className="font-semibold">編集</span>
+                  <span>編集</span>
                 </button>
                 <button
                   onClick={() => handleDelete(model.id)}
-                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-3 rounded-xl text-sm hover:from-red-600 hover:to-red-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-md hover:shadow-lg"
+                  className="flex-1 border border-gray-300 hover:border-red-300 hover:bg-red-50 text-gray-700 hover:text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center space-x-2"
                 >
                   <Trash2 className="h-4 w-4" />
-                  <span className="font-semibold">削除</span>
+                  <span>削除</span>
                 </button>
               </div>
             </div>

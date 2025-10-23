@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, Users, TrendingUp, Star, ArrowRight, CheckCircle, Sparkles } from 'lucide-react';
+import { Heart, Users, TrendingUp, Star, ArrowRight, CheckCircle, Sparkles, Shield } from 'lucide-react';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -18,11 +18,18 @@ export default function LandingPage() {
       <header className="bg-white/80 backdrop-blur-sm border-b border-pink-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-2">
-              <Heart className="h-8 w-8 text-pink-500" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-yellow-500 bg-clip-text text-transparent">
-                FanLove
-              </span>
+            <div className="flex items-center space-x-3">
+              <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Shield className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold text-blue-600 leading-tight">
+                  ファンクラ君
+                </span>
+                <span className="text-sm text-gray-600 leading-tight">
+                  売上管理システム
+                </span>
+              </div>
             </div>
             <button
               onClick={handleGetStarted}

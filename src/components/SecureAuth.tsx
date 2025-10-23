@@ -191,16 +191,20 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
         {/* ロゴ・ヘッダー */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-3 mb-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="ファンリピ" 
+              className="w-16 h-16 sm:w-20 sm:h-20 object-contain"
+              onError={(e) => {
+                console.log('ロゴ読み込みエラー:', e);
+                e.currentTarget.style.display = 'none';
+              }}
+              onLoad={() => console.log('ロゴ読み込み成功')}
+            />
             <div className="text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                ファンクラ君
+              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-pink-500 to-yellow-500 bg-clip-text text-transparent">
+                ファンリピ
               </h1>
-              <p className="text-sm sm:text-base text-gray-600 font-medium">
-                売上管理システム
-              </p>
             </div>
           </div>
         </div>
@@ -224,7 +228,8 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 text-lg"
+                  className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-all duration-200 text-lg bg-pink-100 text-gray-900 placeholder-gray-500"
+                  style={{ backgroundColor: '#fce7f3' }}
                   placeholder="name@example.com"
                   required
                   disabled={isLoading}
@@ -332,7 +337,8 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 text-lg"
+                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-all duration-200 text-lg bg-pink-100 text-gray-900 placeholder-gray-500"
+                  style={{ backgroundColor: '#fce7f3' }}
                     placeholder="お名前"
                     required
                     disabled={isLoading}
@@ -344,7 +350,8 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 text-lg"
+                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-all duration-200 text-lg bg-pink-100 text-gray-900 placeholder-gray-500"
+                  style={{ backgroundColor: '#fce7f3' }}
                     placeholder="メールアドレス"
                     required
                     disabled={isLoading}
@@ -356,7 +363,8 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 text-lg"
+                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-all duration-200 text-lg bg-pink-100 text-gray-900 placeholder-gray-500"
+                  style={{ backgroundColor: '#fce7f3' }}
                     placeholder="パスワード（6文字以上）"
                     required
                     minLength={6}
@@ -444,7 +452,8 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                         id="forgot-email"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200"
+                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-all duration-200 bg-pink-100 text-gray-900 placeholder-gray-500"
+                        style={{ backgroundColor: '#fce7f3' }}
                         placeholder="example@example.com"
                         required
                         disabled={isLoading}
@@ -513,7 +522,8 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                     id="admin-email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200"
+                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-all duration-200 bg-pink-100 text-gray-900 placeholder-gray-500"
+                    style={{ backgroundColor: '#fce7f3' }}
                     placeholder="admin@example.com"
                     required
                     disabled={isLoading}
@@ -532,7 +542,8 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
                     id="admin-password"
                     value={adminPassword}
                     onChange={(e) => setAdminPassword(e.target.value)}
-                    className="w-full pl-10 pr-12 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200"
+                    className="w-full pl-10 pr-12 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-all duration-200 bg-pink-100 text-gray-900 placeholder-gray-500"
+                    style={{ backgroundColor: '#fce7f3' }}
                     placeholder="管理者パスワードを入力"
                     required
                     disabled={isLoading}
@@ -594,7 +605,7 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
         {/* フッター */}
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500">
-            © 2024 ファンクラ君. All rights reserved.
+            © 2024 ファンリピ 売上管理システム. All rights reserved.
           </p>
         </div>
       </div>

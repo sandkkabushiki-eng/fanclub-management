@@ -20,7 +20,8 @@ export const supabase = (() => {
         persistSession: true,
         storage: typeof window !== 'undefined' ? window.localStorage : undefined,
         autoRefreshToken: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        flowType: 'pkce'
       }
     });
   }
@@ -324,7 +325,15 @@ class AuthManager {
       
       if (error) {
         console.warn('Supabase session error:', error.message);
-        // エラーが発生した場合はローカルセッションをクリア
+        
+        // リフレッシュトークンエラーの場合はセッションをクリア
+        if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token')) {
+          console.log('🔄 リフレッシュトークンエラーを検出、セッションをクリアします...');
+          this.logout();
+          return null;
+        }
+        
+        // その他のエラーの場合もローカルセッションをクリア
         this.logout();
         return null;
       }
@@ -337,10 +346,18 @@ class AuthManager {
             id: supabaseSession.user.id,
             email: supabaseSession.user.email || '',
             name: supabaseSession.user.user_metadata?.name || supabaseSession.user.email || '',
-            role: 'user'
+            role: 'user',
+            createdAt: supabaseSession.user.created_at,
+            lastLoginAt: new Date().toISOString(),
+            isActive: true,
+            subscription: {
+              plan: 'basic' as const,
+              status: 'active' as const,
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            }
           },
           expiresAt: new Date(supabaseSession.expires_at! * 1000).toISOString(),
-          accessToken: supabaseSession.access_token
+          token: supabaseSession.access_token
         };
         
         this.currentUser = authSession.user;
@@ -371,6 +388,12 @@ class AuthManager {
       return session;
     } catch (error) {
       console.error('Session load error:', error);
+      
+      // リフレッシュトークンエラーの場合はセッションをクリア
+      if (error instanceof Error && (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token'))) {
+        console.log('🔄 リフレッシュトークンエラーを検出、セッションをクリアします...');
+      }
+      
       this.logout();
       return null;
     }

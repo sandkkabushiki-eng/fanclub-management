@@ -177,15 +177,15 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
   const maxRevenue = Math.max(...calendarData.map(d => d.revenue), 1);
   const maxHourRevenue = Math.max(...hourlyData.map(d => d.revenue), 1);
 
-  // 色の濃淡を計算
+  // 色の濃淡を計算（文字の可読性を考慮）
   const getColorIntensity = (value: number, max: number) => {
     const intensity = Math.min(value / max, 1);
-    if (intensity === 0) return 'bg-gray-50';
-    if (intensity < 0.2) return 'bg-pink-100';
-    if (intensity < 0.4) return 'bg-pink-200';
-    if (intensity < 0.6) return 'bg-pink-300';
-    if (intensity < 0.8) return 'bg-pink-400';
-    return 'bg-pink-500';
+    if (intensity === 0) return { bg: 'bg-gray-50', text: 'text-gray-600' };
+    if (intensity < 0.2) return { bg: 'bg-pink-100', text: 'text-gray-800' };
+    if (intensity < 0.4) return { bg: 'bg-pink-200', text: 'text-gray-800' };
+    if (intensity < 0.6) return { bg: 'bg-pink-300', text: 'text-white' };
+    if (intensity < 0.8) return { bg: 'bg-pink-400', text: 'text-white' };
+    return { bg: 'bg-pink-500', text: 'text-white' };
   };
 
   // カレンダーのグリッドを生成
@@ -334,17 +334,17 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
                   const dayData = calendarData.find(d => d.date === day);
                   const revenue = dayData?.revenue || 0;
                   const transactions = dayData?.transactions || 0;
-                  const colorClass = getColorIntensity(revenue, maxRevenue);
+                  const colorInfo = getColorIntensity(revenue, maxRevenue);
                   
                   return (
                     <div
                       key={`week-${weekIndex}-day-${day}`}
-                      className={`aspect-square ${colorClass} rounded-md sm:rounded-lg p-1 sm:p-2 cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative`}
+                      className={`aspect-square ${colorInfo.bg} rounded-md sm:rounded-lg p-1 sm:p-2 cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative`}
                       title={`${day}日: ${formatCurrency(revenue)} (${transactions}件)`}
                     >
-                      <div className="text-xs sm:text-sm font-semibold text-gray-900 leading-tight">{day}</div>
+                      <div className={`text-xs sm:text-sm font-bold ${colorInfo.text} leading-tight`}>{day}</div>
                       {transactions > 0 && (
-                        <div className="text-[10px] sm:text-xs text-gray-700 mt-0.5 sm:mt-1 leading-tight">
+                        <div className={`text-[10px] sm:text-xs ${colorInfo.text} mt-0.5 sm:mt-1 leading-tight`}>
                           <div className="font-medium truncate">{formatCurrency(revenue)}</div>
                           <div className="truncate">{transactions}件</div>
                         </div>
@@ -366,18 +366,35 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
           </div>
         </div>
         
-        {/* 凡例 */}
-        <div className="mt-4 flex items-center justify-center space-x-2 text-sm text-gray-600">
-          <span>少ない</span>
-          <div className="flex space-x-1">
-            <div className="w-4 h-4 bg-gray-50 border border-gray-200 rounded"></div>
-            <div className="w-4 h-4 bg-pink-100 rounded"></div>
-            <div className="w-4 h-4 bg-pink-200 rounded"></div>
-            <div className="w-4 h-4 bg-pink-300 rounded"></div>
-            <div className="w-4 h-4 bg-pink-400 rounded"></div>
-            <div className="w-4 h-4 bg-pink-500 rounded"></div>
+        {/* 色の凡例 */}
+        <div className="mt-6 bg-gray-50 rounded-lg p-4">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3 text-center">色の凡例</h4>
+          <div className="flex items-center justify-center space-x-6 text-xs">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-gray-50 border border-gray-300 rounded"></div>
+              <span className="text-gray-600">売上なし</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-pink-100 border border-gray-300 rounded"></div>
+              <span className="text-gray-600">低</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-pink-200 border border-gray-300 rounded"></div>
+              <span className="text-gray-600">中低</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-pink-300 border border-gray-300 rounded"></div>
+              <span className="text-gray-600">中</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-pink-400 border border-gray-300 rounded"></div>
+              <span className="text-gray-600">高</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-pink-500 border border-gray-300 rounded"></div>
+              <span className="text-gray-600">最高</span>
+            </div>
           </div>
-          <span>多い</span>
         </div>
       </div>
 
@@ -390,16 +407,16 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
         
         <div className="grid grid-cols-6 sm:grid-cols-12 gap-2">
           {hourlyData.map(({ hour, revenue, transactions }) => {
-            const colorClass = getColorIntensity(revenue, maxHourRevenue);
+            const colorInfo = getColorIntensity(revenue, maxHourRevenue);
             
             return (
               <div
                 key={hour}
-                className={`${colorClass} rounded-lg p-3 text-center cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative`}
+                className={`${colorInfo.bg} rounded-lg p-3 text-center cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative`}
                 title={`${hour}時: ${formatCurrency(revenue)} (${transactions}件)`}
               >
-                <div className="text-xs font-semibold text-gray-900">{hour}時</div>
-                <div className="text-xs text-gray-700 mt-1">{transactions}件</div>
+                <div className={`text-xs font-bold ${colorInfo.text}`}>{hour}時</div>
+                <div className={`text-xs ${colorInfo.text} mt-1`}>{transactions}件</div>
                 
                 {/* ホバー時の詳細 */}
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
@@ -448,12 +465,12 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
                   </div>
                   {Array.from({ length: 24 }, (_, hour) => {
                     const data = weekdayHourData[weekdayIndex]?.[hour] || { revenue: 0, transactions: 0 };
-                    const colorClass = getColorIntensity(data.revenue, maxWeekdayRevenue);
+                    const colorInfo = getColorIntensity(data.revenue, maxWeekdayRevenue);
                     
                     return (
                       <div
                         key={`weekday-${weekdayIndex}-hour-${hour}`}
-                        className={`${colorClass} aspect-square rounded cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative`}
+                        className={`${colorInfo.bg} aspect-square rounded cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative`}
                         title={`${weekday} ${hour}時: ${formatCurrency(data.revenue)} (${data.transactions}件)`}
                       >
                         {/* ホバー時の詳細 */}
@@ -510,9 +527,11 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
             <div>
               <p className="text-sm text-gray-500">月間平均購入額</p>
               <p className="text-xl font-bold text-gray-900">
-                {calendarData.length > 0
-                  ? formatCurrency(calendarData.reduce((sum, d) => sum + d.revenue, 0) / calendarData.length)
-                  : '-'}
+                {(() => {
+                  const totalRevenue = calendarData.reduce((sum, d) => sum + d.revenue, 0);
+                  const totalTransactions = calendarData.reduce((sum, d) => sum + d.transactions, 0);
+                  return totalTransactions > 0 ? formatCurrency(totalRevenue / totalTransactions) : '-';
+                })()}
               </p>
             </div>
           </div>

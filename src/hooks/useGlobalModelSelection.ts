@@ -104,5 +104,5 @@ export const useGlobalModelSelectionListener = (
     return () => {
       window.removeEventListener('globalModelSelectionChanged', handleGlobalModelSelectionChange);
     };
-  }, []); // 依存配列を空にして無限ループを防ぐ
+  }, [onSelectionChange]); // onSelectionChangeを依存配列に追加
 };

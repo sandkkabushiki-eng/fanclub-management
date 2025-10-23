@@ -85,3 +85,5 @@ SELECT COUNT(*) as total_users FROM users;
 SELECT role, COUNT(*) as count FROM users GROUP BY role;
 
 
+
+

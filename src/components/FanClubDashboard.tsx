@@ -6,15 +6,15 @@ import {
   Users,
   TrendingUp,
   Upload,
-  Settings,
   BarChart3,
   DollarSign,
   Calendar,
   Star,
   ChevronRight,
-  LogOut,
   Menu,
-  X
+  X,
+  Heart,
+  Shield
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels } from '@/utils/modelUtils';
@@ -26,8 +26,8 @@ import { supabase } from '@/lib/supabase';
 import { getCustomerDetailInfo, formatCurrency } from '@/utils/csvUtils';
 import CSVUploader from '@/components/CSVUploaderNew';
 import ModelManagement from '@/components/ModelManagement';
-import ModelDataManagement from '@/components/ModelDataManagement';
 import CalendarAnalysis from '@/components/CalendarAnalysis';
+import RevenueDashboard from '@/components/RevenueDashboard';
 import { useGlobalModelSelection, useGlobalModelSelectionListener } from '@/hooks/useGlobalModelSelection';
 
 
@@ -75,10 +75,37 @@ const FanClubDashboard: React.FC = () => {
 
   useGlobalModelSelectionListener(handleGlobalModelSelectionChange);
 
-  // ユーザー固有のストレージキーを取得
+  // ユーザー固有のストレージキーを取得（modelUtils.tsと同じ方法）
   const getUserStorageKey = (baseKey: string): string => {
-    const userId = authSession?.user?.id || 'default';
+    const currentUser = authManager.getCurrentUser();
+    const userId = currentUser?.id || 'default';
     return `${baseKey}-${userId}`;
+  };
+
+  // デバッグ用: ストレージの内容を確認
+  const debugStorageContents = () => {
+    console.log('🔍 ストレージデバッグ開始');
+    console.log('🔍 authSession.user.id:', authSession?.user?.id);
+    console.log('🔍 authManager.getCurrentUser():', authManager.getCurrentUser());
+    
+    // 全てのlocalStorageキーを確認
+    const allKeys = Object.keys(localStorage);
+    console.log('🔍 全てのlocalStorageキー:', allKeys);
+    
+    // fanclub関連のキーを特定
+    const fanclubKeys = allKeys.filter(key => key.includes('fanclub'));
+    console.log('🔍 fanclub関連キー:', fanclubKeys);
+    
+    // 各キーの内容を確認
+    fanclubKeys.forEach(key => {
+      const data = localStorage.getItem(key);
+      try {
+        const parsed = data ? JSON.parse(data) : null;
+        console.log(`🔍 ${key}:`, parsed);
+      } catch (e) {
+        console.log(`🔍 ${key}: パースエラー`, data);
+      }
+    });
   };
 
   // 古いキーから新しいキーにデータを移行
@@ -116,6 +143,9 @@ const FanClubDashboard: React.FC = () => {
           console.log('📊 認証セッションがないため、データ読み込みをスキップ');
           return;
         }
+        
+        // デバッグ: ストレージの内容を確認
+        debugStorageContents();
         
         // 古いデータを新しいキーに移行（初回のみ）
         migrateOldData('fanclub-model-data');
@@ -282,6 +312,118 @@ const FanClubDashboard: React.FC = () => {
     setMessage('ログアウトしました');
   };
 
+  // 月別データの削除処理（正確なモデル分離）
+  const handleDeleteMonthData = async (modelId: string, month: string, monthData: FanClubRevenueData[]) => {
+    try {
+      console.log('🗑️ 月別データ削除開始:', modelId, month, monthData.length, '件');
+      console.log('🗑️ 削除対象モデルID:', modelId);
+      console.log('🗑️ 削除対象月:', month);
+      
+      // 現在のmodelDataから該当の月のデータを除外
+      const updatedModelData = { ...modelData };
+      
+      // 該当モデルのキーを正確に特定
+      const modelKey = Object.keys(updatedModelData).find(key => key.startsWith(`${modelId}_`));
+      
+      if (!modelKey) {
+        console.error('❌ モデルキーが見つかりません:', modelId);
+        setMessage('❌ モデルデータが見つかりません');
+        setTimeout(() => setMessage(''), 3000);
+        return;
+      }
+      
+      console.log('🗑️ 見つかったモデルキー:', modelKey);
+      
+      if (updatedModelData[modelKey]) {
+        const modelDataItem = updatedModelData[modelKey] as { data: FanClubRevenueData[] };
+        const allData = modelDataItem.data || [];
+        
+        console.log('🗑️ 削除前のデータ数:', allData.length, '件');
+        
+        // 該当月のデータを除外（日付の正規化も考慮）
+        const filteredData = allData.filter(item => {
+          if (!item.日付) return true;
+          
+          let date: Date;
+          if (typeof item.日付 === 'string' && item.日付.includes('月') && item.日付.includes('日')) {
+            // 日付の正規化処理
+            const match = item.日付.match(/(\d+)月(\d+)日\s+(\d+):(\d+):(\d+)/);
+            if (match) {
+              const monthNum = parseInt(match[1]);
+              const day = parseInt(match[2]);
+              const hour = parseInt(match[3]);
+              const minute = parseInt(match[4]);
+              const second = parseInt(match[5]);
+              
+              const currentDate = new Date();
+              const currentYear = currentDate.getFullYear();
+              const currentMonth = currentDate.getMonth() + 1;
+              
+              let year = currentYear;
+              if (monthNum > currentMonth) {
+                year = currentYear - 1;
+              }
+              
+              date = new Date(year, monthNum - 1, day, hour, minute, second);
+            } else {
+              date = new Date(item.日付);
+            }
+          } else {
+            date = new Date(item.日付);
+          }
+          
+          const itemMonth = `${date.getFullYear()}年${date.getMonth() + 1}月`;
+          return itemMonth !== month;
+        });
+        
+        console.log('🗑️ 削除後のデータ数:', filteredData.length, '件');
+        
+        // データを更新
+        updatedModelData[modelKey] = { data: filteredData };
+        setModelData(updatedModelData);
+        
+        // ローカルストレージに保存
+        const userDataKey = getUserStorageKey('fanclub-model-data');
+        localStorage.setItem(userDataKey, JSON.stringify(updatedModelData));
+        
+        // Supabaseにも保存
+        if (authSession?.user?.id) {
+          try {
+            const { error } = await supabase
+              .from('user_model_data')
+              .upsert({
+                user_id: authSession.user.id,
+                data_key: modelKey,
+                data: filteredData,
+                updated_at: new Date().toISOString()
+              });
+            
+            if (error) {
+              console.error('Supabase保存エラー:', error);
+            } else {
+              console.log('✅ Supabaseに保存完了');
+            }
+          } catch (supabaseError) {
+            console.error('Supabase保存エラー:', supabaseError);
+          }
+        }
+        
+        setMessage(`✅ ${month}のデータ（${monthData.length}件）を削除しました`);
+        setTimeout(() => setMessage(''), 3000);
+        
+        console.log('✅ 月別データ削除完了');
+      } else {
+        console.error('❌ モデルデータが見つかりません:', modelKey);
+        setMessage('❌ データの削除に失敗しました');
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (error) {
+      console.error('❌ 月別データ削除エラー:', error);
+      setMessage('❌ データの削除に失敗しました');
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
 
 
   const sidebarItems = [
@@ -294,17 +436,27 @@ const FanClubDashboard: React.FC = () => {
   ];
 
   const getModelStats = (): ModelStats => {
-    console.log('📊 ダッシュボード統計計算開始');
+    console.log('📊 ファン管理統計計算開始');
+    console.log('📊 選択されたモデルID:', selectedModelId);
     console.log('📊 modelData keys:', Object.keys(modelData));
     console.log('📊 modelData values:', Object.values(modelData).length);
     
-    // データの構造を正しく処理
+    // データの構造を正しく処理し、選択されたモデルのデータのみをフィルタリング
     const allData = Object.values(modelData).flatMap(item => {
       if (Array.isArray(item)) return item;
       if (typeof item === 'object' && item !== null && 'data' in item) {
         const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
           ? (item as { data: FanClubRevenueData[] }).data 
           : [];
+        
+        // 選択されたモデルのデータのみをフィルタリング
+        if (selectedModelId && selectedModelId !== 'all') {
+          // モデルIDでフィルタリング（modelDataのキーからmodelIdを取得）
+          const modelKey = Object.keys(modelData).find(key => key.startsWith(`${selectedModelId}_`));
+          if (!modelKey) {
+            return []; // 選択されたモデルのデータが見つからない場合
+          }
+        }
         
         // 既存データの日付も正規化
         return data.map(record => {
@@ -337,13 +489,26 @@ const FanClubDashboard: React.FC = () => {
       return [];
     }) as FanClubRevenueData[];
 
-    const totalRevenue = allData.reduce((sum, item) => sum + (Number(item.金額) || 0), 0);
-    const totalCustomers = new Set(allData.map(item => item.購入者 || item.顧客名)).size;
-    const averageTransactionValue = allData.length > 0 ? totalRevenue / allData.length : 0;
+    // 選択されたモデルのデータのみをフィルタリング
+    const filteredData = selectedModelId && selectedModelId !== 'all'
+      ? allData.filter(record => {
+          // modelDataのキーからmodelIdを確認
+          const matchingKey = Object.keys(modelData).find(key => 
+            key.startsWith(`${selectedModelId}_`)
+          );
+          return matchingKey !== undefined;
+        })
+      : allData;
+
+    console.log('📊 フィルタリング後のデータ数:', filteredData.length);
+
+    const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.金額) || 0), 0);
+    const totalCustomers = new Set(filteredData.map(item => item.購入者 || item.顧客名)).size;
+    const averageTransactionValue = filteredData.length > 0 ? totalRevenue / filteredData.length : 0;
     
     // リピート率の計算
     const customerPurchaseCounts = new Map<string, number>();
-    allData.forEach(item => {
+    filteredData.forEach(item => {
       const customer = item.購入者 || item.顧客名 || '不明';
       customerPurchaseCounts.set(customer, (customerPurchaseCounts.get(customer) || 0) + 1);
     });
@@ -516,13 +681,6 @@ const FanClubDashboard: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Mobile Menu Overlay */}
-      {mobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
 
       {/* Sidebar */}
       <div className={`
@@ -534,7 +692,23 @@ const FanClubDashboard: React.FC = () => {
         <div className="p-6">
           <div className="flex items-center justify-between">
             {!sidebarCollapsed && (
-              <h1 className="text-white text-xl font-black">ファンクラ君</h1>
+              <div className="flex items-center space-x-3">
+                <img 
+                  src="/logo.png" 
+                  alt="ファンリピ" 
+                  className="w-8 h-8 object-contain"
+                  onError={(e) => {
+                    console.log('ロゴ読み込みエラー:', e);
+                    e.currentTarget.style.display = 'none';
+                  }}
+                  onLoad={() => console.log('ロゴ読み込み成功')}
+                />
+                <div className="flex flex-col">
+                  <span className="text-lg font-bold bg-gradient-to-r from-pink-200 to-yellow-200 bg-clip-text text-transparent leading-tight">
+                    ファンリピ
+                  </span>
+                </div>
+              </div>
             )}
             <div className="flex items-center space-x-2">
               {/* Mobile close button */}
@@ -582,41 +756,34 @@ const FanClubDashboard: React.FC = () => {
         </nav>
 
 
-        {/* User Info */}
+        {/* User Info - Simplified */}
         {!sidebarCollapsed && (
-          <div className="p-4 border-t border-pink-700">
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="w-8 h-8 bg-pink-200 rounded-full flex items-center justify-center">
-                <span className="text-pink-700 text-sm font-bold">
-                  {authSession.user.name.charAt(0)}
-                </span>
-              </div>
-              <div className="flex-1">
-                <p className="text-pink-100 text-sm font-bold">{authSession.user.name}</p>
-                <p className="text-pink-300 text-xs">{authSession.user.email}</p>
-              </div>
+          <div className="p-3 border-t border-gray-600">
+            {/* ユーザー名のみ表示 */}
+            <div className="mb-3">
+              <p className="text-gray-200 text-sm font-medium truncate" title={authSession.user.name}>
+                {authSession.user.name}
+              </p>
             </div>
             
-            {/* 設定とログアウトボタン */}
-            <div className="flex space-x-2">
+            {/* シンプルなボタン */}
+            <div className="flex space-x-1">
               <button
                 onClick={() => {
                   setActiveTab('settings');
                   setMobileMenuOpen(false);
                 }}
-                className="flex-1 flex items-center justify-center space-x-2 bg-pink-600 hover:bg-pink-700 text-white px-3 py-2 rounded-lg text-sm transition-colors"
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 px-2 py-1.5 rounded text-xs transition-colors"
                 title="設定"
               >
-                <Settings className="w-4 h-4" />
-                <span className="text-xs">設定</span>
+                設定
               </button>
               <button
                 onClick={handleLogout}
-                className="flex-1 flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm transition-colors"
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 px-2 py-1.5 rounded text-xs transition-colors"
                 title="ログアウト"
               >
-                <LogOut className="w-4 h-4" />
-                <span className="text-xs">ログアウト</span>
+                ログアウト
               </button>
             </div>
           </div>
@@ -624,7 +791,14 @@ const FanClubDashboard: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
+      <div 
+        className="flex-1 flex flex-col overflow-hidden lg:ml-0"
+        onClick={() => {
+          if (mobileMenuOpen) {
+            setMobileMenuOpen(false);
+          }
+        }}
+      >
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200 px-4 lg:px-6 py-4">
           <div className="flex items-center justify-between">
@@ -662,11 +836,6 @@ const FanClubDashboard: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* Header */}
-              <div className="bg-white rounded-lg p-6 border border-gray-200">
-                <h1 className="text-2xl font-semibold text-gray-900 mb-2">ダッシュボード</h1>
-                <p className="text-gray-600">ファンクラブの売上管理</p>
-              </div>
 
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -794,10 +963,6 @@ const FanClubDashboard: React.FC = () => {
 
           {activeTab === 'models' && (
             <div className="space-y-6">
-              <div className="bg-white rounded-lg p-6 border border-gray-200">
-                <h1 className="text-2xl font-semibold text-gray-900 mb-2">モデル管理</h1>
-                <p className="text-gray-600">ファンクラブモデルの追加・編集・削除を行います</p>
-              </div>
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <ModelManagement />
               </div>
@@ -806,24 +971,287 @@ const FanClubDashboard: React.FC = () => {
 
           {activeTab === 'csv' && (
             <div className="space-y-4 lg:space-y-6">
-              <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
-                <h1 className="text-xl lg:text-2xl font-semibold text-gray-900 mb-2">CSVデータ管理</h1>
-                <p className="text-sm lg:text-base text-gray-600">売上データをCSVファイルでアップロード・管理します</p>
-              </div>
               <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
                 <CSVUploader onDataLoaded={handleDataLoaded} />
+              </div>
+              
+              {/* データ管理セクション */}
+              <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">データ管理</h3>
+                
+                {/* モデル選択 */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    モデルを選択してください
+                  </label>
+                  <select
+                    value={selectedModelId}
+                    onChange={(e) => {
+                      const newModelId = e.target.value;
+                      setSelectedModelId(newModelId);
+                      // グローバル状態も更新
+                      localStorage.setItem('globalModelSelection', JSON.stringify({ selectedModelId: newModelId }));
+                      window.dispatchEvent(new CustomEvent('globalModelSelectionChanged', { 
+                        detail: { selectedModelId: newModelId } 
+                      }));
+                    }}
+                    className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                  >
+                    <option value="">モデルを選択</option>
+                    {models.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.isMainModel ? '⭐ ' : ''}{model.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 選択されたモデルの月別データ表示 */}
+                {selectedModelId && (
+                  <div className="space-y-4">
+                    <h4 className="text-md font-medium text-gray-800">
+                      {models.find(m => m.id === selectedModelId)?.displayName} の月別データ
+                    </h4>
+                    
+                    {(() => {
+                      // データの整合性を確保するためのデバッグ情報
+                      console.log('🔍 CSVデータ管理: 選択されたモデルID:', selectedModelId);
+                      console.log('🔍 CSVデータ管理: 選択されたモデル名:', models.find(m => m.id === selectedModelId)?.displayName);
+                      console.log('🔍 CSVデータ管理: 利用可能なmodelData keys:', Object.keys(modelData));
+                      console.log('🔍 CSVデータ管理: modelData全体:', modelData);
+                      
+                      // 各キーの詳細情報を表示
+                      Object.entries(modelData).forEach(([key, value]) => {
+                        if (Array.isArray(value)) {
+                          console.log(`🔍 ${key}: 配列形式 ${value.length}件`);
+                        } else if (typeof value === 'object' && value !== null && 'data' in value) {
+                          const data = (value as { data: FanClubRevenueData[] }).data;
+                          console.log(`🔍 ${key}: オブジェクト形式 ${data.length}件`);
+                          // 最初の数件のデータを表示
+                          if (data.length > 0) {
+                            console.log(`🔍 ${key} の最初のデータ:`, data.slice(0, 3).map(item => ({
+                              日付: item.日付,
+                              モデル名: item.モデル名,
+                              購入者: item.購入者,
+                              金額: item.金額
+                            })));
+                          }
+                        } else {
+                          console.log(`🔍 ${key}: 不明な形式`, typeof value, value);
+                        }
+                      });
+
+                      // 選択されたモデルのデータのみをフィルタリング（正確に）
+                      let filteredData: FanClubRevenueData[] = [];
+                      
+                      if (selectedModelId && selectedModelId !== 'all') {
+                        // 該当モデルの全てのキーを特定（複数月のデータを取得）
+                        const modelKeys = Object.keys(modelData).filter(key => key.startsWith(`${selectedModelId}_`));
+                        
+                        console.log('🔍 CSVデータ管理: 検索対象モデルキー:', modelKeys);
+                        
+                        if (modelKeys.length > 0) {
+                          // 全ての月のデータを結合
+                          const allModelData: FanClubRevenueData[] = [];
+                          
+                          modelKeys.forEach(modelKey => {
+                            const modelDataItem = modelData[modelKey];
+                            console.log('🔍 CSVデータ管理: 処理中のキー:', modelKey, modelDataItem);
+                            
+                            if (Array.isArray(modelDataItem)) {
+                              // 直接配列の場合
+                              allModelData.push(...modelDataItem);
+                            } else if (typeof modelDataItem === 'object' && modelDataItem !== null && 'data' in modelDataItem) {
+                              // オブジェクトにdataプロパティがある場合
+                              const data = (modelDataItem as { data: FanClubRevenueData[] }).data || [];
+                              allModelData.push(...data);
+                            }
+                          });
+                          
+                          filteredData = allModelData;
+                          console.log('🔍 CSVデータ管理: 全月のデータを取得:', filteredData.length, '件');
+                          
+                          // 日付の正規化処理
+                          filteredData = filteredData.map(record => {
+                            if (record.日付 && typeof record.日付 === 'string') {
+                              const dateStr = record.日付;
+                              const match = dateStr.match(/(\d+)月(\d+)日\s+(\d+):(\d+):(\d+)/);
+                              if (match) {
+                                const month = parseInt(match[1]);
+                                const day = parseInt(match[2]);
+                                const hour = parseInt(match[3]);
+                                const minute = parseInt(match[4]);
+                                const second = parseInt(match[5]);
+                                
+                                const currentDate = new Date();
+                                const currentYear = currentDate.getFullYear();
+                                const currentMonth = currentDate.getMonth() + 1;
+                                
+                                let year = currentYear;
+                                if (month > currentMonth) {
+                                  year = currentYear - 1;
+                                }
+                                
+                                const date = new Date(year, month - 1, day, hour, minute, second);
+                                record.日付 = date.toISOString();
+                              }
+                            }
+                            return record;
+                          });
+                          
+                          console.log('🔍 CSVデータ管理: 正規化後のデータ数:', filteredData.length, '件');
+                          
+                          // データの内容を確認
+                          if (filteredData.length > 0) {
+                            console.log('🔍 CSVデータ管理: 取得したデータの内容:', filteredData.slice(0, 5).map(item => ({
+                              日付: item.日付,
+                              モデル名: item.モデル名,
+                              購入者: item.購入者,
+                              金額: item.金額
+                            })));
+                          }
+                        } else {
+                          console.log('🔍 CSVデータ管理: モデルキーが見つかりません');
+                          console.log('🔍 CSVデータ管理: 利用可能なキー:', Object.keys(modelData));
+                          filteredData = [];
+                        }
+                      } else {
+                        // 全モデルのデータ
+                        filteredData = [];
+                      }
+
+                      console.log('🔍 CSVデータ管理: フィルタリング後のデータ数:', filteredData.length, '件');
+                      
+                      if (filteredData.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-gray-500">
+                            <p>このモデルのデータがありません</p>
+                            <p className="text-sm mt-2">CSVファイルをアップロードしてください</p>
+                            <div className="mt-4 text-xs text-gray-400">
+                              <p>デバッグ情報:</p>
+                              <p>選択モデルID: {selectedModelId}</p>
+                              <p>選択モデル名: {models.find(m => m.id === selectedModelId)?.displayName}</p>
+                              <p>利用可能キー: {Object.keys(modelData).join(', ')}</p>
+                              <p>modelData全体: {JSON.stringify(modelData, null, 2)}</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      // 月別にデータをグループ化
+                      const monthlyData = new Map<string, FanClubRevenueData[]>();
+                      
+                      filteredData.forEach(item => {
+                        if (item.日付) {
+                          const date = new Date(item.日付);
+                          const monthKey = `${date.getFullYear()}年${date.getMonth() + 1}月`;
+                          
+                          if (!monthlyData.has(monthKey)) {
+                            monthlyData.set(monthKey, []);
+                          }
+                          monthlyData.get(monthKey)!.push(item);
+                        }
+                      });
+                      
+                      console.log('🔍 CSVデータ管理: 月別データの結果:', Array.from(monthlyData.keys()));
+
+                      const sortedMonths = Array.from(monthlyData.keys()).sort((a, b) => {
+                        const [yearA, monthA] = a.split('年');
+                        const [yearB, monthB] = b.split('月');
+                        const [yearB2, monthB2] = yearB.split('年');
+                        const monthB3 = monthB2.split('月')[0];
+                        
+                        if (yearA !== yearB2) return parseInt(yearA) - parseInt(yearB2);
+                        return parseInt(monthA) - parseInt(monthB3);
+                      });
+
+                      if (sortedMonths.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-gray-500">
+                            <p>月別データがありません</p>
+                            <p className="text-sm mt-2">データ数: {data.length}件</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {sortedMonths.map(month => {
+                            const monthData = monthlyData.get(month)!;
+                            const totalRevenue = monthData.reduce((sum, item) => sum + (Number(item.金額) || 0), 0);
+                            const transactionCount = monthData.length;
+                            const uniqueCustomers = new Set(monthData.map(item => item.購入者 || item.顧客名)).size;
+                            
+                            return (
+                              <div key={month} className="bg-gray-50 rounded-lg p-4 border border-gray-200 relative group">
+                                <h5 className="font-medium text-gray-900 mb-3">{month}</h5>
+                                <div className="space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">売上合計:</span>
+                                    <span className="font-medium text-gray-900">{formatCurrency(totalRevenue)}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">取引件数:</span>
+                                    <span className="font-medium text-gray-900">{transactionCount}件</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">顧客数:</span>
+                                    <span className="font-medium text-gray-900">{uniqueCustomers}人</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">平均単価:</span>
+                                    <span className="font-medium text-gray-900">
+                                      {transactionCount > 0 ? formatCurrency(totalRevenue / transactionCount) : '¥0'}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                {/* 編集・削除ボタン */}
+                                <div className="mt-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => {
+                                      // 編集機能（詳細データ表示）
+                                      const monthDataStr = JSON.stringify(monthData, null, 2);
+                                      alert(`${month}の詳細データ:\n\n${monthDataStr}`);
+                                    }}
+                                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded text-xs transition-colors"
+                                  >
+                                    詳細
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`${month}のデータ（${transactionCount}件）を削除しますか？\nこの操作は取り消せません。`)) {
+                                        // 削除処理
+                                        handleDeleteMonthData(selectedModelId, month, monthData);
+                                      }
+                                    }}
+                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs transition-colors"
+                                  >
+                                    削除
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {!selectedModelId && (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>モデルを選択すると、そのモデルの月別データが表示されます</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {activeTab === 'revenue' && (
             <div className="space-y-4 lg:space-y-6">
-              <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
-                <h1 className="text-xl lg:text-2xl font-semibold text-gray-900 mb-2">売上分析</h1>
-                <p className="text-gray-600">詳細な売上データの分析とレポートを表示します</p>
-              </div>
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <ModelDataManagement />
+                <RevenueDashboard selectedModelId={selectedModelId} />
               </div>
             </div>
           )}
@@ -1305,17 +1733,6 @@ const FanClubDashboard: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="border-b border-gray-200 pb-4">
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">データ管理</h4>
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">
-                        登録モデル数: {models.length}件
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        データ件数: {Object.keys(modelData).length}件
-                      </p>
-                    </div>
-                  </div>
                   
                   <div>
                     <h4 className="text-lg font-medium text-gray-900 mb-2">アプリケーション情報</h4>

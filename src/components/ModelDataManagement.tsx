@@ -188,10 +188,11 @@ export default function ModelDataManagement() {
       
       // メインモデルが解除された場合（modelIdがnull）
       if (modelId === null) {
-        console.log('売上分析: メインモデル解除、全体売上を選択');
-        setSelectedModelId('all');
+        console.log('データ管理: メインモデル解除、最初のモデルを選択');
+        const firstModel = modelsData.length > 0 ? modelsData[0].id : '';
+        setSelectedModelId(firstModel);
       } else {
-        // 売上分析のモデル選択をメインモデルに更新
+        // データ管理のモデル選択をメインモデルに更新
         setSelectedModelId(modelId);
       }
       setIsInitialLoad(false);
@@ -379,7 +380,6 @@ export default function ModelDataManagement() {
   };
 
   const tabs = [
-    { id: 'revenue' as const, label: '売上分析', icon: DollarSign },
     { id: 'data' as const, label: 'データ管理', icon: Calendar },
   ];
 
@@ -387,8 +387,8 @@ export default function ModelDataManagement() {
     <div className="space-y-6">
       {/* ヘッダー */}
       <div className="flex items-center space-x-4">
-        <BarChart3 className="h-8 w-8 text-pink-600" />
-        <h2 className="text-2xl font-bold text-pink-600">データ管理・分析</h2>
+        <Calendar className="h-8 w-8 text-pink-600" />
+        <h2 className="text-2xl font-bold text-pink-600">データ管理</h2>
       </div>
 
       {/* タブナビゲーション */}
@@ -439,7 +439,6 @@ export default function ModelDataManagement() {
                 }}
                 className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white text-gray-900 min-w-[200px]"
               >
-                <option value="all">全体売上</option>
                 {models.map((model) => (
                   <option key={model.id} value={model.id}>
                     {model.isMainModel ? '⭐ ' : ''}{model.displayName}

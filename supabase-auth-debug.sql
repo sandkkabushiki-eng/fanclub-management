@@ -46,3 +46,5 @@ WHERE au.created_at > NOW() - INTERVAL '1 hour'
 ORDER BY au.created_at DESC;
 
 
+
+

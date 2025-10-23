@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, Users, DollarSign } from 'lucide-react';
-import { ModelMonthlyData, RevenueAnalysis, FanClubRevenueData } from '@/types/csv';
-import { getModelMonthlyData } from '@/utils/modelUtils';
+import { ModelMonthlyData, RevenueAnalysis, FanClubRevenueData, Model } from '@/types/csv';
+import { getModelMonthlyData, getModels } from '@/utils/modelUtils';
+import { getCurrentUserDataManager } from '@/utils/userDataUtils';
 import { supabase } from '@/lib/supabase';
 import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import RevenueOptimizationSuggestions from './RevenueOptimizationSuggestions';
 
 interface RevenueDashboardProps {
   selectedModelId: string;
@@ -15,12 +17,60 @@ interface RevenueDashboardProps {
 export default function RevenueDashboard({ selectedModelId }: RevenueDashboardProps) {
   const [modelData, setModelData] = useState<ModelMonthlyData[]>([]);
   const [analysis, setAnalysis] = useState<RevenueAnalysis | null>(null);
+  const [models, setModels] = useState<Model[]>([]);
+  const [localSelectedModelId, setLocalSelectedModelId] = useState<string>(selectedModelId);
+
+  // モデルリストを読み込み
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        console.log('Loading models for revenue dashboard...');
+        
+        // ユーザーデータマネージャーを取得
+        const userDataManager = getCurrentUserDataManager();
+        console.log('User data manager:', userDataManager ? 'Found' : 'Not found');
+        
+        if (userDataManager) {
+          // ユーザー専用のモデルデータを取得
+          const userModels = await userDataManager.getUserModels();
+          console.log('Found user models:', userModels.length, userModels);
+          
+          if (userModels.length > 0) {
+            setModels(userModels);
+          } else {
+            // ユーザー専用データが空の場合は、ローカルストレージからも取得
+            console.log('No user models found, checking local storage...');
+            const localModels = getModels();
+            console.log('Local models found:', localModels.length, localModels);
+            setModels(localModels);
+          }
+        } else {
+          // フォールバック: ローカルストレージから取得
+          console.log('No user session, using local storage');
+          const localModels = getModels();
+          console.log('Local models:', localModels.length, localModels);
+          setModels(localModels);
+        }
+      } catch (error) {
+        console.error('Error loading models:', error);
+        const localModels = getModels();
+        console.log('Fallback to local models:', localModels.length, localModels);
+        setModels(localModels);
+      }
+    };
+    loadModels();
+  }, []);
+
+  // 外部から渡されたselectedModelIdが変更された場合に更新
+  useEffect(() => {
+    setLocalSelectedModelId(selectedModelId);
+  }, [selectedModelId]);
 
   useEffect(() => {
     const loadModelData = async () => {
       try {
         console.log('Loading model data for revenue dashboard...');
-        console.log('Selected model ID:', selectedModelId);
+        console.log('Selected model ID:', localSelectedModelId);
         
         // 現在のユーザーのデータのみ取得
         const { data: { user } } = await supabase.auth.getUser();
@@ -45,11 +95,11 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
           console.log('Found monthly data from Supabase:', monthlyData.length, 'records');
           
           // 選択されたモデルのデータのみをフィルタリング（"all"の場合は全データ）
-          const filteredData = selectedModelId && selectedModelId !== 'all'
-            ? monthlyData.filter(row => row.model_id === selectedModelId)
+          const filteredData = localSelectedModelId && localSelectedModelId !== 'all'
+            ? monthlyData.filter(row => row.model_id === localSelectedModelId)
             : monthlyData;
             
-          console.log('Filtered data for model', selectedModelId, ':', filteredData.length, 'records');
+            console.log('Filtered data for model', localSelectedModelId, ':', filteredData.length, 'records');
           
           // SupabaseのデータをModelMonthlyData形式に変換
           const formattedData: ModelMonthlyData[] = filteredData.map(row => ({
@@ -80,8 +130,8 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
       } catch (error) {
         console.error('Error loading model data:', error);
         const localData = getModelMonthlyData();
-        const filteredLocalData = selectedModelId && selectedModelId !== 'all'
-          ? localData.filter(d => d.modelId === selectedModelId)
+        const filteredLocalData = localSelectedModelId && localSelectedModelId !== 'all'
+          ? localData.filter(d => d.modelId === localSelectedModelId)
           : localData;
         console.log('Fallback to local model data:', filteredLocalData.length);
         setModelData(filteredLocalData);
@@ -89,7 +139,7 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
     };
 
     loadModelData();
-  }, [selectedModelId]);
+  }, [localSelectedModelId]);
 
   useEffect(() => {
     if (modelData.length > 0) {
@@ -109,17 +159,43 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
 
   return (
     <div className="space-y-6">
-      {/* ヘッダー */}
-      <div className="bg-white rounded-lg p-6 border border-gray-200">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-          {selectedModelId === 'all' ? '全体売上分析' : '売上分析'}
-        </h1>
-        <p className="text-gray-600">
-          {selectedModelId === 'all' 
-            ? '全モデルの統合売上データの分析とレポート' 
-            : '詳細な売上データの分析とレポート'}
-        </p>
+      {/* モデル選択 */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex items-center space-x-4">
+          <label htmlFor="revenue-model-select" className="text-sm font-medium text-gray-700">
+            モデル選択:
+          </label>
+          <select
+            id="revenue-model-select"
+            value={localSelectedModelId}
+            onChange={(e) => {
+              console.log('売上分析: モデル選択変更:', e.target.value);
+              setLocalSelectedModelId(e.target.value);
+              // グローバル状態も更新
+              localStorage.setItem('fanclub-global-model-selection', JSON.stringify({ selectedModelId: e.target.value }));
+              window.dispatchEvent(new CustomEvent('globalModelSelectionChanged', { 
+                detail: { selectedModelId: e.target.value } 
+              }));
+            }}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white text-gray-900 min-w-[200px]"
+          >
+            <option value="all">全体売上</option>
+            {models.length > 0 ? (
+              models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.isMainModel ? '⭐ ' : ''}{model.displayName}
+                </option>
+              ))
+            ) : (
+              <option value="" disabled>モデルが見つかりません</option>
+            )}
+          </select>
+          <div className="text-xs text-gray-500">
+            モデル数: {models.length}
+          </div>
+        </div>
       </div>
+
 
       {/* 分析結果 */}
       {analysis && (
@@ -174,6 +250,13 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
               </div>
             </div>
           </div>
+
+          {/* 収益最大化提案 */}
+          <RevenueOptimizationSuggestions 
+            analysis={analysis}
+            modelData={modelData.flatMap(monthData => monthData.data)}
+            selectedModelName={localSelectedModelId === 'all' ? undefined : models.find(m => m.id === localSelectedModelId)?.displayName}
+          />
 
           {/* グラフエリア */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -299,7 +382,7 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
         </div>
       )}
 
-      {!analysis && selectedModelId && (
+      {!analysis && localSelectedModelId && (
         <div className="text-center py-8 text-gray-500">
           データがありません。
         </div>
