@@ -55,21 +55,18 @@ export const useGlobalModelSelection = (): GlobalModelSelection => {
     if (!currentSelectionValid && newModels.length > 0) {
       // メインモデルを優先して選択
       const mainModel = newModels.find(m => m.isMainModel);
-      if (mainModel) {
-        console.log('🌍 グローバル状態: メインモデルを選択:', mainModel.displayName);
-        setSelectedModelIdState(mainModel.id);
-        localStorage.setItem(GLOBAL_MODEL_SELECTION_KEY, JSON.stringify({ selectedModelId: mainModel.id }));
-        window.dispatchEvent(new CustomEvent('globalModelSelectionChanged', { 
-          detail: { selectedModelId: mainModel.id } 
-        }));
-      } else {
-        console.log('🌍 グローバル状態: 最初のモデルを選択:', newModels[0].displayName);
-        setSelectedModelIdState(newModels[0].id);
-        localStorage.setItem(GLOBAL_MODEL_SELECTION_KEY, JSON.stringify({ selectedModelId: newModels[0].id }));
-        window.dispatchEvent(new CustomEvent('globalModelSelectionChanged', { 
-          detail: { selectedModelId: newModels[0].id } 
-        }));
-      }
+      const newSelectedId = mainModel ? mainModel.id : newModels[0].id;
+      
+      console.log('🌍 グローバル状態: 新しいモデルを選択:', newSelectedId);
+      
+      // 状態を直接更新（イベント発火を避ける）
+      setSelectedModelIdState(newSelectedId);
+      localStorage.setItem(GLOBAL_MODEL_SELECTION_KEY, JSON.stringify({ selectedModelId: newSelectedId }));
+      
+      // イベントは一度だけ発火
+      window.dispatchEvent(new CustomEvent('globalModelSelectionChanged', { 
+        detail: { selectedModelId: newSelectedId } 
+      }));
     } else {
       console.log('🌍 グローバル状態: 現在の選択を維持:', selectedModelId);
     }

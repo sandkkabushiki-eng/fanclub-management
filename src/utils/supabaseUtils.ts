@@ -14,7 +14,6 @@ export const saveModelToSupabase = async (model: Model, userId?: string): Promis
         id: model.id,
         name: model.name,
         display_name: model.displayName,
-        is_main_model: model.isMainModel || false,
         user_id: currentUserId,
         created_at: model.createdAt || new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -44,13 +43,33 @@ export const saveModelMonthlyDataToSupabase = async (
     const { data: { user } } = await supabase.auth.getUser();
     const currentUserId = userId || user?.id;
     
+    // 認証されていない場合はクラウド保存をスキップ（RLSで拒否されるため）
+    if (!currentUserId) {
+      console.warn('🔒 ユーザー未認証のため、Supabase保存をスキップしました（ローカルには保存済み）');
+      return false;
+    }
+    
     // データが配列であることを確認
     if (!Array.isArray(data)) {
       console.error('Data is not an array:', data);
       return false;
     }
     
+    // データサイズチェック（1MB制限）
+    const dataSize = JSON.stringify(data).length;
+    if (dataSize > 1024 * 1024) {
+      console.warn('データサイズが大きすぎます。ローカルストレージのみに保存します。');
+      return false;
+    }
+
+    // 分析データを軽量化（必要な統計のみ）
     const analysis = analyzeFanClubRevenue(data);
+    const lightweightAnalysis = {
+      totalRevenue: analysis.totalRevenue,
+      totalCustomers: analysis.totalCustomers,
+      averageRevenuePerCustomer: analysis.totalCustomers > 0 ? analysis.totalRevenue / analysis.totalCustomers : 0,
+      topCustomers: (analysis as any).topCustomers?.slice(0, 5) || [] // 上位5名のみ
+    };
     
     // 既存のデータがあるかチェック（セキュリティ: 自分のデータのみ）
     const { data: existingData, error: fetchError } = await supabase
@@ -73,7 +92,7 @@ export const saveModelMonthlyDataToSupabase = async (
         .from('monthly_data')
         .update({
           data,
-          analysis,
+          analysis: lightweightAnalysis,
           user_id: currentUserId,
           updated_at: new Date().toISOString()
         })
@@ -81,7 +100,7 @@ export const saveModelMonthlyDataToSupabase = async (
         .eq('user_id', currentUserId);
 
       if (error) {
-        console.error('Error updating monthly data:', error);
+        console.error('Error updating monthly data:', JSON.stringify(error));
         return false;
       }
     } else {
@@ -94,13 +113,15 @@ export const saveModelMonthlyDataToSupabase = async (
           year,
           month,
           data,
-          analysis,
+          analysis: lightweightAnalysis,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) {
-        console.error('Error inserting monthly data:', error);
+        console.error('Error inserting monthly data:', JSON.stringify(error));
         return false;
       }
     }

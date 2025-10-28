@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+
+# Environment files
+.env*
+!.env.example
+
+# Development files
+.DS_Store
+*.pem
+coverage/
+
+# Documentation files (optional - remove if needed)
+*.md
+!README.md
+
+# SQL files (if not needed in production)
+*.sql
+
+# Shell scripts
+*.sh
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# Git
+.git/
+
+# Vercel
+.vercel/
+
+# Large data files
+sample-data.csv
+

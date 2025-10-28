@@ -24,3 +24,115 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ----------------------------- */
+/* Inputs visibility improvements - 強化版 */
+/* ----------------------------- */
+
+/* 全ての入力要素の文字を濃く - 背景に応じて適切な色を設定 */
+input, textarea, select, input[type="text"], input[type="email"], input[type="password"], 
+input[type="number"], input[type="date"], input[type="time"], input[type="search"],
+input[type="url"], input[type="tel"] {
+  color: #000000 !important; /* 黒色で強制（白背景用） */
+  font-weight: 600 !important; /* 太字で強制 */
+  font-size: 14px !important; /* 適切なサイズ */
+  background-color: #FFFFFF !important; /* 白背景を強制 */
+}
+
+/* ダークモードでも明示的に黒文字を指定 */
+@media (prefers-color-scheme: dark) {
+  input, textarea, select, input[type="text"], input[type="email"], input[type="password"], 
+  input[type="number"], input[type="date"], input[type="time"], input[type="search"],
+  input[type="url"], input[type="tel"] {
+    color: #000000 !important; /* 黒色を維持（見やすさ優先） */
+    font-weight: 600 !important;
+    background-color: #FFFFFF !important; /* 白背景を維持 */
+  }
+}
+
+/* ラベルを濃く */
+label, .label, [class*="label"] {
+  color: #000000 !important; /* 黒色で強制 */
+  font-weight: 700 !important; /* 太字で強制 */
+  font-size: 14px !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  label, .label, [class*="label"] {
+    color: #FFFFFF !important; /* 白色で強制 */
+    font-weight: 700 !important;
+  }
+}
+
+/* プレースホルダーを濃く */
+::placeholder, input::placeholder, textarea::placeholder {
+  color: #374151 !important; /* gray-700, より濃い */
+  opacity: 1 !important; /* 完全に不透明 */
+  font-weight: 500 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  ::placeholder, input::placeholder, textarea::placeholder {
+    color: #D1D5DB !important; /* gray-300, より濃い */
+    opacity: 1 !important;
+    font-weight: 500 !important;
+  }
+}
+
+/* Tailwindの入力クラスを強制上書き */
+.input, .form-input, [class*="input"], 
+.bg-white input, .bg-gray-50 input, .bg-gray-100 input,
+input[class*="bg-"], textarea[class*="bg-"], select[class*="bg-"] {
+  color: #000000 !important;
+  font-weight: 600 !important;
+  background-color: #FFFFFF !important;
+}
+
+/* ダークモードでも黒文字を維持 */
+@media (prefers-color-scheme: dark) {
+  .input, .form-input, [class*="input"], 
+  .bg-white input, .bg-gray-50 input, .bg-gray-100 input,
+  input[class*="bg-"], textarea[class*="bg-"], select[class*="bg-"] {
+    color: #000000 !important;
+    font-weight: 600 !important;
+    background-color: #FFFFFF !important;
+  }
+}
+
+/* フォーカス時の文字色も濃く */
+input:focus, textarea:focus, select:focus {
+  color: #000000 !important;
+  font-weight: 600 !important;
+  background-color: #FFFFFF !important;
+  outline: none;
+  border-color: #2563EB !important; /* blue-600 */
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  input:focus, textarea:focus, select:focus {
+    color: #000000 !important;
+    font-weight: 600 !important;
+    background-color: #FFFFFF !important;
+  }
+}
+
+/* ボタン内のテキストも濃く */
+button, .btn, [class*="btn"] {
+  color: inherit !important;
+  font-weight: 600 !important;
+}
+
+/* セレクトボックスのオプションも濃く */
+option {
+  color: #000000 !important;
+  font-weight: 600 !important;
+  background-color: #FFFFFF !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  option {
+    color: #FFFFFF !important;
+    background-color: #1F2937 !important; /* gray-800 */
+  }
+}

@@ -20,11 +20,16 @@ import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels } from '@/utils/modelUtils';
 import { getCurrentUserDataManager } from '@/utils/userDataUtils';
 import { saveModelMonthlyDataToSupabase } from '@/utils/supabaseUtils';
+import { debugSupabaseConnection } from '@/utils/debugSupabase';
+import { calculateModelStats } from '@/utils/statsUtils';
+import { clearLocalData, getPreservedKeys } from '@/utils/dataClearUtils';
+import { syncLocalModelsToSupabase } from '@/utils/modelSyncUtils';
 import { authManager } from '@/lib/auth';
 import { AuthSession } from '@/types/auth';
 import { supabase } from '@/lib/supabase';
 import { getCustomerDetailInfo, formatCurrency } from '@/utils/csvUtils';
 import CSVUploader from '@/components/CSVUploaderNew';
+import ModelDataManagement from '@/components/ModelDataManagement';
 import ModelManagement from '@/components/ModelManagement';
 import CalendarAnalysis from '@/components/CalendarAnalysis';
 import RevenueDashboard from '@/components/RevenueDashboard';
@@ -46,8 +51,13 @@ interface IndividualModelStats {
   transactions: number;
 }
 
-const FanClubDashboard: React.FC = () => {
-  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+interface FanClubDashboardProps {
+  authSession: any;
+  onLogout: () => Promise<void>;
+}
+
+const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAuthSession, onLogout }) => {
+  const [authSession, setAuthSession] = useState<AuthSession | null>(propAuthSession);
   const [activeTab, setActiveTab] = useState<'overview' | 'models' | 'revenue' | 'customers' | 'csv' | 'calendar' | 'settings'>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -279,10 +289,21 @@ const FanClubDashboard: React.FC = () => {
         // ローカルストレージに保存
         upsertModelMonthlyData(modelId, model.displayName, year, month, data as FanClubRevenueData[]);
         
-        // Supabaseにも保存
+        // Supabaseにも保存（モデルを先に保存してから月別データを保存）
         try {
-          await saveModelMonthlyDataToSupabase(modelId, model.displayName, year, month, data as FanClubRevenueData[]);
-          console.log('Supabaseへの保存が完了しました');
+          // 1. まずモデルをSupabaseに保存
+          const { saveModelToSupabase } = await import('@/utils/supabaseUtils');
+          const modelSaved = await saveModelToSupabase(model);
+          
+          if (modelSaved) {
+            console.log('✅ モデルをSupabaseに保存しました');
+            
+            // 2. モデルが保存されたら月別データを保存
+            await saveModelMonthlyDataToSupabase(modelId, model.displayName, year, month, data as FanClubRevenueData[]);
+            console.log('✅ Supabaseへの保存が完了しました');
+          } else {
+            console.warn('⚠️ モデルの保存に失敗しました。ローカルストレージのみに保存します。');
+          }
         } catch (supabaseError) {
           console.error('Supabase保存エラー:', supabaseError);
           // Supabaseの保存に失敗してもローカルストレージには保存されているので続行
@@ -310,6 +331,7 @@ const FanClubDashboard: React.FC = () => {
     setModels([]);
     setModelData({});
     setMessage('ログアウトしました');
+    await onLogout(); // 親コンポーネントのonLogoutを呼び出し
   };
 
   // 月別データの削除処理（正確なモデル分離）
@@ -386,22 +408,51 @@ const FanClubDashboard: React.FC = () => {
         const userDataKey = getUserStorageKey('fanclub-model-data');
         localStorage.setItem(userDataKey, JSON.stringify(updatedModelData));
         
-        // Supabaseにも保存
-        if (authSession?.user?.id) {
+        // Supabaseにも保存（monthly_dataテーブルを使用）
+        if (authSession?.user?.id && modelId) {
           try {
-            const { error } = await supabase
-              .from('user_model_data')
-              .upsert({
-                user_id: authSession.user.id,
-                data_key: modelKey,
-                data: filteredData,
-                updated_at: new Date().toISOString()
-              });
-            
-            if (error) {
-              console.error('Supabase保存エラー:', error);
-            } else {
-              console.log('✅ Supabaseに保存完了');
+            // 月文字列から年月を解析
+            const monthMatch = month.match(/(\d+)年(\d+)月/);
+            if (monthMatch) {
+              const year = parseInt(monthMatch[1]);
+              const monthNum = parseInt(monthMatch[2]);
+              
+              // データが空の場合は削除、そうでなければ更新
+              if (filteredData.length === 0) {
+                // Supabaseから該当レコードを削除
+                const { error: deleteError } = await supabase
+                  .from('monthly_data')
+                  .delete()
+                  .eq('model_id', modelId)
+                  .eq('user_id', authSession.user.id)
+                  .eq('year', year)
+                  .eq('month', monthNum);
+                
+                if (deleteError) {
+                  console.error('Supabase削除エラー:', deleteError);
+                } else {
+                  console.log('✅ Supabaseから削除完了');
+                }
+              } else {
+                // Supabaseに更新
+                const { error } = await supabase
+                  .from('monthly_data')
+                  .upsert({
+                    model_id: modelId,
+                    user_id: authSession.user.id,
+                    year: year,
+                    month: monthNum,
+                    data: filteredData,
+                    analysis: null, // 分析データは後で計算
+                    updated_at: new Date().toISOString()
+                  });
+                
+                if (error) {
+                  console.error('Supabase保存エラー:', error);
+                } else {
+                  console.log('✅ Supabaseに保存完了');
+                }
+              }
             }
           } catch (supabaseError) {
             console.error('Supabase保存エラー:', supabaseError);
@@ -570,7 +621,7 @@ const FanClubDashboard: React.FC = () => {
     return allData;
   };
 
-  const stats = getModelStats();
+  const stats = calculateModelStats(modelData, selectedModelId);
   console.log('📊 計算された統計:', stats);
 
   // モデル別統計を計算
@@ -964,7 +1015,14 @@ const FanClubDashboard: React.FC = () => {
           {activeTab === 'models' && (
             <div className="space-y-6">
               <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">モデル管理</h3>
                 <ModelManagement />
+              </div>
+              
+              {/* CSVデータ編集セクション */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">CSVデータ編集</h3>
+                <ModelDataManagement />
               </div>
             </div>
           )}
@@ -1169,7 +1227,7 @@ const FanClubDashboard: React.FC = () => {
                         return (
                           <div className="text-center py-8 text-gray-500">
                             <p>月別データがありません</p>
-                            <p className="text-sm mt-2">データ数: {data.length}件</p>
+                            <p className="text-sm mt-2">データ数: {Object.keys(modelData).length}件</p>
                           </div>
                         );
                       }
@@ -1733,6 +1791,64 @@ const FanClubDashboard: React.FC = () => {
                     </div>
                   </div>
                   
+                  
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">デバッグ</h4>
+                    <div className="space-y-2">
+                      <button
+                        onClick={async () => {
+                          console.log('🔍 Supabaseデバッグ開始');
+                          const result = await debugSupabaseConnection();
+                          console.log('🔍 デバッグ結果:', result);
+                          setMessage('デバッグ結果をコンソールに出力しました（F12で確認）');
+                          setTimeout(() => setMessage(''), 5000);
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm transition-colors mr-2"
+                      >
+                        Supabase接続テスト
+                      </button>
+                      
+                      <button
+                        onClick={async () => {
+                          setMessage('🔄 モデル同期中...');
+                          const syncedCount = await syncLocalModelsToSupabase();
+                          setMessage(`✅ モデル同期完了: ${syncedCount}件`);
+                          setTimeout(() => setMessage(''), 5000);
+                        }}
+                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm transition-colors mr-2"
+                      >
+                        モデル同期
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">データ管理</h4>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => {
+                          const preservedKeys = getPreservedKeys();
+                          console.log('🔒 保持されるキー（認証関連）:', preservedKeys);
+                          
+                          const deletedCount = clearLocalData();
+                          
+                          // 状態をリセット
+                          setModels([]);
+                          setModelData({});
+                          setSelectedModelId('');
+                          
+                          setMessage(`✅ ローカルデータをクリアしました（${deletedCount}件削除）`);
+                          setTimeout(() => setMessage(''), 5000);
+                        }}
+                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm transition-colors"
+                      >
+                        ローカルデータをクリア
+                      </button>
+                      <p className="text-xs text-gray-500">
+                        モデル名とCSVデータを削除します。ログイン情報は保持されます。
+                      </p>
+                    </div>
+                  </div>
                   
                   <div>
                     <h4 className="text-lg font-medium text-gray-900 mb-2">アプリケーション情報</h4>

@@ -11,6 +11,12 @@ const supabaseAdmin = createClient(
       autoRefreshToken: false,
       persistSession: false,
     },
+    // リクエスト最適化
+    global: {
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
+    },
   }
 );
 

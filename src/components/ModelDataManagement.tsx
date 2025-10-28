@@ -5,6 +5,7 @@ import { Calendar, Edit, Trash2, User, BarChart3, DollarSign } from 'lucide-reac
 import { Model, ModelMonthlyData, FanClubRevenueData, RevenueAnalysis } from '@/types/csv';
 import { getModels, getModelMonthlyDataByModel, deleteModelMonthlyData, formatYearMonth } from '@/utils/modelUtils';
 import { getCurrentUserDataManager } from '@/utils/userDataUtils';
+import { supabase } from '@/lib/supabase';
 // import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
 import CSVDataEditor from './CSVDataEditor';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
@@ -304,23 +305,39 @@ export default function ModelDataManagement() {
         // ユーザーデータマネージャーを取得
         const userDataManager = getCurrentUserDataManager();
         
-        if (userDataManager) {
-          // ユーザー専用データから削除
-          const success = await userDataManager.deleteUserMonthlyData(
-            deletingData.modelId,
-            deletingData.year,
-            deletingData.month
-          );
-          
-          if (success) {
-            console.log('User data deleted successfully');
-          } else {
-            console.log('Failed to delete user data');
-          }
+        // ローカルストレージから削除
+        const localSuccess = deleteModelMonthlyData(
+          deletingData.modelId,
+          deletingData.year,
+          deletingData.month
+        );
+        
+        if (localSuccess) {
+          console.log('✅ ローカルデータ削除成功');
         } else {
-          // フォールバック: ローカルストレージから削除
-          console.log('No user session, deleting from local storage');
-          deleteModelMonthlyData(deletingData.modelId, deletingData.year, deletingData.month);
+          console.log('⚠️ ローカルデータ削除失敗');
+        }
+        
+        // Supabaseからも削除
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { error } = await supabase
+              .from('monthly_data')
+              .delete()
+              .eq('user_id', user.id)
+              .eq('model_id', deletingData.modelId)
+              .eq('year', deletingData.year)
+              .eq('month', deletingData.month);
+            
+            if (error) {
+              console.error('Supabase削除エラー:', error);
+            } else {
+              console.log('✅ Supabase削除成功');
+            }
+          }
+        } catch (supabaseError) {
+          console.error('Supabase削除エラー:', supabaseError);
         }
         
         // データを再読み込み
