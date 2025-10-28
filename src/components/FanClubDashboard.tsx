@@ -274,9 +274,75 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
     };
   }, []);
 
+  // 🔥 データ更新イベントをリッスン（CSVアップロード後の即時反映）
+  useEffect(() => {
+    const handleDataUpdated = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { modelId, year, month, timestamp } = customEvent.detail;
+      console.log('🔄 データ更新イベント受信:', { modelId, year, month, timestamp });
+      
+      try {
+        // Supabaseから最新の月次データを取得
+        if (authSession) {
+          const { data: supabaseData, error } = await supabase
+            .from('monthly_data')
+            .select('*')
+            .eq('user_id', authSession.user.id)
+            .order('year', { ascending: false })
+            .order('month', { ascending: false });
+          
+          if (error) {
+            console.error('データ再読み込みエラー:', error);
+          } else if (supabaseData && supabaseData.length > 0) {
+            console.log('✅ Supabaseから最新データを取得:', supabaseData.length, '件');
+            
+            // データを変換
+            const supabaseModelData: Record<string, unknown> = {};
+            supabaseData.forEach(row => {
+              const key = `${row.model_id}_${row.year}_${row.month}`;
+              supabaseModelData[key] = {
+                modelId: row.model_id,
+                modelName: row.model_name,
+                year: row.year,
+                month: row.month,
+                data: row.data,
+                analysis: row.analysis,
+                uploadedAt: row.created_at,
+                lastModified: row.updated_at
+              };
+            });
+            
+            // 状態を更新（即座にUIに反映）
+            setModelData(supabaseModelData);
+            
+            // LocalStorageも更新
+            const userDataKey = getUserStorageKey('fanclub-model-data');
+            localStorage.setItem(userDataKey, JSON.stringify(supabaseModelData));
+            
+            console.log('✅ ダッシュボードデータを更新しました');
+          }
+        }
+        
+        // モデルリストも再読み込み
+        const updatedModels = await getModelsFromSupabase();
+        setModels(updatedModels);
+        
+      } catch (error) {
+        console.error('データ更新処理エラー:', error);
+      }
+    };
+
+    window.addEventListener('dataUpdated', handleDataUpdated);
+    
+    return () => {
+      window.removeEventListener('dataUpdated', handleDataUpdated);
+    };
+  }, [authSession]);
+
   const handleDataLoaded = async (data: CSVData[], year: number, month: number, modelId: string) => {
     try {
       setMessage('');
+      console.log('📤 CSVデータアップロード開始:', { modelId, year, month, dataCount: data.length });
       
       const model = getModels().find(m => m.id === modelId);
       if (model) {
@@ -305,13 +371,35 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       }
       
       setMessage('✨ CSVデータのアップロードが完了しました！');
-      setTimeout(() => setMessage(''), 5000);
       
-      // データを再読み込み
-      setModels(getModels());
+      // 🔥 データを再読み込み（Supabaseから最新データを取得）
+      console.log('🔄 ダッシュボードデータを再読み込み中...');
+      
+      // モデルを再読み込み
+      const updatedModels = await getModelsFromSupabase();
+      setModels(updatedModels);
+      console.log('✅ モデル再読み込み完了:', updatedModels.length, '件');
+      
+      // LocalStorageからも月次データを再読み込み
       const userDataKey = getUserStorageKey('fanclub-model-data');
       const updatedData = JSON.parse(localStorage.getItem(userDataKey) || '{}') as Record<string, unknown>;
       setModelData(updatedData);
+      console.log('✅ 月次データ再読み込み完了');
+      
+      // 🔥 イベントを発火してすべてのコンポーネントに通知
+      window.dispatchEvent(new CustomEvent('dataUpdated', { 
+        detail: { modelId, year, month, timestamp: Date.now() } 
+      }));
+      console.log('📢 dataUpdatedイベントを発火');
+      
+      // 🔥 強制的にUIを再レンダリング
+      setMessage('✨ CSVデータのアップロードが完了しました！ダッシュボードを更新中...');
+      
+      setTimeout(() => {
+        setMessage('');
+        console.log('✅ ダッシュボード更新完了');
+      }, 3000);
+      
     } catch (error) {
       console.error('データ保存エラー:', error);
       setMessage('❌ データの保存中にエラーが発生しました。');
@@ -570,48 +658,45 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
 
   // 月ごとのデータを取得する関数
   const getMonthlyData = (year: number, month: number): FanClubRevenueData[] => {
-    const allData = Object.values(modelData).flatMap(item => {
-      if (Array.isArray(item)) return item;
-      if (typeof item === 'object' && item !== null && 'data' in item) {
-        const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
-          ? (item as { data: FanClubRevenueData[] }).data 
-          : [];
+    console.log('📅 月別データ取得:', { year, month, selectedModelId });
+    console.log('📦 modelData keys:', Object.keys(modelData));
+    
+    // modelDataのキーは "{modelId}_{year}_{month}" 形式
+    // 選択されたモデルと年月に一致するデータを取得
+    const allData = Object.entries(modelData).flatMap(([key, item]) => {
+      // キーから年月を抽出
+      const keyParts = key.split('_');
+      if (keyParts.length >= 3) {
+        const keyModelId = keyParts[0];
+        const keyYear = parseInt(keyParts[1]);
+        const keyMonth = parseInt(keyParts[2]);
         
-        // 既存データの日付も正規化
-        return data.map(record => {
-          if (record.日付 && typeof record.日付 === 'string') {
-            const dateStr = record.日付;
-            const match = dateStr.match(/(\d+)月(\d+)日\s+(\d+):(\d+):(\d+)/);
-            if (match) {
-              const recordMonth = parseInt(match[1]);
-              const day = parseInt(match[2]);
-              const hour = parseInt(match[3]);
-              const minute = parseInt(match[4]);
-              const second = parseInt(match[5]);
-              
-              const currentDate = new Date();
-              const currentYear = currentDate.getFullYear();
-              const currentMonth = currentDate.getMonth() + 1;
-              
-              let recordYear = currentYear;
-              if (recordMonth > currentMonth) {
-                recordYear = currentYear - 1;
-              }
-              
-              const date = new Date(recordYear, recordMonth - 1, day, hour, minute, second);
-              record.日付 = date.toISOString();
+        console.log('🔍 キー解析:', { key, keyModelId, keyYear, keyMonth, targetYear: year, targetMonth: month });
+        
+        // 年月が一致し、かつモデルが選択されていない or モデルIDが一致する場合
+        if (keyYear === year && keyMonth === month) {
+          if (!selectedModelId || keyModelId === selectedModelId) {
+            console.log('✅ 一致:', { key, keyYear, keyMonth });
+            
+            if (Array.isArray(item)) return item;
+            if (typeof item === 'object' && item !== null && 'data' in item) {
+              const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
+                ? (item as { data: FanClubRevenueData[] }).data 
+                : [];
+              console.log('📊 データ取得:', data.length, '件');
+              return data;
             }
+          } else {
+            console.log('⏭️ モデルIDが不一致:', { selectedModelId, keyModelId });
           }
-          return record;
-        }).filter(record => {
-          if (!record.日付) return false;
-          const date = new Date(record.日付);
-          return date.getFullYear() === year && date.getMonth() + 1 === month;
-        });
+        } else {
+          console.log('⏭️ 年月が不一致');
+        }
       }
       return [];
     }) as FanClubRevenueData[];
     
+    console.log('📊 月別データ取得結果:', allData.length, '件');
     return allData;
   };
 
