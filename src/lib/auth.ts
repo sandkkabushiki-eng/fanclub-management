@@ -212,6 +212,11 @@ class AuthManager {
         this.currentUser = user;
         this.session = session;
         this.saveSession(session);
+        
+        console.log('✅ ログイン成功:', user.email);
+        
+        // ログイン後、Supabaseからユーザーデータを同期
+        await this.syncUserDataFromSupabase(user.id);
 
         return session;
       }
@@ -220,6 +225,63 @@ class AuthManager {
     } catch (error) {
       console.error('User login error:', error);
       return null;
+    }
+  }
+  
+  // Supabaseからユーザーデータを同期
+  private async syncUserDataFromSupabase(userId: string): Promise<void> {
+    try {
+      console.log('🔄 Supabaseからユーザーデータを同期開始:', userId);
+      
+      // モデルを同期
+      const { data: modelsData, error: modelsError } = await supabase
+        .from('models')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (modelsError) {
+        console.error('モデル同期エラー:', modelsError);
+      } else if (modelsData && modelsData.length > 0) {
+        const userStorageKey = `fanclub-models-${userId}`;
+        localStorage.setItem(userStorageKey, JSON.stringify(modelsData));
+        console.log('✅ モデルを同期しました:', modelsData.length, '件');
+      } else {
+        console.log('📭 Supabaseにモデルデータがありません');
+      }
+      
+      // 月次データを同期
+      const { data: monthlyData, error: monthlyError } = await supabase
+        .from('monthly_data')
+        .select('*')
+        .eq('user_id', userId);
+      
+      if (monthlyError) {
+        console.error('月次データ同期エラー:', monthlyError);
+      } else if (monthlyData && monthlyData.length > 0) {
+        const userDataKey = `fanclub-model-data-${userId}`;
+        const formattedData: Record<string, any> = {};
+        monthlyData.forEach(row => {
+          const key = `${row.model_id}_${row.year}_${row.month}`;
+          formattedData[key] = {
+            modelId: row.model_id,
+            modelName: row.model_name,
+            year: row.year,
+            month: row.month,
+            data: row.data,
+            analysis: row.analysis,
+            uploadedAt: row.created_at,
+            lastModified: row.updated_at
+          };
+        });
+        localStorage.setItem(userDataKey, JSON.stringify(formattedData));
+        console.log('✅ 月次データを同期しました:', monthlyData.length, '件');
+      } else {
+        console.log('📭 Supabaseに月次データがありません');
+      }
+      
+      console.log('✅ データ同期完了');
+    } catch (error) {
+      console.error('🚨 データ同期エラー:', error);
     }
   }
 
