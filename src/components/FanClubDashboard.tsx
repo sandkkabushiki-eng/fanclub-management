@@ -1273,7 +1273,6 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                     })()}
                   </div>
                 )}
-
                 {!selectedModelId && (
                   <div className="text-center py-8 text-gray-500">
                     <p>モデルを選択すると、そのモデルの月別データが表示されます</p>
@@ -1282,7 +1281,6 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
               </div>
             </div>
           )}
-
           {activeTab === 'revenue' && (
             <div className="space-y-4 lg:space-y-6">
               <div className="bg-white rounded-lg border border-gray-200 p-6">
