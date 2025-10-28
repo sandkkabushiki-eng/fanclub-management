@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
+  // output: 'export' を削除（APIルートと競合するため）
   trailingSlash: true,
   images: {
     unoptimized: true
