@@ -1034,40 +1034,10 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
               <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
                 <CSVUploader onDataLoaded={handleDataLoaded} />
               </div>
-              
-              {/* データ管理セクション */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">データ管理</h3>
-                
-                {/* モデル選択 */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    モデルを選択してください
-                  </label>
-                  <select
-                    value={selectedModelId}
-                    onChange={(e) => {
-                      const newModelId = e.target.value;
-                      setSelectedModelId(newModelId);
-                      // グローバル状態も更新
-                      localStorage.setItem('globalModelSelection', JSON.stringify({ selectedModelId: newModelId }));
-                      window.dispatchEvent(new CustomEvent('globalModelSelectionChanged', { 
-                        detail: { selectedModelId: newModelId } 
-                      }));
-                    }}
-                    className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                  >
-                    <option value="">モデルを選択</option>
-                    {models.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.isMainModel ? '⭐ ' : ''}{model.displayName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            </div>
+          )}
 
-                {/* 選択されたモデルの月別データ表示 */}
-                {selectedModelId && (
+          {activeTab === 'customers' && (
                   <div className="space-y-4">
                     <h4 className="text-md font-medium text-gray-800">
                       {models.find(m => m.id === selectedModelId)?.displayName} の月別データ
@@ -1332,6 +1302,39 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                     )}
                   </div>
                 </div>
+
+                {/* 統計カード */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">総顧客数</p>
+                        <p className="text-2xl font-semibold text-gray-900">{stats.totalCustomers}</p>
+                      </div>
+                      <Users className="w-8 h-8 text-gray-400" />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">平均購入額</p>
+                        <p className="text-2xl font-semibold text-gray-900">¥{Math.round(stats.averageTransactionValue).toLocaleString()}</p>
+                      </div>
+                      <DollarSign className="w-8 h-8 text-gray-400" />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">リピート率</p>
+                        <p className="text-2xl font-semibold text-gray-900">{stats.repeatRate.toFixed(1)}%</p>
+                      </div>
+                      <TrendingUp className="w-8 h-8 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
                 
                 {/* モデル選択と表示モード切り替え */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
@@ -1372,23 +1375,23 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                     <div className="flex bg-gray-100 rounded-lg p-1">
                       <button
                         onClick={() => setCustomerViewMode('all')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        className={`px-6 py-3 rounded-lg font-semibold text-lg transition-colors ${
                           customerViewMode === 'all'
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
+                            ? 'bg-pink-500 text-white shadow-lg'
+                            : 'bg-white text-gray-800 border-2 border-gray-300 hover:bg-gray-50 hover:border-pink-300'
                         }`}
                       >
                         全体データ
                       </button>
                       <button
                         onClick={() => setCustomerViewMode('monthly')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        className={`px-6 py-3 rounded-lg font-semibold text-lg transition-colors ${
                           customerViewMode === 'monthly'
-                            ? 'bg-white text-gray-900 shadow-sm'
-                            : 'text-gray-600 hover:text-gray-900'
+                            ? 'bg-pink-500 text-white shadow-lg'
+                            : 'bg-white text-gray-800 border-2 border-gray-300 hover:bg-gray-50 hover:border-pink-300'
                         }`}
                       >
-                        月ごとデータ
+                        月毎データ
                       </button>
                     </div>
                     
