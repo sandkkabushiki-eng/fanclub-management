@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   },
   // SaaS運用最適化設定
   experimental: {
-    optimizeCss: true,
+    // optimizeCss: true, // crittersモジュールエラーのため無効化
     optimizePackageImports: ['stripe', 'recharts'],
   },
   // 圧縮設定
