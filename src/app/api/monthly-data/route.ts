@@ -204,7 +204,7 @@ export async function DELETE(request: NextRequest) {
       return createErrorResponse('ID is required', 400);
     }
     
-    const { error } = await supabaseAdmin
+    const { error } = await supabaseAdmin!
       .from('monthly_data')
       .delete()
       .eq('id', id)
