@@ -1272,22 +1272,22 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                     })()}
                   </div>
                 )}
-                {!selectedModelId && (
+                {!selectedModelId ? (
                   <div className="text-center py-8 text-gray-500">
                     <p>モデルを選択すると、そのモデルの月別データが表示されます</p>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           )}
-          {activeTab === 'revenue' && (
+          {activeTab === 'revenue' ? (
             <div className="space-y-4 lg:space-y-6">
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <RevenueDashboard selectedModelId={selectedModelId} />
               </div>
             </div>
-          )}
-          {activeTab === 'customers' && (
+          ) : null}
+          {activeTab === 'customers' ? (
             <div className="space-y-6">
               <div className="bg-white rounded-lg p-6 border border-gray-200">
                 <div className="mb-4">
@@ -1776,10 +1776,8 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                 />
               </div>
             </div>
-          )}
-
-          {/* 設定タブ */}
-          {activeTab === 'settings' && (
+          ) : null}
+          {activeTab === 'settings' ? (
             <div className="space-y-4 lg:space-y-6">
               <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">設定</h3>
@@ -1869,7 +1867,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
         </main>
       </div>
     </div>
@@ -1877,4 +1875,3 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
 };
 
 export default FanClubDashboard;
-// Force rebuild
