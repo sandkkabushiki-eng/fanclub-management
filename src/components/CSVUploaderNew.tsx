@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, CheckCircle, Calendar, Users } from 'lucide-react';
 import { CSVData, Model } from '@/types/csv';
 import { parseCSVFile } from '@/utils/csvUtils';
@@ -17,10 +17,35 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [selectedModelId, setSelectedModelId] = useState<string>('');
-  const [models] = useState<Model[]>(getModels());
+  const [models, setModels] = useState<Model[]>([]);
   const [parsedData, setParsedData] = useState<CSVData[] | null>(null);
   const [fileName, setFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // モデルを動的に読み込む
+  useEffect(() => {
+    const loadModels = () => {
+      const loadedModels = getModels();
+      console.log('📤 CSVアップローダー: モデル読み込み:', loadedModels);
+      setModels(loadedModels);
+    };
+
+    loadModels();
+
+    // モデル変更イベントをリッスン
+    const handleModelsChanged = () => {
+      console.log('📤 CSVアップローダー: モデル変更イベント検知');
+      loadModels();
+    };
+
+    window.addEventListener('modelsChanged', handleModelsChanged);
+    window.addEventListener('mainModelChanged', handleModelsChanged);
+
+    return () => {
+      window.removeEventListener('modelsChanged', handleModelsChanged);
+      window.removeEventListener('mainModelChanged', handleModelsChanged);
+    };
+  }, []);
 
   const handleFile = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
@@ -209,18 +234,29 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
                 <Users className="h-4 w-4 inline mr-2" />
                 モデル選択
               </label>
-              <select
-                value={selectedModelId}
-                onChange={(e) => setSelectedModelId(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 bg-white shadow-sm"
-              >
-                <option value="">モデルを選択してください</option>
-                {models.map(model => (
-                  <option key={model.id} value={model.id}>
-                    {model.displayName}
-                  </option>
-                ))}
-              </select>
+              {models.length === 0 ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800 font-medium">
+                    ⚠️ モデルが登録されていません
+                  </p>
+                  <p className="text-xs text-yellow-600 mt-1">
+                    モデル管理タブでモデルを追加してください
+                  </p>
+                </div>
+              ) : (
+                <select
+                  value={selectedModelId}
+                  onChange={(e) => setSelectedModelId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 bg-white shadow-sm"
+                >
+                  <option value="">モデルを選択してください</option>
+                  {models.map(model => (
+                    <option key={model.id} value={model.id}>
+                      {model.isMainModel ? '⭐ ' : ''}{model.displayName}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* アップロードボタン */}
