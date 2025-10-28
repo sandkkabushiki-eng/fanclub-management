@@ -145,24 +145,6 @@ class AuthManager {
     try {
       console.log('🔐 ログイン試行:', credentials.email);
       
-      // ログイン前に既存のローカルデータをクリア（セキュリティ対策）
-      console.log('🧹 ログイン前: 既存のローカルデータをクリア');
-      if (typeof window !== 'undefined') {
-        // fanclub関連のすべてのローカルストレージデータを削除
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && (key.includes('fanclub-model') || key.includes('fanclub-global'))) {
-            keysToRemove.push(key);
-          }
-        }
-        keysToRemove.forEach(key => {
-          localStorage.removeItem(key);
-          console.log('🗑️ 削除:', key);
-        });
-        console.log('✅ ローカルデータクリア完了:', keysToRemove.length, '件');
-      }
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: credentials.email,
         password: credentials.password,

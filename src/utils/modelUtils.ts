@@ -121,6 +121,8 @@ export const saveModels = (models: Model[]): void => {
 };
 
 export const addModel = async (name: string, displayName: string, description?: string): Promise<Model> => {
+  console.log('➕ モデル追加開始:', displayName);
+  
   const models = getModels();
   const newModel: Model = {
     id: Date.now().toString(),
@@ -131,17 +133,25 @@ export const addModel = async (name: string, displayName: string, description?: 
     createdAt: new Date().toISOString()
   };
   
-  // ローカルストレージに保存
+  // まずSupabaseに保存（優先）
+  try {
+    console.log('🗄️ Supabaseにモデルを保存中...');
+    const saved = await saveModelToSupabase(newModel);
+    if (saved) {
+      console.log('✅ Supabaseにモデルを保存成功:', displayName);
+    } else {
+      console.error('❌ Supabaseへの保存が失敗しました');
+      throw new Error('Supabase save failed');
+    }
+  } catch (error) {
+    console.error('❌ Supabaseモデル保存エラー:', error);
+    throw error; // エラーを上位に投げる
+  }
+  
+  // Supabase保存成功後、LocalStorageにキャッシュ
   models.push(newModel);
   saveModels(models);
-  
-  // Supabaseにも保存
-  try {
-    await saveModelToSupabase(newModel);
-    console.log('Model saved to Supabase successfully');
-  } catch (error) {
-    console.error('Failed to save model to Supabase:', error);
-  }
+  console.log('💾 LocalStorageにキャッシュを保存');
   
   return newModel;
 };
