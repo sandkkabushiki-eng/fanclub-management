@@ -259,8 +259,10 @@ class AuthManager {
         console.error('月次データ同期エラー:', monthlyError);
       } else if (monthlyData && monthlyData.length > 0) {
         const userDataKey = `fanclub-model-data-${userId}`;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const formattedData: Record<string, any> = {};
-        monthlyData.forEach(row => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        monthlyData.forEach((row: any) => {
           const key = `${row.model_id}_${row.year}_${row.month}`;
           formattedData[key] = {
             modelId: row.model_id,
