@@ -1056,39 +1056,6 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                   </div>
                 </div>
 
-                {/* 統計カード */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">総顧客数</p>
-                        <p className="text-2xl font-semibold text-gray-900">{stats.totalCustomers}</p>
-                      </div>
-                      <Users className="w-8 h-8 text-gray-400" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">平均購入額</p>
-                        <p className="text-2xl font-semibold text-gray-900">¥{Math.round(stats.averageTransactionValue).toLocaleString()}</p>
-                      </div>
-                      <DollarSign className="w-8 h-8 text-gray-400" />
-                    </div>
-                  </div>
-                  
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-gray-600">リピート率</p>
-                        <p className="text-2xl font-semibold text-gray-900">{stats.repeatRate.toFixed(1)}%</p>
-                      </div>
-                      <TrendingUp className="w-8 h-8 text-gray-400" />
-                    </div>
-                  </div>
-                </div>
-                
                 {/* モデル選択と表示モード切り替え */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
                   {/* モデル選択 */}
