@@ -10,6 +10,7 @@ yarn-error.log*
 out/
 build/
 dist/
+# Force cache clear
 
 # Environment files
 .env*
