@@ -2,6 +2,7 @@ import { Model, ModelMonthlyData, ModelRevenueSummary, FanClubRevenueData } from
 import { analyzeFanClubRevenue } from './csvUtils';
 import { saveModelToSupabase, deleteModelFromSupabase } from './supabaseUtils';
 import { authManager } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { 
   getUserStorageKey, 
   validateUserAuthentication, 
@@ -12,18 +13,57 @@ import {
 const MODEL_STORAGE_KEY = 'fanclub-models';
 const MODEL_DATA_STORAGE_KEY = 'fanclub-model-data';
 
-// モデル管理
+// 🔥 Supabaseから直接モデルを取得（推奨）
+export const getModelsFromSupabase = async (): Promise<Model[]> => {
+  try {
+    const currentUser = authManager.getCurrentUser();
+    if (!currentUser?.id) {
+      console.warn('⚠️ 認証されていないユーザー');
+      return [];
+    }
+    
+    console.log('🗄️ Supabaseからモデルを取得中...');
+    const { data, error } = await supabase
+      .from('models')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('❌ Supabaseモデル取得エラー:', error);
+      return [];
+    }
+    
+    const models = data || [];
+    console.log('✅ Supabaseからモデルを取得:', models.length, '件');
+    
+    // LocalStorageにキャッシュとして保存
+    if (models.length > 0) {
+      saveSecureUserData(MODEL_STORAGE_KEY, models);
+      console.log('💾 LocalStorageにキャッシュを保存');
+    }
+    
+    return models;
+  } catch (error) {
+    console.error('❌ Supabaseモデル取得エラー:', error);
+    return [];
+  }
+};
+
+// モデル管理（LocalStorageはキャッシュのみ - Supabaseが真実のソース）
 export const getModels = (): Model[] => {
   if (typeof window === 'undefined') return [];
   
   try {
     if (!validateUserAuthentication()) {
-      console.error('🚨 セキュリティエラー: 認証されていないユーザーがモデルにアクセスしようとしました');
+      console.warn('⚠️ 認証されていないユーザー - 空の配列を返します');
       return [];
     }
     
+    // LocalStorageからキャッシュを読み込み（高速化のため）
     const models = getSecureUserData<Model[]>(MODEL_STORAGE_KEY, []);
-    console.log('📋 モデル取得 - 解析結果:', models.length, '件');
+    console.log('📋 モデル取得（キャッシュ）:', models.length, '件');
+    console.warn('⚠️ これはキャッシュです。最新データはSupabaseから取得してください。');
     return models;
   } catch (error) {
     console.error('Failed to load models:', error);

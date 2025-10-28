@@ -17,7 +17,7 @@ import {
   Shield
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData } from '@/types/csv';
-import { upsertModelMonthlyData, getModels } from '@/utils/modelUtils';
+import { upsertModelMonthlyData, getModels, getModelsFromSupabase } from '@/utils/modelUtils';
 import { getCurrentUserDataManager } from '@/utils/userDataUtils';
 import { saveModelMonthlyDataToSupabase } from '@/utils/supabaseUtils';
 import { debugSupabaseConnection } from '@/utils/debugSupabase';
@@ -165,27 +165,16 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
         // 古いデータを新しいキーに移行（初回のみ）
         migrateOldData('fanclub-model-data');
         
-        // ユーザーデータマネージャーを使ってモデルを取得（売上分析と同じ方法）
-        const userDataManager = getCurrentUserDataManager();
-        console.log('📋 ユーザーデータマネージャー:', userDataManager ? 'Found' : 'Not found');
-        
-        if (userDataManager) {
-          const userModels = await userDataManager.getUserModels();
-          console.log('📋 ユーザーモデル:', userModels.length, '件');
-          setModels(userModels);
-        } else {
-          // フォールバック: ローカルストレージから取得
-          const modelsData = getModels();
-          console.log('📋 ローカルモデル:', modelsData.length, '件');
-          setModels(modelsData);
-        }
-        
-        // メインモデルが変更された可能性があるので、常にチェック
-        const currentModels = userDataManager ? await userDataManager.getUserModels() : getModels();
-        const mainModel = currentModels.find(m => m.isMainModel);
-        
-        // グローバル状態のモデルリストを更新（自動的に選択も更新される）
+        // 🔥 Supabaseから直接モデルを取得（唯一の真実のソース）
+        console.log('🗄️ Supabaseからモデルを読み込み開始...');
+        const currentModels = await getModelsFromSupabase();
+        console.log('✅ Supabaseからモデルを取得:', currentModels.length, '件');
         setModels(currentModels);
+        
+        const mainModel = currentModels.find(m => m.isMainModel);
+        if (mainModel) {
+          console.log('⭐ メインモデル:', mainModel.displayName);
+        }
         
         // ローカルストレージからデータを読み込み（ユーザー固有）
         const userDataKey = getUserStorageKey('fanclub-model-data');
