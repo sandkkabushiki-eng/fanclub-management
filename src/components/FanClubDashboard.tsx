@@ -1279,6 +1279,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                     <p>モデルを選択すると、そのモデルの月別データが表示されます</p>
                   </div>
                 )}
+                {/* 上記ブロックのクローズを明示し、JSXの整合性を確保 */}
               </div>
             </div>
           )}
