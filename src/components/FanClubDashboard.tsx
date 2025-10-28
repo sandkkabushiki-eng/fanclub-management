@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -700,13 +700,23 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
     return allData;
   };
 
-  const stats = calculateModelStats(modelData, selectedModelId);
-  console.log('📊 計算された統計:', stats);
+  // 🔥 useMemoで統計を計算（modelDataまたはselectedModelIdが変更されたら自動再計算）
+  const stats = useMemo(() => {
+    console.log('📊 統計再計算トリガー:', { 
+      modelDataKeys: Object.keys(modelData).length, 
+      selectedModelId 
+    });
+    const calculatedStats = calculateModelStats(modelData, selectedModelId);
+    console.log('📊 計算された統計:', calculatedStats);
+    return calculatedStats;
+  }, [modelData, selectedModelId]);
+  
   console.log('📊 modelData詳細:', JSON.stringify(modelData, null, 2));
   console.log('📊 selectedModelId:', selectedModelId);
 
-  // モデル別統計を計算
-  const getIndividualModelStats = (): IndividualModelStats[] => {
+  // 🔥 useMemoでモデル別統計を計算（modelDataまたはmodelsが変更されたら自動再計算）
+  const individualModelStats = useMemo(() => {
+    console.log('📊 モデル別統計再計算トリガー');
     const modelMap = new Map<string, IndividualModelStats>();
     
     Object.values(modelData).forEach(item => {
@@ -742,10 +752,10 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       }
     });
     
-    return Array.from(modelMap.values()).sort((a, b) => b.revenue - a.revenue);
-  };
-  
-  const individualModelStats = getIndividualModelStats();
+    const result = Array.from(modelMap.values()).sort((a, b) => b.revenue - a.revenue);
+    console.log('📊 モデル別統計計算完了:', result.length, '件');
+    return result;
+  }, [modelData, models]);
 
   // データ同期機能
   const syncDataWithSupabase = async () => {
