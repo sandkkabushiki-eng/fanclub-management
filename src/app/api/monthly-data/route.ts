@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
     const year = searchParams.get('year');
     const month = searchParams.get('month');
     
-    let query = supabaseAdmin
+    let query = supabaseAdmin!
       .from('monthly_data')
       .select('id, model_id, year, month, analysis, created_at, updated_at')
       .eq('user_id', userId)
