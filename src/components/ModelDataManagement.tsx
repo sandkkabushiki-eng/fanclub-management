@@ -1,16 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, Edit, Trash2, User, BarChart3, DollarSign } from 'lucide-react';
+import { Calendar, Edit, Trash2, User } from 'lucide-react';
 import { Model, ModelMonthlyData, FanClubRevenueData, RevenueAnalysis } from '@/types/csv';
 import { getModels, getModelMonthlyDataByModel, deleteModelMonthlyData, formatYearMonth } from '@/utils/modelUtils';
 import { getCurrentUserDataManager } from '@/utils/userDataUtils';
 import { supabase } from '@/lib/supabase';
-// import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
 import CSVDataEditor from './CSVDataEditor';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import { useGlobalModelSelectionListener } from '@/hooks/useGlobalModelSelection';
-import RevenueDashboard from './RevenueDashboard';
 
 export default function ModelDataManagement() {
   const [models, setModels] = useState<Model[]>([]);
@@ -27,7 +25,6 @@ export default function ModelDataManagement() {
     return '';
   });
   const [modelData, setModelData] = useState<ModelMonthlyData[]>([]);
-  const [activeTab, setActiveTab] = useState<'data' | 'revenue' | 'trends'>('revenue');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // グローバルなモデル選択変更をリッスン
@@ -396,38 +393,8 @@ export default function ModelDataManagement() {
     setModelData(getModelMonthlyDataByModel(selectedModelId));
   };
 
-  const tabs = [
-    { id: 'data' as const, label: 'データ管理', icon: Calendar },
-  ];
-
   return (
     <div className="space-y-6">
-      {/* ヘッダー */}
-      <div className="flex items-center space-x-4">
-        <Calendar className="h-8 w-8 text-pink-600" />
-        <h2 className="text-2xl font-bold text-pink-600">データ管理</h2>
-      </div>
-
-      {/* タブナビゲーション */}
-      <div className="flex flex-wrap gap-2">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                activeTab === tab.id
-                  ? 'bg-pink-600 text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-pink-50 shadow-sm border border-pink-200'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
 
       {/* モデル選択 */}
       <div className="bg-white rounded-lg p-6 border border-gray-200">
@@ -466,8 +433,8 @@ export default function ModelDataManagement() {
           )}
         </div>
 
-      {/* タブコンテンツ */}
-      {activeTab === 'data' && selectedModelId && (
+      {/* データ一覧 */}
+      {selectedModelId && (
         <div className="bg-white rounded-lg p-6 border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">月別データ一覧</h3>
           
@@ -515,8 +482,6 @@ export default function ModelDataManagement() {
           )}
         </div>
       )}
-
-      {activeTab === 'revenue' && selectedModelId && <RevenueDashboard selectedModelId={selectedModelId} />}
 
       {/* 編集ダイアログ */}
       {editingData && (
