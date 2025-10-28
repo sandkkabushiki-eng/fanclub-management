@@ -18,11 +18,14 @@ export const getModelsFromSupabase = async (): Promise<Model[]> => {
   try {
     const currentUser = authManager.getCurrentUser();
     if (!currentUser?.id) {
-      console.warn('⚠️ 認証されていないユーザー');
-      return [];
+      console.warn('⚠️ 認証されていないユーザー - LocalStorageキャッシュを確認');
+      // 認証されていない場合はキャッシュを返す
+      const cachedModels = getSecureUserData<Model[]>(MODEL_STORAGE_KEY, []);
+      console.log('📦 キャッシュから取得:', cachedModels.length, '件');
+      return cachedModels;
     }
     
-    console.log('🗄️ Supabaseからモデルを取得中...');
+    console.log('🗄️ Supabaseからモデルを取得中... (userId:', currentUser.id, ')');
     const { data, error } = await supabase
       .from('models')
       .select('*')
@@ -31,11 +34,35 @@ export const getModelsFromSupabase = async (): Promise<Model[]> => {
     
     if (error) {
       console.error('❌ Supabaseモデル取得エラー:', error);
-      return [];
+      // エラーの場合はキャッシュから取得
+      console.log('🔄 フォールバック: LocalStorageキャッシュから取得');
+      const cachedModels = getSecureUserData<Model[]>(MODEL_STORAGE_KEY, []);
+      console.log('📦 キャッシュから取得:', cachedModels.length, '件');
+      return cachedModels;
     }
     
     const models = data || [];
     console.log('✅ Supabaseからモデルを取得:', models.length, '件');
+    
+    // Supabaseにデータがない場合、LocalStorageキャッシュを確認
+    if (models.length === 0) {
+      console.log('📭 Supabaseにモデルがありません。LocalStorageキャッシュを確認...');
+      const cachedModels = getSecureUserData<Model[]>(MODEL_STORAGE_KEY, []);
+      console.log('📦 キャッシュから取得:', cachedModels.length, '件');
+      
+      // キャッシュにデータがある場合、Supabaseに同期
+      if (cachedModels.length > 0) {
+        console.log('🔄 キャッシュをSupabaseに同期中...');
+        for (const model of cachedModels) {
+          try {
+            await saveModelToSupabase(model);
+          } catch (syncError) {
+            console.error('同期エラー:', model.displayName, syncError);
+          }
+        }
+        return cachedModels;
+      }
+    }
     
     // LocalStorageにキャッシュとして保存
     if (models.length > 0) {
@@ -46,7 +73,11 @@ export const getModelsFromSupabase = async (): Promise<Model[]> => {
     return models;
   } catch (error) {
     console.error('❌ Supabaseモデル取得エラー:', error);
-    return [];
+    // エラーの場合はキャッシュから取得
+    console.log('🔄 フォールバック: LocalStorageキャッシュから取得');
+    const cachedModels = getSecureUserData<Model[]>(MODEL_STORAGE_KEY, []);
+    console.log('📦 キャッシュから取得:', cachedModels.length, '件');
+    return cachedModels;
   }
 };
 
