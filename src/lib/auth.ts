@@ -143,7 +143,25 @@ class AuthManager {
   // ユーザー認証（Supabase Auth使用）
   async userLogin(credentials: LoginCredentials): Promise<AuthSession | null> {
     try {
-      console.log('Attempting login for:', credentials.email);
+      console.log('🔐 ログイン試行:', credentials.email);
+      
+      // ログイン前に既存のローカルデータをクリア（セキュリティ対策）
+      console.log('🧹 ログイン前: 既存のローカルデータをクリア');
+      if (typeof window !== 'undefined') {
+        // fanclub関連のすべてのローカルストレージデータを削除
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('fanclub-model') || key.includes('fanclub-global'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => {
+          localStorage.removeItem(key);
+          console.log('🗑️ 削除:', key);
+        });
+        console.log('✅ ローカルデータクリア完了:', keysToRemove.length, '件');
+      }
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: credentials.email,
@@ -402,22 +420,42 @@ class AuthManager {
 
   // ログアウト
   async logout(): Promise<void> {
+    console.log('🔓 ログアウト処理開始');
+    
     try {
       // Supabaseからもログアウト
       await supabase.auth.signOut();
+      console.log('✅ Supabaseログアウト完了');
     } catch (error) {
-      console.warn('Supabase logout error:', error);
+      console.warn('⚠️ Supabase logout error:', error);
     }
     
     // ユーザーデータを完全にクリア
     clearAllUserData();
+    console.log('✅ ユーザーデータクリア完了');
     
-    this.currentUser = null;
-    this.session = null;
+    // すべてのfanclub関連データを削除（念のため）
     if (typeof window !== 'undefined') {
+      console.log('🧹 全fanclub関連データをクリア');
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('fanclub-model') || key.includes('fanclub-global'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        console.log('🗑️ 削除:', key);
+      });
+      console.log('✅ ローカルストレージクリア完了:', keysToRemove.length, '件');
+      
       sessionStorage.removeItem('fanclub-session');
       localStorage.removeItem('fanclub-session');
     }
+    
+    this.currentUser = null;
+    this.session = null;
     
     console.log('✅ ログアウト完了: 全ユーザーデータをクリアしました');
   }
