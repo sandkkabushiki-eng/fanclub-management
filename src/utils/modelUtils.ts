@@ -2,27 +2,27 @@ import { Model, ModelMonthlyData, ModelRevenueSummary, FanClubRevenueData } from
 import { analyzeFanClubRevenue } from './csvUtils';
 import { saveModelToSupabase, deleteModelFromSupabase } from './supabaseUtils';
 import { authManager } from '@/lib/auth';
+import { 
+  getUserStorageKey, 
+  validateUserAuthentication, 
+  getSecureUserData, 
+  saveSecureUserData 
+} from './userDataIsolation';
 
 const MODEL_STORAGE_KEY = 'fanclub-models';
 const MODEL_DATA_STORAGE_KEY = 'fanclub-model-data';
-
-// ユーザーIDを含むストレージキーを生成
-const getUserStorageKey = (baseKey: string): string => {
-  const currentUser = authManager.getCurrentUser();
-  const userId = currentUser?.id || 'default';
-  return `${baseKey}-${userId}`;
-};
 
 // モデル管理
 export const getModels = (): Model[] => {
   if (typeof window === 'undefined') return [];
   
   try {
-    const userKey = getUserStorageKey(MODEL_STORAGE_KEY);
-    console.log('📋 モデル取得 - ストレージキー:', userKey);
-    const stored = localStorage.getItem(userKey);
-    console.log('📋 モデル取得 - ストレージデータ:', stored ? 'Found' : 'Not found');
-    const models = stored ? JSON.parse(stored) : [];
+    if (!validateUserAuthentication()) {
+      console.error('🚨 セキュリティエラー: 認証されていないユーザーがモデルにアクセスしようとしました');
+      return [];
+    }
+    
+    const models = getSecureUserData<Model[]>(MODEL_STORAGE_KEY, []);
     console.log('📋 モデル取得 - 解析結果:', models.length, '件');
     return models;
   } catch (error) {
@@ -35,8 +35,15 @@ export const saveModels = (models: Model[]): void => {
   if (typeof window === 'undefined') return;
   
   try {
-    const userKey = getUserStorageKey(MODEL_STORAGE_KEY);
-    localStorage.setItem(userKey, JSON.stringify(models));
+    if (!validateUserAuthentication()) {
+      console.error('🚨 セキュリティエラー: 認証されていないユーザーがモデルを保存しようとしました');
+      return;
+    }
+    
+    const success = saveSecureUserData(MODEL_STORAGE_KEY, models);
+    if (success) {
+      console.log('✅ モデルを安全に保存しました');
+    }
   } catch (error) {
     console.error('Failed to save models:', error);
   }
@@ -151,19 +158,20 @@ export const getModelMonthlyData = (): ModelMonthlyData[] => {
   if (typeof window === 'undefined') return [];
   
   try {
-    const userKey = getUserStorageKey(MODEL_DATA_STORAGE_KEY);
-    const stored = localStorage.getItem(userKey);
-    if (!stored) return [];
+    if (!validateUserAuthentication()) {
+      console.error('🚨 セキュリティエラー: 認証されていないユーザーが月別データにアクセスしようとしました');
+      return [];
+    }
     
-    const parsed = JSON.parse(stored);
+    const data = getSecureUserData<ModelMonthlyData[]>(MODEL_DATA_STORAGE_KEY, []);
     
     // 配列でない場合は空配列を返す
-    if (!Array.isArray(parsed)) {
+    if (!Array.isArray(data)) {
       console.warn('Model monthly data is not an array, returning empty array');
       return [];
     }
     
-    return parsed;
+    return data;
   } catch (error) {
     console.error('Failed to load model monthly data:', error);
     return [];
@@ -174,8 +182,15 @@ export const saveModelMonthlyData = (data: ModelMonthlyData[]): void => {
   if (typeof window === 'undefined') return;
   
   try {
-    const userKey = getUserStorageKey(MODEL_DATA_STORAGE_KEY);
-    localStorage.setItem(userKey, JSON.stringify(data));
+    if (!validateUserAuthentication()) {
+      console.error('🚨 セキュリティエラー: 認証されていないユーザーが月別データを保存しようとしました');
+      return;
+    }
+    
+    const success = saveSecureUserData(MODEL_DATA_STORAGE_KEY, data);
+    if (success) {
+      console.log('✅ 月別データを安全に保存しました');
+    }
   } catch (error) {
     console.error('Failed to save model monthly data:', error);
   }

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, AuthSession, LoginCredentials, RegisterData } from '@/types/auth';
+import { clearAllUserData } from '@/utils/userDataIsolation';
 
 // Supabase設定
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://aksptiaptxogdipuysut.supabase.co';
@@ -408,12 +409,17 @@ class AuthManager {
       console.warn('Supabase logout error:', error);
     }
     
+    // ユーザーデータを完全にクリア
+    clearAllUserData();
+    
     this.currentUser = null;
     this.session = null;
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('fanclub-session');
       localStorage.removeItem('fanclub-session');
     }
+    
+    console.log('✅ ログアウト完了: 全ユーザーデータをクリアしました');
   }
 
   // 現在のユーザー取得

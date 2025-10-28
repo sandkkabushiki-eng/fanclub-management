@@ -27,6 +27,7 @@ import { syncLocalModelsToSupabase } from '@/utils/modelSyncUtils';
 import { authManager } from '@/lib/auth';
 import { AuthSession } from '@/types/auth';
 import { supabase } from '@/lib/supabase';
+import { logSecurityStatus, showSecurityWarnings } from '@/utils/securityValidator';
 import { getCustomerDetailInfo, formatCurrency } from '@/utils/csvUtils';
 import CSVUploader from '@/components/CSVUploaderNew';
 import ModelDataManagement from '@/components/ModelDataManagement';
@@ -140,6 +141,10 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       const session = await authManager.loadSession();
       if (session) {
         setAuthSession(session);
+        
+        // セキュリティ状態を検証
+        logSecurityStatus();
+        showSecurityWarnings();
       }
     };
     loadSession();
