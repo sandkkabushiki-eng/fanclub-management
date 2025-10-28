@@ -892,7 +892,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {activeTab === 'overview' && (
+          {activeTab === 'overview' ? (
             <div className="space-y-6">
 
               {/* Stats Cards */}
@@ -1017,9 +1017,8 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                 </div>
               )}
             </div>
-          )}
-
-          {activeTab === 'models' && (
+          ) : null}
+          {activeTab === 'models' ? (
             <div className="space-y-6">
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">モデル管理</h3>
@@ -1032,15 +1031,14 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                 <ModelDataManagement />
               </div>
             </div>
-          )}
-
-          {activeTab === 'csv' && (
+          ) : null}
+          {activeTab === 'csv' ? (
             <div className="space-y-4 lg:space-y-6">
               <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
                 <CSVUploader onDataLoaded={handleDataLoaded} />
               </div>
             </div>
-          )}
+          ) : null}
           {activeTab === 'revenue' ? <div className="space-y-4 lg:space-y-6"><div className="bg-white rounded-lg border border-gray-200 p-6"><RevenueDashboard selectedModelId={selectedModelId} /></div></div> : null}
           {activeTab === 'customers' ? (
             <div className="space-y-6">
@@ -1433,9 +1431,8 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                 </div>
               </div>
             </div>
-          )}
-
-          {activeTab === 'calendar' && (
+          ) : null}
+          {activeTab === 'calendar' ? (
             <div className="space-y-4 lg:space-y-6">
               <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
                 <h1 className="text-xl lg:text-2xl font-semibold text-gray-900 mb-2">カレンダー分析</h1>
