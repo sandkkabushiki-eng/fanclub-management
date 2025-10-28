@@ -41,8 +41,23 @@ export const getModelsFromSupabase = async (): Promise<Model[]> => {
       return cachedModels;
     }
     
-    const models = data || [];
-    console.log('✅ Supabaseからモデルを取得:', models.length, '件');
+    const rawModels = data || [];
+    console.log('✅ Supabaseからモデルを取得:', rawModels.length, '件');
+    console.log('📋 Supabaseデータ:', rawModels);
+    
+    // Supabaseのスネークケースをキャメルケースに変換
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const models: Model[] = rawModels.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      displayName: row.display_name, // 🔥 スネークケース → キャメルケース
+      description: row.description,
+      status: row.status || 'active',
+      isMainModel: row.is_main_model || false, // 🔥 スネークケース → キャメルケース
+      createdAt: row.created_at
+    }));
+    
+    console.log('🔄 変換後のモデル:', models);
     
     // Supabaseにデータがない場合、LocalStorageキャッシュを確認
     if (models.length === 0) {
