@@ -623,6 +623,8 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
 
   const stats = calculateModelStats(modelData, selectedModelId);
   console.log('📊 計算された統計:', stats);
+  console.log('📊 modelData詳細:', JSON.stringify(modelData, null, 2));
+  console.log('📊 selectedModelId:', selectedModelId);
 
   // モデル別統計を計算
   const getIndividualModelStats = (): IndividualModelStats[] => {
@@ -1019,9 +1021,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                 <ModelManagement />
               </div>
               
-              {/* CSVデータ編集セクション */}
+              {/* CSVデータ編集セクション - 常時表示 */}
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">CSVデータ編集</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">データ管理</h3>
                 <ModelDataManagement />
               </div>
             </div>
