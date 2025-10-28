@@ -25,8 +25,33 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
   // モデルを動的に読み込む
   useEffect(() => {
     const loadModels = () => {
+      console.log('📤 CSVアップローダー: モデル読み込み開始');
+      
+      // デバッグ: 認証状態を確認
+      const currentUser = typeof window !== 'undefined' ? 
+        JSON.parse(sessionStorage.getItem('fanclub-session') || localStorage.getItem('fanclub-session') || 'null') : null;
+      console.log('📤 現在のユーザー:', currentUser);
+      
       const loadedModels = getModels();
-      console.log('📤 CSVアップローダー: モデル読み込み:', loadedModels);
+      console.log('📤 CSVアップローダー: モデル読み込み完了:', loadedModels.length, '件');
+      console.log('📤 モデル詳細:', loadedModels);
+      
+      // デバッグ: LocalStorageを直接確認
+      if (typeof window !== 'undefined' && loadedModels.length === 0) {
+        console.log('⚠️ モデルが0件です。LocalStorageを確認します...');
+        const allKeys = Object.keys(localStorage);
+        const modelKeys = allKeys.filter(key => key.includes('fanclub-model'));
+        console.log('📦 LocalStorage内のモデル関連キー:', modelKeys);
+        modelKeys.forEach(key => {
+          try {
+            const data = localStorage.getItem(key);
+            console.log(`📦 ${key}:`, JSON.parse(data || '[]'));
+          } catch (e) {
+            console.log(`📦 ${key}: (パースエラー)`);
+          }
+        });
+      }
+      
       setModels(loadedModels);
     };
 
