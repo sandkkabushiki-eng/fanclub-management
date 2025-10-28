@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { 
   authenticateRequest, 
@@ -9,20 +9,31 @@ import {
   trackApiUsage 
 } from '@/lib/api-helpers';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+// Supabaseクライアントの初期化（環境変数チェック付き）
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('Supabase環境変数が設定されていません');
+}
+
+const supabaseAdmin = supabaseUrl && supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
+  : null;
 
 // 月別データの保存（最適化版）
 export async function POST(request: NextRequest) {
   try {
+    // Supabaseクライアントの確認
+    if (!supabaseAdmin) {
+      return createErrorResponse('Database connection not available', 500);
+    }
+
     // 認証チェック
     const auth = await authenticateRequest(request);
     if (!auth) {

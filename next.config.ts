@@ -14,7 +14,6 @@ const nextConfig: NextConfig = {
   // 圧縮設定
   compress: true,
   // パフォーマンス最適化
-  swcMinify: true,
   // ビルド最適化
   webpack: (config, { isServer, dev }) => {
     // 本番環境での最適化
