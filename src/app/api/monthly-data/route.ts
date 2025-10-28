@@ -9,6 +9,9 @@ import {
   trackApiUsage 
 } from '@/lib/api-helpers';
 
+// 動的ルート設定
+export const dynamic = 'force-dynamic';
+
 // Supabaseクライアントの初期化（環境変数チェック付き）
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
