@@ -69,6 +69,11 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   
+  // AI分析用のstate
+  const [aiSelectedModelId, setAiSelectedModelId] = useState<string>('all');
+  const [aiAnalysisGenerated, setAiAnalysisGenerated] = useState(false);
+  const [isGeneratingAiAnalysis, setIsGeneratingAiAnalysis] = useState(false);
+  
   // グローバルなモデル選択状態を使用
   const { selectedModelId, setSelectedModelId, models, setModels, mainModel } = useGlobalModelSelection();
   
@@ -1825,40 +1830,121 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
           ) : null}
           {activeTab === 'ai' ? (
             <div className="space-y-4 lg:space-y-6">
-              <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
+              {/* ヘッダー */}
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg p-6 text-white">
                 <div className="flex items-center space-x-3 mb-2">
-                  <Sparkles className="w-8 h-8 text-purple-500" />
-                  <h1 className="text-xl lg:text-2xl font-semibold text-gray-900">AI分析</h1>
+                  <Sparkles className="w-10 h-10" />
+                  <h1 className="text-2xl lg:text-3xl font-bold">AI分析</h1>
                 </div>
-                <p className="text-sm lg:text-base text-gray-600">AIによる収益最大化提案と戦略的アドバイス</p>
+                <p className="text-purple-100">AIがあなたのビジネスを分析し、収益最大化のための戦略的アドバイスを提供します</p>
               </div>
               
-              <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
-                {(() => {
-                  // 全てのモデルデータを統合して分析
-                  const allData = Object.values(modelData).flatMap(item => {
-                    if (Array.isArray(item)) return item;
-                    if (typeof item === 'object' && item !== null && 'data' in item) {
-                      const monthData = item as { data: FanClubRevenueData[] };
-                      return Array.isArray(monthData.data) ? monthData.data : [];
-                    }
-                    return [];
-                  }) as FanClubRevenueData[];
+              {/* 分析設定 */}
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">分析設定</h3>
+                <div className="flex flex-col lg:flex-row gap-4 items-end">
+                  {/* モデル選択 */}
+                  <div className="flex-1 w-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      分析対象モデル
+                    </label>
+                    <select
+                      value={aiSelectedModelId}
+                      onChange={(e) => setAiSelectedModelId(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900"
+                    >
+                      <option value="all">すべてのモデル</option>
+                      {models.length > 0 ? (
+                        models.map(model => (
+                          <option key={model.id} value={model.id}>
+                            {model.isMainModel ? '⭐ ' : ''}{model.displayName}
+                          </option>
+                        ))
+                      ) : (
+                        <option value="" disabled>モデルが見つかりません</option>
+                      )}
+                    </select>
+                  </div>
                   
-                  // 分析データを取得
-                  const analysis = analyzeFanClubRevenue(allData);
-                  
-                  return (
-                    <RevenueOptimizationSuggestions
-                      analysis={analysis}
-                      modelData={allData}
-                      selectedModelName={selectedModelId && selectedModelId !== 'all' 
-                        ? models.find(m => m.id === selectedModelId)?.displayName 
-                        : undefined}
-                    />
-                  );
-                })()}
+                  {/* 分析生成ボタン */}
+                  <button
+                    onClick={() => {
+                      setIsGeneratingAiAnalysis(true);
+                      // アニメーション効果
+                      setTimeout(() => {
+                        setAiAnalysisGenerated(true);
+                        setIsGeneratingAiAnalysis(false);
+                      }, 1500);
+                    }}
+                    disabled={isGeneratingAiAnalysis}
+                    className={`px-8 py-3 rounded-lg font-semibold text-white transition-all duration-200 flex items-center space-x-2 ${
+                      isGeneratingAiAnalysis
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shadow-lg hover:shadow-xl'
+                    }`}
+                  >
+                    {isGeneratingAiAnalysis ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>分析中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-5 h-5" />
+                        <span>AI分析を生成</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
+              
+              {/* 分析結果 */}
+              {aiAnalysisGenerated ? (
+                <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
+                  {(() => {
+                    // 選択されたモデルのデータを取得
+                    const allData = Object.entries(modelData).flatMap(([key, item]) => {
+                      if (aiSelectedModelId !== 'all') {
+                        // 特定のモデルのデータのみ
+                        if (!key.startsWith(`${aiSelectedModelId}_`)) {
+                          return [];
+                        }
+                      }
+                      
+                      if (Array.isArray(item)) return item;
+                      if (typeof item === 'object' && item !== null && 'data' in item) {
+                        const monthData = item as { data: FanClubRevenueData[] };
+                        return Array.isArray(monthData.data) ? monthData.data : [];
+                      }
+                      return [];
+                    }) as FanClubRevenueData[];
+                    
+                    // 分析データを取得
+                    const analysis = analyzeFanClubRevenue(allData);
+                    
+                    return (
+                      <RevenueOptimizationSuggestions
+                        analysis={analysis}
+                        modelData={allData}
+                        selectedModelName={aiSelectedModelId && aiSelectedModelId !== 'all' 
+                          ? models.find(m => m.id === aiSelectedModelId)?.displayName 
+                          : undefined}
+                      />
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border-2 border-dashed border-purple-300 p-12 text-center">
+                  <Sparkles className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">AI分析を開始してください</h3>
+                  <p className="text-gray-600 mb-4">
+                    分析対象のモデルを選択し、「AI分析を生成」ボタンをクリックしてください
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    AIがあなたのデータを分析し、優先度の高い改善提案を提示します
+                  </p>
+                </div>
+              )}
             </div>
           ) : null}
           {activeTab === 'settings' ? (
