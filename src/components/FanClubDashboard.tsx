@@ -20,14 +20,10 @@ import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels, getModelsFromSupabase } from '@/utils/modelUtils';
 import { getCurrentUserDataManager } from '@/utils/userDataUtils';
 import { saveModelMonthlyDataToSupabase } from '@/utils/supabaseUtils';
-import { debugSupabaseConnection } from '@/utils/debugSupabase';
 import { calculateModelStats } from '@/utils/statsUtils';
-import { clearLocalData, getPreservedKeys } from '@/utils/dataClearUtils';
-import { syncLocalModelsToSupabase } from '@/utils/modelSyncUtils';
 import { authManager } from '@/lib/auth';
 import { AuthSession } from '@/types/auth';
 import { supabase } from '@/lib/supabase';
-import { logSecurityStatus, showSecurityWarnings } from '@/utils/securityValidator';
 import { getCustomerDetailInfo, formatCurrency } from '@/utils/csvUtils';
 import CSVUploader from '@/components/CSVUploaderNew';
 import ModelDataManagement from '@/components/ModelDataManagement';
@@ -141,10 +137,6 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       const session = await authManager.loadSession();
       if (session) {
         setAuthSession(session);
-        
-        // セキュリティ状態を検証
-        logSecurityStatus();
-        showSecurityWarnings();
       }
     };
     loadSession();
@@ -1593,65 +1585,6 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                       </p>
                       <p className="text-sm text-gray-600">
                         <span className="font-medium">メールアドレス:</span> {authSession.user.email}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">デバッグ</h4>
-                    <div className="space-y-2">
-                      <button
-                        onClick={async () => {
-                          console.log('🔍 Supabaseデバッグ開始');
-                          const result = await debugSupabaseConnection();
-                          console.log('🔍 デバッグ結果:', result);
-                          setMessage('デバッグ結果をコンソールに出力しました（F12で確認）');
-                          setTimeout(() => setMessage(''), 5000);
-                        }}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm transition-colors mr-2"
-                      >
-                        Supabase接続テスト
-                      </button>
-                      
-                      <button
-                        onClick={async () => {
-                          setMessage('🔄 モデル同期中...');
-                          const syncedCount = await syncLocalModelsToSupabase();
-                          setMessage(`✅ モデル同期完了: ${syncedCount}件`);
-                          setTimeout(() => setMessage(''), 5000);
-                        }}
-                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm transition-colors mr-2"
-                      >
-                        モデル同期
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">データ管理</h4>
-                    <div className="space-y-2">
-                      <button
-                        onClick={() => {
-                          const preservedKeys = getPreservedKeys();
-                          console.log('🔒 保持されるキー（認証関連）:', preservedKeys);
-                          
-                          const deletedCount = clearLocalData();
-                          
-                          // 状態をリセット
-                          setModels([]);
-                          setModelData({});
-                          setSelectedModelId('');
-                          
-                          setMessage(`✅ ローカルデータをクリアしました（${deletedCount}件削除）`);
-                          setTimeout(() => setMessage(''), 5000);
-                        }}
-                        className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm transition-colors"
-                      >
-                        ローカルデータをクリア
-                      </button>
-                      <p className="text-xs text-gray-500">
-                        モデル名とCSVデータを削除します。ログイン情報は保持されます。
                       </p>
                     </div>
                   </div>
