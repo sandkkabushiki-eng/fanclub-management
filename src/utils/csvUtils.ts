@@ -702,9 +702,11 @@ export const getCustomerDetailInfo = (data: FanClubRevenueData[]): CustomerDetai
     planPurchaseCount: number;
     singlePurchaseCount: number;
     tipCount: number;
+    superCommentCount: number;
     planTotal: number;
     singleTotal: number;
     tipTotal: number;
+    superCommentTotal: number;
     purchases: FanClubRevenueData[];
     firstPurchaseDate: string;
     lastPurchaseDate: string;
