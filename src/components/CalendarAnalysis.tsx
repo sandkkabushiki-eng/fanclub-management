@@ -168,27 +168,36 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
       weekdayHourMap[weekday][hour].transactions += 1;
     });
 
-    // 天気データを統合
-    const finalCalendarData = Array.from(dayMap.values()).map(dayData => {
-      const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(dayData.date).padStart(2, '0')}`;
+    // 月の全日分のカレンダーデータを生成（取引がない日も含む）
+    const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+    const finalCalendarData: DayData[] = [];
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayData = dayMap.get(day) || { date: day, revenue: 0, transactions: 0 };
+      const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const weather = weatherData[dateStr];
       
-      if (weather) {
-        console.log(`✅ ${dateStr}: 東京 ${weather.tokyo.emoji} ${weather.tokyo.text}, 大阪 ${weather.osaka.emoji} ${weather.osaka.text}`);
+      // 最初の3日分だけログ出力
+      if (day <= 3) {
+        console.log(`🔍 ${dateStr}: weather=${weather ? '✅あり' : '❌なし'}`, weather);
       }
       
-      return {
-        ...dayData,
+      finalCalendarData.push({
+        date: day,
+        revenue: dayData.revenue,
+        transactions: dayData.transactions,
         weather: weather || undefined
-      };
-    }).sort((a, b) => a.date - b.date);
+      });
+    }
     
     const finalHourlyData = Array.from(hourMap.values());
     
     console.log('📅 カレンダー分析: 処理完了');
     console.log('📅 カレンダー分析: カレンダーデータ:', finalCalendarData.length, '日');
     console.log('📅 カレンダー分析: 時間別データ:', finalHourlyData.length, '時間');
-    console.log('📅 カレンダー分析: 天気データ統合:', Object.keys(weatherData).length, '日分');
+    console.log('📅 カレンダー分析: weatherDataキー数:', Object.keys(weatherData).length);
+    console.log('📅 カレンダー分析: weatherDataキー例:', Object.keys(weatherData).slice(0, 5));
+    console.log('📅 カレンダー分析: 天気統合済み件数:', finalCalendarData.filter(d => d.weather).length);
     
     setCalendarData(finalCalendarData);
     setHourlyData(finalHourlyData);
@@ -199,14 +208,17 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
   useEffect(() => {
     const fetchWeather = async () => {
       setIsLoadingWeather(true);
-      console.log('🌤️ 天気データ取得開始:', selectedYear, selectedMonth);
+      console.log('🌤️ 天気データ取得開始:', selectedYear, '年', selectedMonth, '月');
       
       try {
         const weather = await getMonthlyWeatherData(selectedYear, selectedMonth);
         console.log('✅ 天気データ取得完了:', Object.keys(weather).length, '日分');
+        console.log('📊 天気データキー:', Object.keys(weather).slice(0, 5));
+        console.log('📊 天気データ内容例:', Object.values(weather).slice(0, 2));
         setWeatherData(weather);
       } catch (error) {
         console.error('❌ 天気データ取得エラー:', error);
+        setWeatherData({});
       } finally {
         setIsLoadingWeather(false);
       }
