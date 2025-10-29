@@ -8,7 +8,6 @@ import { getCurrentUserDataManager } from '@/utils/userDataUtils';
 import { supabase } from '@/lib/supabase';
 import { analyzeFanClubRevenue, formatCurrency } from '@/utils/csvUtils';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import RevenueOptimizationSuggestions from './RevenueOptimizationSuggestions';
 
 interface RevenueDashboardProps {
   selectedModelId: string;
@@ -250,13 +249,6 @@ export default function RevenueDashboard({ selectedModelId }: RevenueDashboardPr
               </div>
             </div>
           </div>
-
-          {/* 収益最大化提案 */}
-          <RevenueOptimizationSuggestions 
-            analysis={analysis}
-            modelData={modelData.flatMap(monthData => monthData.data)}
-            selectedModelName={localSelectedModelId === 'all' ? undefined : models.find(m => m.id === localSelectedModelId)?.displayName}
-          />
 
           {/* グラフエリア */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

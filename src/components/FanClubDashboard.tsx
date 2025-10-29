@@ -16,7 +16,8 @@ import {
   Heart,
   Shield,
   Grid3x3,
-  List
+  List,
+  Sparkles
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels, getModelsFromSupabase } from '@/utils/modelUtils';
@@ -26,12 +27,13 @@ import { calculateModelStats } from '@/utils/statsUtils';
 import { authManager } from '@/lib/auth';
 import { AuthSession } from '@/types/auth';
 import { supabase } from '@/lib/supabase';
-import { getCustomerDetailInfo, formatCurrency } from '@/utils/csvUtils';
+import { getCustomerDetailInfo, formatCurrency, analyzeFanClubRevenue } from '@/utils/csvUtils';
 import CSVUploader from '@/components/CSVUploaderNew';
 import ModelDataManagement from '@/components/ModelDataManagement';
 import ModelManagement from '@/components/ModelManagement';
 import CalendarAnalysis from '@/components/CalendarAnalysis';
 import RevenueDashboard from '@/components/RevenueDashboard';
+import RevenueOptimizationSuggestions from '@/components/RevenueOptimizationSuggestions';
 import { useGlobalModelSelection, useGlobalModelSelectionListener } from '@/hooks/useGlobalModelSelection';
 
 
@@ -57,7 +59,7 @@ interface FanClubDashboardProps {
 
 const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAuthSession, onLogout }) => {
   const [authSession, setAuthSession] = useState<AuthSession | null>(propAuthSession);
-  const [activeTab, setActiveTab] = useState<'overview' | 'models' | 'revenue' | 'customers' | 'csv' | 'calendar' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'models' | 'revenue' | 'customers' | 'csv' | 'calendar' | 'ai' | 'settings'>('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [modelData, setModelData] = useState<Record<string, unknown>>({});
@@ -560,7 +562,8 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
     { icon: Upload, label: 'CSVデータ', active: activeTab === 'csv' },
     { icon: Users, label: 'ファン管理', active: activeTab === 'customers' },
     { icon: TrendingUp, label: '売上分析', active: activeTab === 'revenue' },
-    { icon: Calendar, label: 'カレンダー分析', active: activeTab === 'calendar' }
+    { icon: Calendar, label: 'カレンダー分析', active: activeTab === 'calendar' },
+    { icon: Sparkles, label: 'AI分析', active: activeTab === 'ai' }
   ];
 
   const getModelStats = (): ModelStats => {
@@ -956,7 +959,8 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                             item.label === 'CSVデータ' ? 'csv' :
                             item.label === '売上分析' ? 'revenue' :
                             item.label === 'ファン管理' ? 'customers' :
-                            item.label === 'カレンダー分析' ? 'calendar' : 'overview');
+                            item.label === 'カレンダー分析' ? 'calendar' :
+                            item.label === 'AI分析' ? 'ai' : 'overview');
                 // モバイルメニューを閉じる
                 setMobileMenuOpen(false);
               }}
@@ -1033,6 +1037,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
               {activeTab === 'revenue' && '売上分析'}
               {activeTab === 'customers' && 'ファン管理'}
               {activeTab === 'calendar' && 'カレンダー分析'}
+              {activeTab === 'ai' && 'AI分析'}
               {activeTab === 'settings' && '設定'}
             </h2>
           </div>
@@ -1815,6 +1820,44 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
               })()}
               models={models}
                 />
+              </div>
+            </div>
+          ) : null}
+          {activeTab === 'ai' ? (
+            <div className="space-y-4 lg:space-y-6">
+              <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
+                <div className="flex items-center space-x-3 mb-2">
+                  <Sparkles className="w-8 h-8 text-purple-500" />
+                  <h1 className="text-xl lg:text-2xl font-semibold text-gray-900">AI分析</h1>
+                </div>
+                <p className="text-sm lg:text-base text-gray-600">AIによる収益最大化提案と戦略的アドバイス</p>
+              </div>
+              
+              <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
+                {(() => {
+                  // 全てのモデルデータを統合して分析
+                  const allData = Object.values(modelData).flatMap(item => {
+                    if (Array.isArray(item)) return item;
+                    if (typeof item === 'object' && item !== null && 'data' in item) {
+                      const monthData = item as { data: FanClubRevenueData[] };
+                      return Array.isArray(monthData.data) ? monthData.data : [];
+                    }
+                    return [];
+                  }) as FanClubRevenueData[];
+                  
+                  // 分析データを取得
+                  const analysis = analyzeFanClubRevenue(allData);
+                  
+                  return (
+                    <RevenueOptimizationSuggestions
+                      analysis={analysis}
+                      modelData={allData}
+                      selectedModelName={selectedModelId && selectedModelId !== 'all' 
+                        ? models.find(m => m.id === selectedModelId)?.displayName 
+                        : undefined}
+                    />
+                  );
+                })()}
               </div>
             </div>
           ) : null}
