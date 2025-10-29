@@ -696,12 +696,92 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
   const stats = useMemo(() => {
     console.log('📊 統計再計算トリガー:', { 
       modelDataKeys: Object.keys(modelData).length, 
-      selectedModelId 
+      selectedModelId,
+      customerViewMode,
+      selectedYear,
+      selectedMonth
     });
-    const calculatedStats = calculateModelStats(modelData, selectedModelId);
+    
+    // ファン管理の表示モードに応じてデータをフィルタリング
+    let filteredData: FanClubRevenueData[] = [];
+    
+    if (customerViewMode === 'monthly') {
+      // 月別データモード: 選択された年月のデータのみ
+      filteredData = Object.entries(modelData).flatMap(([key, item]) => {
+        const keyParts = key.split('_');
+        if (keyParts.length >= 3) {
+          const keyModelId = keyParts[0];
+          const keyYear = parseInt(keyParts[1]);
+          const keyMonth = parseInt(keyParts[2]);
+          
+          // 年月が一致し、かつモデルが選択されていない or モデルIDが一致する場合
+          if (keyYear === selectedYear && keyMonth === selectedMonth) {
+            if (!selectedModelId || keyModelId === selectedModelId) {
+              if (typeof item === 'object' && item !== null && 'data' in item) {
+                const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
+                  ? (item as { data: FanClubRevenueData[] }).data 
+                  : [];
+                return data;
+              }
+            }
+          }
+        }
+        return [];
+      }) as FanClubRevenueData[];
+    } else {
+      // 全体データモード: 選択されたモデルの全データ
+      filteredData = Object.entries(modelData).flatMap(([key, item]) => {
+        if (selectedModelId) {
+          // モデルが選択されている場合、そのモデルのデータのみ
+          if (key.startsWith(`${selectedModelId}_`)) {
+            if (typeof item === 'object' && item !== null && 'data' in item) {
+              const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
+                ? (item as { data: FanClubRevenueData[] }).data 
+                : [];
+              return data;
+            }
+          }
+          return [];
+        } else {
+          // モデルが選択されていない場合、全データ
+          if (typeof item === 'object' && item !== null && 'data' in item) {
+            const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
+              ? (item as { data: FanClubRevenueData[] }).data 
+              : [];
+            return data;
+          }
+          return [];
+        }
+      }) as FanClubRevenueData[];
+    }
+    
+    console.log('📊 フィルタリング後のデータ数:', filteredData.length);
+    
+    // 統計を計算
+    const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.金額) || 0), 0);
+    const totalCustomers = new Set(filteredData.map(item => item.購入者 || item.顧客名)).size;
+    const averageTransactionValue = filteredData.length > 0 ? totalRevenue / filteredData.length : 0;
+    
+    // リピート率の計算
+    const customerPurchaseCounts = new Map<string, number>();
+    filteredData.forEach(item => {
+      const customer = item.購入者 || item.顧客名 || '不明';
+      customerPurchaseCounts.set(customer, (customerPurchaseCounts.get(customer) || 0) + 1);
+    });
+    const repeatCustomers = Array.from(customerPurchaseCounts.values()).filter(count => count > 1).length;
+    const repeatRate = totalCustomers > 0 ? (repeatCustomers / totalCustomers) * 100 : 0;
+    
+    const calculatedStats = {
+      totalRevenue,
+      totalCustomers,
+      repeatRate,
+      averageTransactionValue,
+      repeatCustomers // リピーター数を追加
+    };
+    
     console.log('📊 計算された統計:', calculatedStats);
     return calculatedStats;
-  }, [modelData, selectedModelId]);
+  }, [modelData, selectedModelId, customerViewMode, selectedYear, selectedMonth]);
   
   console.log('📊 modelData詳細:', JSON.stringify(modelData, null, 2));
   console.log('📊 selectedModelId:', selectedModelId);
@@ -1234,21 +1314,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm text-gray-600">リピーター数</p>
-                          <p className="text-2xl font-semibold text-gray-900">
-                            {(() => {
-                              const allData = Object.values(modelData).flatMap(item => {
-                                if (Array.isArray(item)) return item;
-                                if (typeof item === 'object' && item !== null && 'data' in item) {
-                                  return Array.isArray((item as { data: FanClubRevenueData[] }).data) 
-                                    ? (item as { data: FanClubRevenueData[] }).data 
-                                    : [];
-                                }
-                                return [];
-                              }) as FanClubRevenueData[];
-                              const repeaters = getCustomerDetailInfo(allData);
-                              return repeaters.length;
-                            })()}
-                          </p>
+                          <p className="text-2xl font-semibold text-gray-900">{stats.repeatCustomers}</p>
                         </div>
                         <TrendingUp className="w-8 h-8 text-gray-400" />
                       </div>
