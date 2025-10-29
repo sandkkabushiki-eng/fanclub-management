@@ -1497,12 +1497,21 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                                 </div>
                               </div>
 
-                              {/* サポート/寄付 */}
+                              {/* チップ */}
                               <div className="bg-gray-50 p-3 lg:p-4 rounded-lg">
-                                <h3 className="text-xs lg:text-sm font-semibold text-gray-700 mb-2">チップ・スーパーコメント</h3>
+                                <h3 className="text-xs lg:text-sm font-semibold text-gray-700 mb-2">チップ</h3>
                                 <div className="flex justify-between items-end">
                                   <span className="text-sm lg:text-base font-bold text-gray-900">{formatCurrency(customer.tipTotal)}</span>
                                   <span className="text-xs text-gray-600">{customer.tipCount}回</span>
+                                </div>
+                              </div>
+
+                              {/* スーパーコメント */}
+                              <div className="bg-gray-50 p-3 lg:p-4 rounded-lg">
+                                <h3 className="text-xs lg:text-sm font-semibold text-gray-700 mb-2">スーパーコメント</h3>
+                                <div className="flex justify-between items-end">
+                                  <span className="text-sm lg:text-base font-bold text-gray-900">{formatCurrency(customer.superCommentTotal)}</span>
+                                  <span className="text-xs text-gray-600">{customer.superCommentCount}回</span>
                                 </div>
                               </div>
                             </div>

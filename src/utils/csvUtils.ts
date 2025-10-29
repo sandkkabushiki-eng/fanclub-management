@@ -680,9 +680,11 @@ export interface CustomerDetailInfo extends RepeatCustomer {
   planPurchaseCount: number;  // プラン購入回数
   singlePurchaseCount: number;  // 単品購入回数
   tipCount: number;  // チップ回数（対象が「チップ」や「投げ銭」などを含む場合）
+  superCommentCount: number;  // スーパーコメント回数
   planTotal: number;  // プラン購入合計額
   singleTotal: number;  // 単品購入合計額
   tipTotal: number;  // チップ合計額
+  superCommentTotal: number;  // スーパーコメント合計額
   purchases: FanClubRevenueData[];  // 全購入履歴
 }
 
@@ -715,9 +717,12 @@ export const getCustomerDetailInfo = (data: FanClubRevenueData[]): CustomerDetai
     const purchaseType = record.種類 || '';
     const target = (record.対象 || '').toLowerCase();
     
-    
     // チップかどうかを判定（対象に「チップ」「投げ銭」「tip」などが含まれる場合）
     const isTip = target.includes('チップ') || target.includes('投げ銭') || target.includes('tip') || target.includes('donation');
+    
+    // スーパーコメントかどうかを判定
+    const isSuperComment = target.includes('スーパーコメント') || target.includes('super comment') || 
+                           purchaseType.includes('スーパーコメント') || purchaseType.includes('コメント');
     
     if (!customerData.has(customerName)) {
       customerData.set(customerName, {
@@ -727,9 +732,11 @@ export const getCustomerDetailInfo = (data: FanClubRevenueData[]): CustomerDetai
         planPurchaseCount: 0,
         singlePurchaseCount: 0,
         tipCount: 0,
+        superCommentCount: 0,  // 🔥 スーパーコメント追加
         planTotal: 0,
         singleTotal: 0,
         tipTotal: 0,
+        superCommentTotal: 0,  // 🔥 スーパーコメント金額追加
         purchases: [],
         firstPurchaseDate: '',
         lastPurchaseDate: ''
@@ -745,12 +752,18 @@ export const getCustomerDetailInfo = (data: FanClubRevenueData[]): CustomerDetai
     if (isTip) {
       customer.tipCount += 1;
       customer.tipTotal += amount;
+    } else if (isSuperComment) {
+      customer.superCommentCount += 1;
+      customer.superCommentTotal += amount;
     } else if (purchaseType === 'プラン購入') {
       customer.planPurchaseCount += 1;
       customer.planTotal += amount;
     } else if (purchaseType === '単品販売') {
       customer.singlePurchaseCount += 1;
       customer.singleTotal += amount;
+    } else {
+      // 🔥 どのタイプにも該当しない場合はログ出力
+      console.warn('未分類の購入タイプ:', { purchaseType, target, customerName });
     }
     
     // 最初と最後の購入日を更新（日付が有効な場合のみ）
@@ -817,9 +830,11 @@ export const getCustomerDetailInfo = (data: FanClubRevenueData[]): CustomerDetai
         planPurchaseCount: customer.planPurchaseCount,
         singlePurchaseCount: customer.singlePurchaseCount,
         tipCount: customer.tipCount,
+        superCommentCount: customer.superCommentCount,  // 🔥 追加
         planTotal: customer.planTotal,
         singleTotal: customer.singleTotal,
         tipTotal: customer.tipTotal,
+        superCommentTotal: customer.superCommentTotal,  // 🔥 追加
         purchases: customer.purchases
       };
     })
