@@ -400,25 +400,27 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
                   return (
                     <div
                       key={`week-${weekIndex}-day-${day}`}
-                      className={`aspect-square ${colorInfo.bg} rounded-md sm:rounded-lg p-1 sm:p-2 cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative`}
+                      className={`aspect-square ${colorInfo.bg} rounded-md sm:rounded-lg p-2 cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative flex flex-col items-center justify-center`}
                       title={`${day}日: ${formatCurrency(revenue)} (${transactions}件)${weather ? `\n東京: ${weather.tokyo.text} 大阪: ${weather.osaka.text}` : ''}`}
                     >
-                      <div className={`text-xs sm:text-sm font-bold ${colorInfo.text} leading-tight`}>{day}</div>
+                      {/* 日付 */}
+                      <div className={`text-sm font-bold ${colorInfo.text} mb-1`}>{day}</div>
                       
-                      {/* 天気アイコン - 常に表示 */}
-                      <div className="flex items-center justify-center space-x-0.5 my-0.5">
-                        <span className="text-xs" title={weather ? `東京: ${weather.tokyo.text}` : '読込中'}>
-                          {weather ? weather.tokyo.emoji : '🌤️'}
+                      {/* 天気アイコン - 大きく表示 */}
+                      <div className="flex items-center justify-center gap-1 mb-1">
+                        <span className="text-lg" title={weather ? `東京: ${weather.tokyo.text}` : '読込中'}>
+                          {weather ? weather.tokyo.emoji : '⏳'}
                         </span>
-                        <span className="text-xs" title={weather ? `大阪: ${weather.osaka.text}` : '読込中'}>
-                          {weather ? weather.osaka.emoji : '🌤️'}
+                        <span className="text-lg" title={weather ? `大阪: ${weather.osaka.text}` : '読込中'}>
+                          {weather ? weather.osaka.emoji : '⏳'}
                         </span>
                       </div>
                       
+                      {/* 売上・件数 */}
                       {transactions > 0 && (
-                        <div className={`text-[10px] sm:text-xs ${colorInfo.text} mt-0.5 sm:mt-1 leading-tight`}>
-                          <div className="font-medium truncate">{formatCurrency(revenue)}</div>
-                          <div className="truncate">{transactions}件</div>
+                        <div className={`text-xs ${colorInfo.text} text-center leading-tight`}>
+                          <div className="font-bold">{formatCurrency(revenue)}</div>
+                          <div className="text-[10px]">{transactions}件</div>
                         </div>
                       )}
                       
