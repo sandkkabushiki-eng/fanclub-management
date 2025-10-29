@@ -389,6 +389,14 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
                   const weather = dayData?.weather;
                   const colorInfo = getColorIntensity(revenue, maxRevenue);
                   
+                  // デバッグ: 1日目のみログ出力
+                  if (day === 1) {
+                    console.log('🔍 カレンダー表示デバッグ (1日目):');
+                    console.log('  dayData:', dayData);
+                    console.log('  weather:', weather);
+                    console.log('  weatherData全体:', weatherData);
+                  }
+                  
                   return (
                     <div
                       key={`week-${weekIndex}-day-${day}`}
@@ -397,13 +405,15 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
                     >
                       <div className={`text-xs sm:text-sm font-bold ${colorInfo.text} leading-tight`}>{day}</div>
                       
-                      {/* 天気アイコン */}
-                      {weather && (
-                        <div className="flex items-center justify-center space-x-0.5 my-0.5">
-                          <span className="text-xs" title={`東京: ${weather.tokyo.text}`}>{weather.tokyo.emoji}</span>
-                          <span className="text-xs" title={`大阪: ${weather.osaka.text}`}>{weather.osaka.emoji}</span>
-                        </div>
-                      )}
+                      {/* 天気アイコン - 常に表示 */}
+                      <div className="flex items-center justify-center space-x-0.5 my-0.5">
+                        <span className="text-xs" title={weather ? `東京: ${weather.tokyo.text}` : '読込中'}>
+                          {weather ? weather.tokyo.emoji : '🌤️'}
+                        </span>
+                        <span className="text-xs" title={weather ? `大阪: ${weather.osaka.text}` : '読込中'}>
+                          {weather ? weather.osaka.emoji : '🌤️'}
+                        </span>
+                      </div>
                       
                       {transactions > 0 && (
                         <div className={`text-[10px] sm:text-xs ${colorInfo.text} mt-0.5 sm:mt-1 leading-tight`}>
