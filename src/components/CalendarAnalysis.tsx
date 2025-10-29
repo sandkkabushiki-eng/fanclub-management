@@ -168,17 +168,32 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
       weekdayHourMap[weekday][hour].transactions += 1;
     });
 
-    const finalCalendarData = Array.from(dayMap.values()).sort((a, b) => a.date - b.date);
+    // 天気データを統合
+    const finalCalendarData = Array.from(dayMap.values()).map(dayData => {
+      const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(dayData.date).padStart(2, '0')}`;
+      const weather = weatherData[dateStr];
+      
+      if (weather) {
+        console.log(`✅ ${dateStr}: 東京 ${weather.tokyo.emoji} ${weather.tokyo.text}, 大阪 ${weather.osaka.emoji} ${weather.osaka.text}`);
+      }
+      
+      return {
+        ...dayData,
+        weather: weather || undefined
+      };
+    }).sort((a, b) => a.date - b.date);
+    
     const finalHourlyData = Array.from(hourMap.values());
     
     console.log('📅 カレンダー分析: 処理完了');
     console.log('📅 カレンダー分析: カレンダーデータ:', finalCalendarData.length, '日');
     console.log('📅 カレンダー分析: 時間別データ:', finalHourlyData.length, '時間');
+    console.log('📅 カレンダー分析: 天気データ統合:', Object.keys(weatherData).length, '日分');
     
     setCalendarData(finalCalendarData);
     setHourlyData(finalHourlyData);
     setWeekdayHourData(weekdayHourMap);
-  }, [allData, modelData, selectedModelId, selectedYear, selectedMonth]);
+  }, [allData, modelData, selectedModelId, selectedYear, selectedMonth, weatherData]);
 
   // 天気データを取得
   useEffect(() => {
@@ -200,40 +215,6 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
     fetchWeather();
   }, [selectedYear, selectedMonth]);
 
-  // カレンダーデータに天気情報を統合
-  useEffect(() => {
-    if (Object.keys(weatherData).length === 0) {
-      console.log('⚠️ 天気データが空です');
-      return;
-    }
-
-    console.log('🌤️ カレンダーデータに天気を統合開始');
-    console.log('📊 天気データ:', Object.keys(weatherData).length, '日分');
-    console.log('📊 天気データキー例:', Object.keys(weatherData).slice(0, 5));
-
-    setCalendarData(prevData => {
-      console.log('📅 統合前のカレンダーデータ:', prevData.length, '日');
-      
-      const updatedData = prevData.map(day => {
-        const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day.date).padStart(2, '0')}`;
-        const weather = weatherData[dateStr];
-        
-        if (weather) {
-          console.log(`✅ ${dateStr}: 東京 ${weather.tokyo.emoji} 大阪 ${weather.osaka.emoji}`);
-        } else {
-          console.log(`⚠️ ${dateStr}: 天気データなし`);
-        }
-        
-        return {
-          ...day,
-          weather: weather || undefined
-        };
-      });
-      
-      console.log('✅ 天気統合完了');
-      return updatedData;
-    });
-  }, [weatherData, selectedYear, selectedMonth]);
 
   // 最大値を取得（ヒートマップの色濃度用）
   const maxRevenue = Math.max(...calendarData.map(d => d.revenue), 1);
