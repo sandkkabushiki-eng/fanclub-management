@@ -101,5 +101,6 @@ export const useGlobalModelSelectionListener = (
     return () => {
       window.removeEventListener('globalModelSelectionChanged', handleGlobalModelSelectionChange);
     };
-  }, [onSelectionChange]); // onSelectionChangeを依存配列に追加
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 依存配列を空にして初回のみ登録
 };

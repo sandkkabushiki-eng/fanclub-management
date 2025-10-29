@@ -70,6 +70,16 @@ export const fetchHistoricalWeather = async (
   try {
     console.log('🌤️ 天気データAPI呼び出し開始:', { startDate, endDate });
     
+    // 未来の日付をチェック
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const requestEndDate = new Date(endDate);
+    
+    if (requestEndDate > today) {
+      console.warn('⚠️ 未来の日付が指定されています。過去データAPIは未来のデータを提供しません。');
+      return {};
+    }
+    
     // 東京の天気を取得
     const tokyoUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&start_date=${startDate}&end_date=${endDate}&daily=weathercode&timezone=Asia/Tokyo`;
     console.log('📍 東京API URL:', tokyoUrl);
