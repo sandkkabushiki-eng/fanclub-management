@@ -14,7 +14,9 @@ import {
   Menu,
   X,
   Heart,
-  Shield
+  Shield,
+  Grid3x3,
+  List
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels, getModelsFromSupabase } from '@/utils/modelUtils';
@@ -61,6 +63,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
   const [modelData, setModelData] = useState<Record<string, unknown>>({});
   const [message, setMessage] = useState<string>('');
   const [customerViewMode, setCustomerViewMode] = useState<'all' | 'monthly'>('all');
+  const [customerDisplayMode, setCustomerDisplayMode] = useState<'cards' | 'table'>('cards'); // カード表示 or テーブル表示
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   
@@ -1248,6 +1251,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                   
                   {/* 表示モード切り替え */}
                   <div className="flex items-center space-x-4">
+                    {/* データ期間切り替え */}
                     <div className="flex bg-gray-100 rounded-lg p-1">
                       <button
                         onClick={() => setCustomerViewMode('all')}
@@ -1268,6 +1272,34 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                         }`}
                       >
                         月毎データ
+                      </button>
+                    </div>
+                    
+                    {/* 表示形式切り替え */}
+                    <div className="flex bg-gray-100 rounded-lg p-1">
+                      <button
+                        onClick={() => setCustomerDisplayMode('cards')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${
+                          customerDisplayMode === 'cards'
+                            ? 'bg-blue-500 text-white shadow'
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                        title="カード表示"
+                      >
+                        <Grid3x3 className="w-5 h-5" />
+                        <span>カード</span>
+                      </button>
+                      <button
+                        onClick={() => setCustomerDisplayMode('table')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${
+                          customerDisplayMode === 'table'
+                            ? 'bg-blue-500 text-white shadow'
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                        title="テーブル表示"
+                      >
+                        <List className="w-5 h-5" />
+                        <span>リスト</span>
                       </button>
                     </div>
                     
@@ -1343,8 +1375,13 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                   
                   {/* リピーター顧客リスト */}
                   <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">リピーター顧客リスト</h3>
-                    <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      リピーター顧客{customerDisplayMode === 'table' ? 'ランキング' : 'リスト'}
+                    </h3>
+                    
+                    {customerDisplayMode === 'cards' ? (
+                      /* カード表示 */
+                      <div className="space-y-4">
                       {(() => {
                         // 表示モードに応じてデータを取得
                         const allModelData = customerViewMode === 'all' 
@@ -1545,6 +1582,140 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                         );
                       })()}
                     </div>
+                    ) : (
+                      /* テーブル表示 */
+                      <div className="overflow-x-auto">
+                        {(() => {
+                          // 表示モードに応じてデータを取得（カード表示と同じロジック）
+                          const allModelData = customerViewMode === 'all' 
+                            ? Object.values(modelData).flatMap(item => {
+                                if (Array.isArray(item)) return item;
+                                if (typeof item === 'object' && item !== null && 'data' in item) {
+                                  const itemData = item as { data: FanClubRevenueData[]; modelId?: string };
+                                  const data = Array.isArray(itemData.data) ? itemData.data : [];
+                                  
+                                  if (selectedModelId && itemData.modelId !== selectedModelId) {
+                                    return [];
+                                  }
+                                  
+                                  return data;
+                                }
+                                return [];
+                              }) as FanClubRevenueData[]
+                            : getMonthlyData(selectedYear, selectedMonth);
+                          
+                          const data = selectedModelId && customerViewMode === 'monthly'
+                            ? allModelData.filter(record => {
+                                const matchingKey = Object.keys(modelData).find(key => 
+                                  key.startsWith(`${selectedModelId}_`)
+                                );
+                                return matchingKey !== undefined;
+                              })
+                            : allModelData;
+                          
+                          const repeaters = getCustomerDetailInfo(data);
+                          
+                          if (repeaters.length === 0) {
+                            return (
+                              <div className="text-center py-12 text-gray-500">
+                                <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                                <p className="text-lg">リピーター顧客のデータがありません</p>
+                                <p className="text-sm mt-2">CSVデータをアップロードしてください</p>
+                              </div>
+                            );
+                          }
+                          
+                          return (
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-100 sticky top-0">
+                                <tr>
+                                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">順位</th>
+                                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">顧客名</th>
+                                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">合計金額</th>
+                                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">購入回数</th>
+                                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">平均単価</th>
+                                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">単品</th>
+                                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">プラン</th>
+                                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">チップ</th>
+                                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">スパコメ</th>
+                                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">初回購入</th>
+                                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">最終購入</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {repeaters.map((customer, index) => {
+                                  const formatDate = (dateString: string) => {
+                                    if (!dateString) return '不明';
+                                    const date = new Date(dateString);
+                                    if (isNaN(date.getTime())) return '不明';
+                                    const year = date.getFullYear();
+                                    const month = date.getMonth() + 1;
+                                    const day = date.getDate();
+                                    return `${year}/${month}/${day}`;
+                                  };
+                                  
+                                  const getMedalClass = (index: number) => {
+                                    if (index === 0) return 'bg-yellow-100 border-yellow-400';
+                                    if (index === 1) return 'bg-gray-100 border-gray-400';
+                                    if (index === 2) return 'bg-orange-100 border-orange-400';
+                                    return '';
+                                  };
+                                  
+                                  return (
+                                    <tr key={index} className={`hover:bg-gray-50 transition-colors ${getMedalClass(index)}`}>
+                                      <td className="px-4 py-4 whitespace-nowrap">
+                                        <div className="flex items-center">
+                                          <span className="text-lg font-bold text-gray-900">
+                                            {index + 1}
+                                          </span>
+                                          {index === 0 && <span className="ml-2 text-xl">🥇</span>}
+                                          {index === 1 && <span className="ml-2 text-xl">🥈</span>}
+                                          {index === 2 && <span className="ml-2 text-xl">🥉</span>}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap">
+                                        <div className="text-sm font-semibold text-gray-900">{customer.buyerName}</div>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-right">
+                                        <div className="text-base font-bold text-pink-600">{formatCurrency(customer.totalSpent)}</div>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-right">
+                                        <div className="text-sm font-semibold text-gray-900">{customer.totalTransactions}回</div>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-right">
+                                        <div className="text-sm text-gray-700">{formatCurrency(customer.averageTransactionValue)}</div>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-right">
+                                        <div className="text-sm text-gray-600">{customer.singlePurchaseCount}個</div>
+                                        <div className="text-xs text-gray-500">{formatCurrency(customer.singleTotal)}</div>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-right">
+                                        <div className="text-sm text-gray-600">{customer.planPurchaseCount}回</div>
+                                        <div className="text-xs text-gray-500">{formatCurrency(customer.planTotal)}</div>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-right">
+                                        <div className="text-sm text-gray-600">{customer.tipCount}回</div>
+                                        <div className="text-xs text-gray-500">{formatCurrency(customer.tipTotal)}</div>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap text-right">
+                                        <div className="text-sm text-gray-600">{customer.superCommentCount}回</div>
+                                        <div className="text-xs text-gray-500">{formatCurrency(customer.superCommentTotal)}</div>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap">
+                                        <div className="text-xs text-gray-600">{formatDate(customer.firstPurchaseDate)}</div>
+                                      </td>
+                                      <td className="px-4 py-4 whitespace-nowrap">
+                                        <div className="text-xs text-gray-600">{formatDate(customer.lastPurchaseDate)}</div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
