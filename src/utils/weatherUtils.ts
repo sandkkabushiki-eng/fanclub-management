@@ -70,18 +70,32 @@ export const fetchHistoricalWeather = async (
   try {
     console.log('🌤️ 天気データAPI呼び出し開始:', { startDate, endDate });
     
-    // 未来の日付をチェック
+    // 過去と未来を判定して適切なAPIを選択
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const requestStartDate = new Date(startDate);
     const requestEndDate = new Date(endDate);
     
-    if (requestEndDate > today) {
-      console.warn('⚠️ 未来の日付が指定されています。過去データAPIは未来のデータを提供しません。');
-      return {};
+    // 7日前より古いデータは過去データAPI、それ以降は予報API
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 7);
+    
+    let tokyoUrl: string;
+    let osakaUrl: string;
+    
+    if (requestEndDate < sevenDaysAgo) {
+      // 過去データAPI（7日以前）
+      console.log('📜 過去データAPIを使用');
+      tokyoUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&start_date=${startDate}&end_date=${endDate}&daily=weathercode&timezone=Asia/Tokyo`;
+      osakaUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${OSAKA_LAT}&longitude=${OSAKA_LON}&start_date=${startDate}&end_date=${endDate}&daily=weathercode&timezone=Asia/Tokyo`;
+    } else {
+      // 予報API（最近7日 + 未来16日まで）
+      console.log('🔮 予報APIを使用（過去7日+未来16日）');
+      tokyoUrl = `https://api.open-meteo.com/v1/forecast?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&daily=weathercode&timezone=Asia/Tokyo&past_days=7&forecast_days=16`;
+      osakaUrl = `https://api.open-meteo.com/v1/forecast?latitude=${OSAKA_LAT}&longitude=${OSAKA_LON}&daily=weathercode&timezone=Asia/Tokyo&past_days=7&forecast_days=16`;
     }
     
     // 東京の天気を取得
-    const tokyoUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&start_date=${startDate}&end_date=${endDate}&daily=weathercode&timezone=Asia/Tokyo`;
     console.log('📍 東京API URL:', tokyoUrl);
     const tokyoResponse = await fetch(tokyoUrl);
     
@@ -94,7 +108,6 @@ export const fetchHistoricalWeather = async (
     console.log('✅ 東京データ取得成功:', tokyoData);
 
     // 大阪の天気を取得
-    const osakaUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${OSAKA_LAT}&longitude=${OSAKA_LON}&start_date=${startDate}&end_date=${endDate}&daily=weathercode&timezone=Asia/Tokyo`;
     console.log('📍 大阪API URL:', osakaUrl);
     const osakaResponse = await fetch(osakaUrl);
     
@@ -114,29 +127,33 @@ export const fetchHistoricalWeather = async (
       const tokyoCodes = tokyoData.daily.weathercode;
       const osakaCodes = osakaData.daily.weathercode;
 
-      console.log('📅 処理する日数:', dates.length);
+      console.log('📅 APIから取得した日数:', dates.length);
 
       dates.forEach((date: string, index: number) => {
-        const tokyoCode = tokyoCodes[index];
-        const osakaCode = osakaCodes[index];
-        const tokyoInfo = getWeatherInfo(tokyoCode);
-        const osakaInfo = getWeatherInfo(osakaCode);
+        // 指定された日付範囲内のデータのみを処理
+        if (date >= startDate && date <= endDate) {
+          const tokyoCode = tokyoCodes[index];
+          const osakaCode = osakaCodes[index];
+          const tokyoInfo = getWeatherInfo(tokyoCode);
+          const osakaInfo = getWeatherInfo(osakaCode);
 
-        weatherMap[date] = {
-          tokyo: {
-            code: tokyoCode,
-            emoji: tokyoInfo.emoji,
-            text: tokyoInfo.text,
-          },
-          osaka: {
-            code: osakaCode,
-            emoji: osakaInfo.emoji,
-            text: osakaInfo.text,
-          },
-        };
+          weatherMap[date] = {
+            tokyo: {
+              code: tokyoCode,
+              emoji: tokyoInfo.emoji,
+              text: tokyoInfo.text,
+            },
+            osaka: {
+              code: osakaCode,
+              emoji: osakaInfo.emoji,
+              text: osakaInfo.text,
+            },
+          };
+        }
       });
       
       console.log('✅ 天気マップ作成完了:', Object.keys(weatherMap).length, '日分');
+      console.log('📊 日付範囲:', startDate, '〜', endDate);
       console.log('📊 サンプルデータ:', Object.entries(weatherMap).slice(0, 3));
     } else {
       console.error('❌ 天気データが不正な形式です');
