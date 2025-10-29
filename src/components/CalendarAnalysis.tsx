@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Calendar, Clock, TrendingUp, Users } from 'lucide-react';
+import { Calendar, Clock, TrendingUp, Users, Cloud } from 'lucide-react';
 import { FanClubRevenueData } from '@/types/csv';
 import { formatCurrency } from '@/utils/csvUtils';
 import { useGlobalModelSelectionListener } from '@/hooks/useGlobalModelSelection';
+import { getMonthlyWeatherData } from '@/utils/weatherUtils';
 
 interface CalendarAnalysisProps {
   allData: FanClubRevenueData[];
@@ -16,6 +17,10 @@ interface DayData {
   date: number;
   revenue: number;
   transactions: number;
+  weather?: {
+    tokyo: { emoji: string; text: string };
+    osaka: { emoji: string; text: string };
+  };
 }
 
 interface HourData {
@@ -54,6 +59,8 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
   const [calendarData, setCalendarData] = useState<DayData[]>([]);
   const [hourlyData, setHourlyData] = useState<HourData[]>([]);
   const [weekdayHourData, setWeekdayHourData] = useState<WeekdayHourData>({});
+  const [weatherData, setWeatherData] = useState<Record<string, { tokyo: { emoji: string; text: string }; osaka: { emoji: string; text: string } }>>({});
+  const [isLoadingWeather, setIsLoadingWeather] = useState(false);
 
   // グローバルなモデル選択変更をリッスン
   const handleGlobalModelSelectionChange = useCallback((globalSelectedModelId: string) => {
@@ -172,6 +179,43 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
     setHourlyData(finalHourlyData);
     setWeekdayHourData(weekdayHourMap);
   }, [allData, modelData, selectedModelId, selectedYear, selectedMonth]);
+
+  // 天気データを取得
+  useEffect(() => {
+    const fetchWeather = async () => {
+      setIsLoadingWeather(true);
+      console.log('🌤️ 天気データ取得開始:', selectedYear, selectedMonth);
+      
+      try {
+        const weather = await getMonthlyWeatherData(selectedYear, selectedMonth);
+        console.log('✅ 天気データ取得完了:', Object.keys(weather).length, '日分');
+        setWeatherData(weather);
+      } catch (error) {
+        console.error('❌ 天気データ取得エラー:', error);
+      } finally {
+        setIsLoadingWeather(false);
+      }
+    };
+
+    fetchWeather();
+  }, [selectedYear, selectedMonth]);
+
+  // カレンダーデータに天気情報を統合
+  useEffect(() => {
+    if (Object.keys(weatherData).length === 0) return;
+
+    setCalendarData(prevData => 
+      prevData.map(day => {
+        const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day.date).padStart(2, '0')}`;
+        const weather = weatherData[dateStr];
+        
+        return {
+          ...day,
+          weather: weather || undefined
+        };
+      })
+    );
+  }, [weatherData, selectedYear, selectedMonth]);
 
   // 最大値を取得（ヒートマップの色濃度用）
   const maxRevenue = Math.max(...calendarData.map(d => d.revenue), 1);
@@ -307,10 +351,19 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
 
       {/* 月別カレンダーヒートマップ */}
       <div className="bg-white border border-pink-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-          <Calendar className="w-5 h-5 text-pink-600" />
-          <span>月別カレンダーヒートマップ</span>
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+            <Calendar className="w-5 h-5 text-pink-600" />
+            <span>月別カレンダーヒートマップ</span>
+          </h3>
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
+            <Cloud className="w-4 h-4" />
+            <span>東京・大阪の天気を表示</span>
+            {isLoadingWeather && (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-500"></div>
+            )}
+          </div>
+        </div>
         
         <div className="overflow-x-auto">
           <div className="min-w-full">
@@ -334,15 +387,25 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
                   const dayData = calendarData.find(d => d.date === day);
                   const revenue = dayData?.revenue || 0;
                   const transactions = dayData?.transactions || 0;
+                  const weather = dayData?.weather;
                   const colorInfo = getColorIntensity(revenue, maxRevenue);
                   
                   return (
                     <div
                       key={`week-${weekIndex}-day-${day}`}
                       className={`aspect-square ${colorInfo.bg} rounded-md sm:rounded-lg p-1 sm:p-2 cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative`}
-                      title={`${day}日: ${formatCurrency(revenue)} (${transactions}件)`}
+                      title={`${day}日: ${formatCurrency(revenue)} (${transactions}件)${weather ? `\n東京: ${weather.tokyo.text} 大阪: ${weather.osaka.text}` : ''}`}
                     >
                       <div className={`text-xs sm:text-sm font-bold ${colorInfo.text} leading-tight`}>{day}</div>
+                      
+                      {/* 天気アイコン */}
+                      {weather && (
+                        <div className="flex items-center justify-center space-x-0.5 my-0.5">
+                          <span className="text-xs" title={`東京: ${weather.tokyo.text}`}>{weather.tokyo.emoji}</span>
+                          <span className="text-xs" title={`大阪: ${weather.osaka.text}`}>{weather.osaka.emoji}</span>
+                        </div>
+                      )}
+                      
                       {transactions > 0 && (
                         <div className={`text-[10px] sm:text-xs ${colorInfo.text} mt-0.5 sm:mt-1 leading-tight`}>
                           <div className="font-medium truncate">{formatCurrency(revenue)}</div>
@@ -352,8 +415,14 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
                       
                       {/* ホバー時の詳細 */}
                       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                        <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap">
-                          <div className="font-bold">{selectedYear}年{selectedMonth}月{day}日</div>
+                        <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap shadow-xl">
+                          <div className="font-bold mb-1">{selectedYear}年{selectedMonth}月{day}日</div>
+                          {weather && (
+                            <div className="mb-1 pb-1 border-b border-gray-700">
+                              <div>東京: {weather.tokyo.emoji} {weather.tokyo.text}</div>
+                              <div>大阪: {weather.osaka.emoji} {weather.osaka.text}</div>
+                            </div>
+                          )}
                           <div>売上: {formatCurrency(revenue)}</div>
                           <div>件数: {transactions}件</div>
                         </div>
