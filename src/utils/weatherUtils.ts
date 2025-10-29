@@ -68,17 +68,33 @@ export const fetchHistoricalWeather = async (
   endDate: string
 ): Promise<Record<string, { tokyo: WeatherCode; osaka: WeatherCode }>> => {
   try {
+    console.log('🌤️ 天気データAPI呼び出し開始:', { startDate, endDate });
+    
     // 東京の天気を取得
-    const tokyoResponse = await fetch(
-      `https://archive-api.open-meteo.com/v1/archive?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&start_date=${startDate}&end_date=${endDate}&daily=weathercode&timezone=Asia/Tokyo`
-    );
+    const tokyoUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&start_date=${startDate}&end_date=${endDate}&daily=weathercode&timezone=Asia/Tokyo`;
+    console.log('📍 東京API URL:', tokyoUrl);
+    const tokyoResponse = await fetch(tokyoUrl);
+    
+    if (!tokyoResponse.ok) {
+      console.error('❌ 東京の天気データ取得エラー:', tokyoResponse.status, tokyoResponse.statusText);
+      return {};
+    }
+    
     const tokyoData = await tokyoResponse.json();
+    console.log('✅ 東京データ取得成功:', tokyoData);
 
     // 大阪の天気を取得
-    const osakaResponse = await fetch(
-      `https://archive-api.open-meteo.com/v1/archive?latitude=${OSAKA_LAT}&longitude=${OSAKA_LON}&start_date=${startDate}&end_date=${endDate}&daily=weathercode&timezone=Asia/Tokyo`
-    );
+    const osakaUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${OSAKA_LAT}&longitude=${OSAKA_LON}&start_date=${startDate}&end_date=${endDate}&daily=weathercode&timezone=Asia/Tokyo`;
+    console.log('📍 大阪API URL:', osakaUrl);
+    const osakaResponse = await fetch(osakaUrl);
+    
+    if (!osakaResponse.ok) {
+      console.error('❌ 大阪の天気データ取得エラー:', osakaResponse.status, osakaResponse.statusText);
+      return {};
+    }
+    
     const osakaData = await osakaResponse.json();
+    console.log('✅ 大阪データ取得成功:', osakaData);
 
     // データを整形
     const weatherMap: Record<string, { tokyo: WeatherCode; osaka: WeatherCode }> = {};
@@ -87,6 +103,8 @@ export const fetchHistoricalWeather = async (
       const dates = tokyoData.daily.time;
       const tokyoCodes = tokyoData.daily.weathercode;
       const osakaCodes = osakaData.daily.weathercode;
+
+      console.log('📅 処理する日数:', dates.length);
 
       dates.forEach((date: string, index: number) => {
         const tokyoCode = tokyoCodes[index];
@@ -107,11 +125,16 @@ export const fetchHistoricalWeather = async (
           },
         };
       });
+      
+      console.log('✅ 天気マップ作成完了:', Object.keys(weatherMap).length, '日分');
+      console.log('📊 サンプルデータ:', Object.entries(weatherMap).slice(0, 3));
+    } else {
+      console.error('❌ 天気データが不正な形式です');
     }
 
     return weatherMap;
   } catch (error) {
-    console.error('天気データの取得に失敗しました:', error);
+    console.error('❌ 天気データの取得に失敗しました:', error);
     return {};
   }
 };

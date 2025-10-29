@@ -202,19 +202,37 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
 
   // カレンダーデータに天気情報を統合
   useEffect(() => {
-    if (Object.keys(weatherData).length === 0) return;
+    if (Object.keys(weatherData).length === 0) {
+      console.log('⚠️ 天気データが空です');
+      return;
+    }
 
-    setCalendarData(prevData => 
-      prevData.map(day => {
+    console.log('🌤️ カレンダーデータに天気を統合開始');
+    console.log('📊 天気データ:', Object.keys(weatherData).length, '日分');
+    console.log('📊 天気データキー例:', Object.keys(weatherData).slice(0, 5));
+
+    setCalendarData(prevData => {
+      console.log('📅 統合前のカレンダーデータ:', prevData.length, '日');
+      
+      const updatedData = prevData.map(day => {
         const dateStr = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(day.date).padStart(2, '0')}`;
         const weather = weatherData[dateStr];
+        
+        if (weather) {
+          console.log(`✅ ${dateStr}: 東京 ${weather.tokyo.emoji} 大阪 ${weather.osaka.emoji}`);
+        } else {
+          console.log(`⚠️ ${dateStr}: 天気データなし`);
+        }
         
         return {
           ...day,
           weather: weather || undefined
         };
-      })
-    );
+      });
+      
+      console.log('✅ 天気統合完了');
+      return updatedData;
+    });
   }, [weatherData, selectedYear, selectedMonth]);
 
   // 最大値を取得（ヒートマップの色濃度用）
@@ -542,9 +560,9 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
                         className={`${colorInfo.bg} aspect-square rounded cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative`}
                         title={`${weekday} ${hour}時: ${formatCurrency(data.revenue)} (${data.transactions}件)`}
                       >
-                        {/* ホバー時の詳細 */}
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                          <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap">
+                        {/* ホバー時の詳細 - 日曜日は下に、それ以外は上に表示 */}
+                        <div className={`absolute ${weekdayIndex === 0 ? 'top-full mt-2' : 'bottom-full mb-2'} left-1/2 transform -translate-x-1/2 hidden group-hover:block z-50`}>
+                          <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap shadow-xl">
                             <div className="font-bold">{weekday}曜日 {hour}:00</div>
                             <div>売上: {formatCurrency(data.revenue)}</div>
                             <div>件数: {data.transactions}件</div>
