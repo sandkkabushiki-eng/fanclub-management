@@ -420,12 +420,40 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
                       
                       {/* 天気アイコン - 大きく表示 */}
                       <div className="flex items-center justify-center gap-1 mb-1">
-                        <span className="text-lg" title={weather ? `東京: ${weather.tokyo.text}` : '読込中'}>
-                          {weather ? weather.tokyo.emoji : '⏳'}
-                        </span>
-                        <span className="text-lg" title={weather ? `大阪: ${weather.osaka.text}` : '読込中'}>
-                          {weather ? weather.osaka.emoji : '⏳'}
-                        </span>
+                        {(() => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          const cellDate = new Date(selectedYear, selectedMonth - 1, day);
+                          cellDate.setHours(0, 0, 0, 0);
+                          const isFuture = cellDate > today;
+                          
+                          if (weather) {
+                            return (
+                              <>
+                                <span className="text-lg" title={`東京: ${weather.tokyo.text}`}>
+                                  {weather.tokyo.emoji}
+                                </span>
+                                <span className="text-lg" title={`大阪: ${weather.osaka.text}`}>
+                                  {weather.osaka.emoji}
+                                </span>
+                              </>
+                            );
+                          } else if (isFuture) {
+                            return (
+                              <>
+                                <span className="text-lg opacity-50" title="未来のデータ">⏳</span>
+                                <span className="text-lg opacity-50" title="未来のデータ">⏳</span>
+                              </>
+                            );
+                          } else {
+                            return (
+                              <>
+                                <span className="text-lg text-red-500" title="データ取得失敗">❌</span>
+                                <span className="text-lg text-red-500" title="データ取得失敗">❌</span>
+                              </>
+                            );
+                          }
+                        })()}
                       </div>
                       
                       {/* 売上・件数 */}
