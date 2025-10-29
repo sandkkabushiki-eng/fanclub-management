@@ -93,27 +93,31 @@ export const generateSecurityReport = (): string => {
   return report;
 };
 
-// セキュリティ警告を表示
+// セキュリティ警告を表示（開発環境のみ）
 export const showSecurityWarnings = (): void => {
   const status = validateSecurityStatus();
   
-  if (!status.isAuthenticated) {
-    console.warn('🚨 セキュリティ警告: ユーザーが認証されていません');
-  }
-  
-  if (!status.dataIsolationValid) {
-    console.error('🚨 セキュリティエラー: データ分離が正しく設定されていません');
-  }
-  
-  if (status.unsecuredKeys.length > 0) {
-    console.error('🚨 セキュリティエラー: ユーザー分離されていないデータが見つかりました:', status.unsecuredKeys);
-  }
-  
-  // 本番環境ではアラートを表示
-  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-    if (!status.dataIsolationValid || status.unsecuredKeys.length > 0) {
-      alert('🚨 セキュリティエラーが検出されました。ページを再読み込みしてください。');
+  // 開発環境のみログ出力
+  if (process.env.NODE_ENV === 'development') {
+    if (!status.isAuthenticated) {
+      console.warn('🚨 セキュリティ警告: ユーザーが認証されていません');
     }
+    
+    if (!status.dataIsolationValid) {
+      console.error('🚨 セキュリティエラー: データ分離が正しく設定されていません');
+    }
+    
+    if (status.unsecuredKeys.length > 0) {
+      console.error('🚨 セキュリティエラー: ユーザー分離されていないデータが見つかりました:', status.unsecuredKeys);
+    }
+  }
+  
+  // 本番環境では致命的なエラーのみログ出力（アラート表示なし）
+  if (process.env.NODE_ENV === 'production') {
+    if (!status.dataIsolationValid) {
+      console.error('🔒 Data isolation check failed');
+    }
+    // アラート表示は削除（ユーザー体験を損なわないため）
   }
 };
 
