@@ -154,14 +154,14 @@ export const fetchHistoricalWeather = async (
     const requestStartDate = new Date(startDate);
     const requestEndDate = new Date(endDate);
     
-    // 昨日までは確実に過去データAPI、今日以降は予報API
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
+    // 2日前までは確実に過去データAPI、それ以降は予報API
+    const twoDaysAgo = new Date(today);
+    twoDaysAgo.setDate(today.getDate() - 2);
     
     const weatherMap: Record<string, { tokyo: WeatherCode; osaka: WeatherCode }> = {};
     
-    // ケース1: 完全に過去のデータ（昨日以前）
-    if (requestEndDate <= yesterday) {
+    // ケース1: 完全に過去のデータ（2日前以前）
+    if (requestEndDate <= twoDaysAgo) {
       console.log('📜 過去データAPIのみ使用');
       console.log('📅 リクエスト範囲:', startDate, '〜', endDate);
       
@@ -198,11 +198,14 @@ export const fetchHistoricalWeather = async (
       return processWeatherData(tokyoData, osakaData, startDate, endDate);
     }
     
-    // ケース2: 今日以降のデータ（予報APIのみ）
-    if (requestStartDate >= today) {
-      console.log('🔮 予報APIのみ使用（未来のデータ）');
-      const tokyoUrl = `https://api.open-meteo.com/v1/forecast?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&daily=weather_code&timezone=Asia/Tokyo&forecast_days=16`;
-      const osakaUrl = `https://api.open-meteo.com/v1/forecast?latitude=${OSAKA_LAT}&longitude=${OSAKA_LON}&daily=weather_code&timezone=Asia/Tokyo&forecast_days=16`;
+    // ケース2: 昨日以降のデータ（予報APIのみ）
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    
+    if (requestStartDate >= yesterday) {
+      console.log('🔮 予報APIのみ使用（最近〜未来のデータ）');
+      const tokyoUrl = `https://api.open-meteo.com/v1/forecast?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&daily=weather_code&timezone=Asia/Tokyo&past_days=1&forecast_days=16`;
+      const osakaUrl = `https://api.open-meteo.com/v1/forecast?latitude=${OSAKA_LAT}&longitude=${OSAKA_LON}&daily=weather_code&timezone=Asia/Tokyo&past_days=1&forecast_days=16`;
       
       const [tokyoRes, osakaRes] = await Promise.all([
         fetch(tokyoUrl),
@@ -220,27 +223,29 @@ export const fetchHistoricalWeather = async (
       return processWeatherData(tokyoData, osakaData, startDate, endDate);
     }
     
-    // ケース3: 過去と今日以降の両方にまたがる（両方のAPIを使用）
+    // ケース3: 過去と最近の両方にまたがる（両方のAPIを使用）
     console.log('📜🔮 過去データAPI + 予報API 両方使用');
     console.log('📅 今日:', today.toISOString().split('T')[0]);
-    console.log('📅 昨日:', yesterday.toISOString().split('T')[0]);
+    console.log('📅 2日前:', twoDaysAgo.toISOString().split('T')[0]);
     
-    // 過去データAPIで取得する範囲（開始日〜昨日まで）
-    const historicalEndStr = yesterday.toISOString().split('T')[0];
+    // 過去データAPIで取得する範囲（開始日〜2日前まで）
+    const historicalEndStr = twoDaysAgo.toISOString().split('T')[0];
     
-    // 予報APIの開始日（今日）
-    const forecastStartStr = today.toISOString().split('T')[0];
+    // 予報APIの開始日（昨日から - past_days=1で取得）
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const forecastStartStr = yesterday.toISOString().split('T')[0];
     
     console.log(`📜 過去データ範囲: ${startDate} 〜 ${historicalEndStr}`);
     console.log(`🔮 予報データ範囲: ${forecastStartStr} 〜 ${endDate}`);
     
-    // 過去データを取得（開始日が昨日以前の場合）
+    // 過去データを取得（開始日が2日前以前の場合）
     let historicalWeather: Record<string, { tokyo: WeatherCode; osaka: WeatherCode }> = {};
     
-    if (requestStartDate <= yesterday) {
+    if (requestStartDate <= twoDaysAgo) {
       console.log('📜 過去データAPIを呼び出し中...');
-      // 過去データAPIで取得する終了日は、リクエスト終了日と昨日のうち早い方
-      const actualHistEndStr = requestEndDate <= yesterday ? endDate : historicalEndStr;
+      // 過去データAPIで取得する終了日は、リクエスト終了日と2日前のうち早い方
+      const actualHistEndStr = requestEndDate <= twoDaysAgo ? endDate : historicalEndStr;
       
       const tokyoHistUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&start_date=${startDate}&end_date=${actualHistEndStr}&daily=weather_code&timezone=Asia/Tokyo`;
       const osakaHistUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${OSAKA_LAT}&longitude=${OSAKA_LON}&start_date=${startDate}&end_date=${actualHistEndStr}&daily=weather_code&timezone=Asia/Tokyo`;
@@ -275,16 +280,17 @@ export const fetchHistoricalWeather = async (
     } else {
       console.log('⏭️ 過去データAPIはスキップ（範囲外）');
       console.log('  requestStartDate:', requestStartDate.toISOString().split('T')[0]);
-      console.log('  yesterday:', yesterday.toISOString().split('T')[0]);
+      console.log('  twoDaysAgo:', twoDaysAgo.toISOString().split('T')[0]);
     }
     
-    // 予報データを取得（終了日が今日以降の場合のみ）
+    // 予報データを取得（終了日が昨日以降の場合）
     let forecastWeather: Record<string, { tokyo: WeatherCode; osaka: WeatherCode }> = {};
     
-    if (requestEndDate >= today) {
+    if (requestEndDate >= yesterday) {
       console.log('🔮 予報APIを呼び出し中...');
-      const tokyoForeUrl = `https://api.open-meteo.com/v1/forecast?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&daily=weather_code&timezone=Asia/Tokyo&forecast_days=16`;
-      const osakaForeUrl = `https://api.open-meteo.com/v1/forecast?latitude=${OSAKA_LAT}&longitude=${OSAKA_LON}&daily=weather_code&timezone=Asia/Tokyo&forecast_days=16`;
+      // past_days=1で昨日のデータも取得、forecast_days=16で未来16日分
+      const tokyoForeUrl = `https://api.open-meteo.com/v1/forecast?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&daily=weather_code&timezone=Asia/Tokyo&past_days=1&forecast_days=16`;
+      const osakaForeUrl = `https://api.open-meteo.com/v1/forecast?latitude=${OSAKA_LAT}&longitude=${OSAKA_LON}&daily=weather_code&timezone=Asia/Tokyo&past_days=1&forecast_days=16`;
       
       console.log('🔮 予報データ取得範囲:', forecastStartStr, '〜', endDate);
       console.log('🔮 予報API URL例:', tokyoForeUrl);
@@ -316,7 +322,7 @@ export const fetchHistoricalWeather = async (
     } else {
       console.log('⏭️ 予報APIはスキップ（範囲外）');
       console.log('  requestEndDate:', requestEndDate.toISOString().split('T')[0]);
-      console.log('  today:', today.toISOString().split('T')[0]);
+      console.log('  yesterday:', yesterday.toISOString().split('T')[0]);
     }
     
     // 統合
