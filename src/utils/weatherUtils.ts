@@ -60,8 +60,19 @@ const processWeatherData = (
 ): Record<string, { tokyo: WeatherCode; osaka: WeatherCode }> => {
   const weatherMap: Record<string, { tokyo: WeatherCode; osaka: WeatherCode }> = {};
   
-  if (!tokyoData.daily || !osakaData.daily) {
-    console.error('❌ 天気データが不正な形式です');
+  console.log('🔍 processWeatherData 開始');
+  console.log('  startDate:', startDate);
+  console.log('  endDate:', endDate);
+  console.log('  tokyoData:', tokyoData ? 'あり' : 'なし');
+  console.log('  osakaData:', osakaData ? 'あり' : 'なし');
+  
+  if (!tokyoData || !tokyoData.daily) {
+    console.error('❌ 東京データが不正:', tokyoData);
+    return {};
+  }
+  
+  if (!osakaData || !osakaData.daily) {
+    console.error('❌ 大阪データが不正:', osakaData);
     return {};
   }
   
@@ -70,7 +81,15 @@ const processWeatherData = (
   const osakaDates = osakaData.daily.time;
   const osakaCodes = osakaData.daily.weather_code;
   
-  console.log(`📅 処理: 東京${tokyoDates.length}日, 大阪${osakaDates.length}日`);
+  console.log(`📅 東京: ${tokyoDates?.length || 0}日分`);
+  console.log(`📅 大阪: ${osakaDates?.length || 0}日分`);
+  console.log(`📅 東京日付例:`, tokyoDates?.slice(0, 3));
+  console.log(`📅 東京コード例:`, tokyoCodes?.slice(0, 3));
+  
+  if (!tokyoDates || !tokyoCodes || !osakaDates || !osakaCodes) {
+    console.error('❌ 必要なフィールドがありません');
+    return {};
+  }
   
   // 東京のデータをベースに処理
   tokyoDates.forEach((date: string, index: number) => {
@@ -97,6 +116,11 @@ const processWeatherData = (
           text: osakaInfo.text,
         },
       };
+      
+      // 最初の3日分だけログ
+      if (Object.keys(weatherMap).length <= 3) {
+        console.log(`  ${date}: ${tokyoInfo.emoji} ${osakaInfo.emoji}`);
+      }
     }
   });
   
@@ -139,22 +163,38 @@ export const fetchHistoricalWeather = async (
     // ケース1: 完全に過去のデータ（7日以前）
     if (requestEndDate < sevenDaysAgo) {
       console.log('📜 過去データAPIのみ使用');
+      console.log('📅 リクエスト範囲:', startDate, '〜', endDate);
+      
       const tokyoUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${TOKYO_LAT}&longitude=${TOKYO_LON}&start_date=${startDate}&end_date=${endDate}&daily=weather_code&timezone=Asia/Tokyo`;
       const osakaUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${OSAKA_LAT}&longitude=${OSAKA_LON}&start_date=${startDate}&end_date=${endDate}&daily=weather_code&timezone=Asia/Tokyo`;
+      
+      console.log('📜 過去API URL:', tokyoUrl);
       
       const [tokyoRes, osakaRes] = await Promise.all([
         fetch(tokyoUrl),
         fetch(osakaUrl)
       ]);
       
+      console.log('📜 東京レスポンス:', tokyoRes.status, tokyoRes.statusText);
+      console.log('📜 大阪レスポンス:', osakaRes.status, osakaRes.statusText);
+      
       if (!tokyoRes.ok || !osakaRes.ok) {
         console.error('❌ 過去データ取得エラー');
+        if (!tokyoRes.ok) {
+          const errorText = await tokyoRes.text();
+          console.error('東京エラー詳細:', errorText);
+        }
+        if (!osakaRes.ok) {
+          const errorText = await osakaRes.text();
+          console.error('大阪エラー詳細:', errorText);
+        }
         return {};
       }
       
       const tokyoData = await tokyoRes.json();
       const osakaData = await osakaRes.json();
       
+      console.log('📜 過去データ取得成功');
       return processWeatherData(tokyoData, osakaData, startDate, endDate);
     }
     
