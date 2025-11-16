@@ -91,10 +91,16 @@ const processWeatherData = (
     return {};
   }
   
+  // リクエスト範囲内の日付を確認
+  const requestStart = new Date(startDate);
+  const requestEnd = new Date(endDate);
+  const matchingDates: string[] = [];
+  
   // 東京のデータをベースに処理
   tokyoDates.forEach((date: string, index: number) => {
     // 指定された日付範囲内のデータのみを処理
     if (date >= startDate && date <= endDate) {
+      matchingDates.push(date);
       const tokyoCode = tokyoCodes[index];
       
       // 大阪の同じ日付のデータを探す
@@ -117,14 +123,22 @@ const processWeatherData = (
         },
       };
       
-      // 最初の3日分だけログ
-      if (Object.keys(weatherMap).length <= 3) {
-        console.log(`  ${date}: ${tokyoInfo.emoji} ${osakaInfo.emoji}`);
+      // 最初の5日分だけログ
+      if (Object.keys(weatherMap).length <= 5) {
+        console.log(`  ✅ ${date}: ${tokyoInfo.emoji} ${osakaInfo.emoji} (東京: ${tokyoInfo.text}, 大阪: ${osakaInfo.text})`);
       }
     }
   });
   
+  console.log(`📊 リクエスト範囲: ${startDate} 〜 ${endDate}`);
+  console.log(`📊 APIから取得したデータ範囲: ${tokyoDates[0]} 〜 ${tokyoDates[tokyoDates.length - 1]}`);
+  console.log(`📊 範囲内の日付数: ${matchingDates.length}日`);
   console.log(`✅ 処理完了: ${Object.keys(weatherMap).length}日分`);
+  
+  if (Object.keys(weatherMap).length === 0) {
+    console.warn('⚠️ 警告: 天気データが0件です。APIのデータ範囲を確認してください。');
+  }
+  
   return weatherMap;
 };
 
@@ -256,19 +270,40 @@ export const getWeatherData = async (
   startDate: string,
   endDate: string
 ): Promise<Record<string, { tokyo: WeatherCode; osaka: WeatherCode }>> => {
-  // まずキャッシュを確認
+  // まずキャッシュを確認（ただし、リクエスト範囲がキャッシュに含まれているか確認）
   const cached = getCachedWeatherData();
   if (cached) {
-    console.log('✅ キャッシュされた天気データを使用');
-    return cached;
+    // キャッシュにリクエスト範囲のデータが全て含まれているか確認
+    const requestStart = new Date(startDate);
+    const requestEnd = new Date(endDate);
+    const cachedDates = Object.keys(cached).sort();
+    const firstCachedDate = cachedDates[0] ? new Date(cachedDates[0]) : null;
+    const lastCachedDate = cachedDates[cachedDates.length - 1] ? new Date(cachedDates[cachedDates.length - 1]) : null;
+    
+    if (firstCachedDate && lastCachedDate && 
+        firstCachedDate <= requestStart && lastCachedDate >= requestEnd) {
+      console.log('✅ キャッシュされた天気データを使用');
+      // リクエスト範囲のデータのみを返す
+      const filtered: Record<string, { tokyo: WeatherCode; osaka: WeatherCode }> = {};
+      Object.keys(cached).forEach(date => {
+        if (date >= startDate && date <= endDate) {
+          filtered[date] = cached[date];
+        }
+      });
+      return filtered;
+    } else {
+      console.log('⚠️ キャッシュの範囲が不足、APIから取得します');
+    }
   }
 
-  // キャッシュがない場合はAPIから取得
+  // キャッシュがない、または範囲が不足している場合はAPIから取得
   console.log('🌤️ 天気データをAPIから取得中...');
   const weatherData = await fetchHistoricalWeather(startDate, endDate);
   
   // 取得したデータをキャッシュ
-  cacheWeatherData(weatherData);
+  if (Object.keys(weatherData).length > 0) {
+    cacheWeatherData(weatherData);
+  }
   
   return weatherData;
 };
