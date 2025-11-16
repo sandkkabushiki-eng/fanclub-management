@@ -392,14 +392,32 @@ class AuthManager {
         console.warn('Supabase session error:', error.message);
         
         // リフレッシュトークンエラーの場合はセッションをクリア
-        if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token')) {
+        if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token') || 
+            error.message?.includes('refresh_token_not_found') || error.message?.includes('JWTExpired') ||
+            error.message?.includes('Token refresh failed')) {
           console.log('🔄 リフレッシュトークンエラーを検出、セッションをクリアします...');
-          this.logout();
+          // 即座にlocalStorageとsessionStorageをクリア
+          if (typeof window !== 'undefined') {
+            // Supabase関連のすべてのキーをクリア
+            const keysToRemove: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token'))) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach(key => {
+              localStorage.removeItem(key);
+              console.log('🗑️ Supabaseキーを削除:', key);
+            });
+            sessionStorage.removeItem('fanclub-session');
+          }
+          await this.logout();
           return null;
         }
         
         // その他のエラーの場合もローカルセッションをクリア
-        this.logout();
+        await this.logout();
         return null;
       }
 
@@ -455,11 +473,29 @@ class AuthManager {
       console.error('Session load error:', error);
       
       // リフレッシュトークンエラーの場合はセッションをクリア
-      if (error instanceof Error && (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token'))) {
+      if (error instanceof Error && (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token') ||
+          error.message?.includes('refresh_token_not_found') || error.message?.includes('JWTExpired') ||
+          error.message?.includes('Token refresh failed'))) {
         console.log('🔄 リフレッシュトークンエラーを検出、セッションをクリアします...');
+        // 即座にlocalStorageとsessionStorageをクリア
+        if (typeof window !== 'undefined') {
+          // Supabase関連のすべてのキーをクリア
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token'))) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach(key => {
+            localStorage.removeItem(key);
+            console.log('🗑️ Supabaseキーを削除:', key);
+          });
+          sessionStorage.removeItem('fanclub-session');
+        }
       }
       
-      this.logout();
+      await this.logout();
       return null;
     }
   }
