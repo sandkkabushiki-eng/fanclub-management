@@ -15,9 +15,11 @@ import {
   X,
   Heart,
   Shield,
-  Grid3x3,
-  List,
-  Sparkles
+  Sparkles,
+  LogOut,
+  User,
+  Info,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels, getModelsFromSupabase } from '@/utils/modelUtils';
@@ -53,7 +55,7 @@ interface IndividualModelStats {
 }
 
 interface FanClubDashboardProps {
-  authSession: any;
+  authSession: AuthSession;
   onLogout: () => Promise<void>;
 }
 
@@ -65,7 +67,6 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
   const [modelData, setModelData] = useState<Record<string, unknown>>({});
   const [message, setMessage] = useState<string>('');
   const [customerViewMode, setCustomerViewMode] = useState<'all' | 'monthly'>('all');
-  const [customerDisplayMode, setCustomerDisplayMode] = useState<'cards' | 'table'>('cards'); // カード表示 or テーブル表示
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   
@@ -76,17 +77,19 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
   
   // グローバルなモデル選択状態を使用
   const { selectedModelId, setSelectedModelId, models, setModels, mainModel } = useGlobalModelSelection();
-  
+
   // グローバル状態の初期化を確認
   useEffect(() => {
-    if (selectedModelId && models.length > 0) {
+    if (selectedModelId && models.length > 0 && process.env.NODE_ENV === 'development') {
       console.log('🌟 ファン管理: グローバル状態から初期化:', selectedModelId);
     }
   }, [selectedModelId, models]);
 
   // グローバルなモデル選択変更をリッスン
   const handleGlobalModelSelectionChange = useCallback((globalSelectedModelId: string) => {
+    if (process.env.NODE_ENV === 'development') {
     console.log('🌟 ファン管理: グローバルモデル選択変更:', globalSelectedModelId);
+    }
     setSelectedModelId(globalSelectedModelId);
   }, []);
 
@@ -99,8 +102,10 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
     return `${baseKey}-${userId}`;
   };
 
-  // デバッグ用: ストレージの内容を確認
+  // デバッグ用: ストレージの内容を確認（開発環境のみ）
   const debugStorageContents = () => {
+    if (process.env.NODE_ENV !== 'development') return;
+    
     console.log('🔍 ストレージデバッグ開始');
     console.log('🔍 authSession.user.id:', authSession?.user?.id);
     console.log('🔍 authManager.getCurrentUser():', authManager.getCurrentUser());
@@ -137,7 +142,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       const oldData = localStorage.getItem(oldKey);
       if (oldData) {
         localStorage.setItem(newKey, oldData);
-        console.log(`📦 データを移行しました: ${oldKey} → ${newKey}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`📦 データを移行しました: ${oldKey} → ${newKey}`);
+        }
       }
     }
   };
@@ -157,24 +164,30 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       try {
         // 認証セッションがない場合はスキップ
         if (!authSession?.user?.id) {
+          if (process.env.NODE_ENV === 'development') {
           console.log('📊 認証セッションがないため、データ読み込みをスキップ');
+          }
           return;
         }
         
-        // デバッグ: ストレージの内容を確認
+        // デバッグ: ストレージの内容を確認（開発環境のみ）
         debugStorageContents();
         
         // 古いデータを新しいキーに移行（初回のみ）
         migrateOldData('fanclub-model-data');
         
         // 🔥 Supabaseから直接モデルを取得（唯一の真実のソース）
-        console.log('🗄️ Supabaseからモデルを読み込み開始...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🗄️ Supabaseからモデルを読み込み開始...');
+        }
         const currentModels = await getModelsFromSupabase();
-        console.log('✅ Supabaseからモデルを取得:', currentModels.length, '件');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ Supabaseからモデルを取得:', currentModels.length, '件');
+        }
         setModels(currentModels);
         
         const mainModel = currentModels.find(m => m.isMainModel);
-        if (mainModel) {
+        if (mainModel && process.env.NODE_ENV === 'development') {
           console.log('⭐ メインモデル:', mainModel.displayName);
         }
         
@@ -182,8 +195,10 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
         const userDataKey = getUserStorageKey('fanclub-model-data');
         const localData = JSON.parse(localStorage.getItem(userDataKey) || '{}') as Record<string, unknown>;
         setModelData(localData);
+        if (process.env.NODE_ENV === 'development') {
         console.log('📊 ユーザー固有のデータを読み込みました:', Object.keys(localData).length, '件');
         console.log('📊 データの詳細:', Object.keys(localData));
+        }
         
         // Supabaseからもデータを読み込んで同期（ユーザー固有のデータのみ）
         if (authSession?.user?.id) {
@@ -241,13 +256,17 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
     const handleMainModelChange = async (event: Event) => {
       const customEvent = event as CustomEvent;
       const { modelId } = customEvent.detail;
+      if (process.env.NODE_ENV === 'development') {
       console.log('🌟 ファン管理: メインモデル変更イベント受信:', modelId);
+      }
       
       // ユーザーデータマネージャーを使って最新のモデルデータを取得
       const userDataManager = getCurrentUserDataManager();
       if (userDataManager) {
         const userModels = await userDataManager.getUserModels();
+        if (process.env.NODE_ENV === 'development') {
         console.log('🌟 ファン管理: 最新モデルデータ:', userModels.length, '件');
+        }
         setModels(userModels);
       } else {
         // フォールバック
@@ -257,7 +276,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       
       // メインモデルが解除された場合（modelIdがnull）
       if (modelId === null) {
+        if (process.env.NODE_ENV === 'development') {
         console.log('🌟 ファン管理: メインモデル解除、最初のモデルを選択');
+        }
         const userDataManager = getCurrentUserDataManager();
         const currentModels = userDataManager ? await userDataManager.getUserModels() : getModels();
         if (currentModels.length > 0) {
@@ -296,7 +317,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
           if (error) {
             console.error('データ再読み込みエラー:', error);
           } else if (supabaseData && supabaseData.length > 0) {
-            console.log('✅ Supabaseから最新データを取得:', supabaseData.length, '件');
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ Supabaseから最新データを取得:', supabaseData.length, '件');
+            }
             
             // データを変換
             const supabaseModelData: Record<string, unknown> = {};
@@ -358,11 +381,15 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
           const modelSaved = await saveModelToSupabase(model);
           
           if (modelSaved) {
-            console.log('✅ モデルをSupabaseに保存しました');
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ モデルをSupabaseに保存しました');
+            }
             
             // 2. モデルが保存されたら月別データを保存
-            await saveModelMonthlyDataToSupabase(modelId, model.displayName, year, month, data as FanClubRevenueData[]);
-            console.log('✅ Supabaseへの保存が完了しました');
+          await saveModelMonthlyDataToSupabase(modelId, model.displayName, year, month, data as FanClubRevenueData[]);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ Supabaseへの保存が完了しました');
+            }
           } else {
             console.warn('⚠️ モデルの保存に失敗しました。ローカルストレージのみに保存します。');
           }
@@ -380,26 +407,34 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       // モデルを再読み込み
       const updatedModels = await getModelsFromSupabase();
       setModels(updatedModels);
-      console.log('✅ モデル再読み込み完了:', updatedModels.length, '件');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ モデル再読み込み完了:', updatedModels.length, '件');
+      }
       
       // LocalStorageからも月次データを再読み込み
       const userDataKey = getUserStorageKey('fanclub-model-data');
       const updatedData = JSON.parse(localStorage.getItem(userDataKey) || '{}') as Record<string, unknown>;
       setModelData(updatedData);
-      console.log('✅ 月次データ再読み込み完了');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ 月次データ再読み込み完了');
+      }
       
       // 🔥 イベントを発火してすべてのコンポーネントに通知
       window.dispatchEvent(new CustomEvent('dataUpdated', { 
         detail: { modelId, year, month, timestamp: Date.now() } 
       }));
-      console.log('📢 dataUpdatedイベントを発火');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📢 dataUpdatedイベントを発火');
+      }
       
       // 🔥 強制的にUIを再レンダリング
       setMessage('✨ CSVデータのアップロードが完了しました！ダッシュボードを更新中...');
       
       setTimeout(() => {
         setMessage('');
-        console.log('✅ ダッシュボード更新完了');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ ダッシュボード更新完了');
+        }
       }, 3000);
       
     } catch (error) {
@@ -515,26 +550,30 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                 if (deleteError) {
                   console.error('Supabase削除エラー:', deleteError);
                 } else {
-                  console.log('✅ Supabaseから削除完了');
+                  if (process.env.NODE_ENV === 'development') {
+                    console.log('✅ Supabaseから削除完了');
+                  }
                 }
               } else {
                 // Supabaseに更新
-                const { error } = await supabase
+            const { error } = await supabase
                   .from('monthly_data')
-                  .upsert({
+              .upsert({
                     model_id: modelId,
-                    user_id: authSession.user.id,
+                user_id: authSession.user.id,
                     year: year,
                     month: monthNum,
-                    data: filteredData,
+                data: filteredData,
                     analysis: null, // 分析データは後で計算
-                    updated_at: new Date().toISOString()
-                  });
-                
-                if (error) {
-                  console.error('Supabase保存エラー:', error);
-                } else {
-                  console.log('✅ Supabaseに保存完了');
+                updated_at: new Date().toISOString()
+              });
+            
+            if (error) {
+              console.error('Supabase保存エラー:', error);
+            } else {
+              if (process.env.NODE_ENV === 'development') {
+                console.log('✅ Supabaseに保存完了');
+              }
                 }
               }
             }
@@ -546,7 +585,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
         setMessage(`✅ ${month}のデータ（${monthData.length}件）を削除しました`);
         setTimeout(() => setMessage(''), 3000);
         
-        console.log('✅ 月別データ削除完了');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ 月別データ削除完了');
+        }
       } else {
         console.error('❌ モデルデータが見つかりません:', modelKey);
         setMessage('❌ データの削除に失敗しました');
@@ -572,10 +613,12 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
   ];
 
   const getModelStats = (): ModelStats => {
+    if (process.env.NODE_ENV === 'development') {
     console.log('📊 ファン管理統計計算開始');
     console.log('📊 選択されたモデルID:', selectedModelId);
     console.log('📊 modelData keys:', Object.keys(modelData));
     console.log('📊 modelData values:', Object.values(modelData).length);
+    }
     
     // データの構造を正しく処理し、選択されたモデルのデータのみをフィルタリング
     const allData = Object.values(modelData).flatMap(item => {
@@ -636,7 +679,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
         })
       : allData;
 
+    if (process.env.NODE_ENV === 'development') {
     console.log('📊 フィルタリング後のデータ数:', filteredData.length);
+    }
 
     const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.金額) || 0), 0);
     const totalCustomers = new Set(filteredData.map(item => item.購入者 || item.顧客名)).size;
@@ -674,18 +719,22 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
         const keyYear = parseInt(keyParts[1]);
         const keyMonth = parseInt(keyParts[2]);
         
-        console.log('🔍 キー解析:', { key, keyModelId, keyYear, keyMonth, targetYear: year, targetMonth: month });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 キー解析:', { key, keyModelId, keyYear, keyMonth, targetYear: year, targetMonth: month });
+        }
         
         // 年月が一致し、かつモデルが選択されていない or モデルIDが一致する場合
         if (keyYear === year && keyMonth === month) {
           if (!selectedModelId || keyModelId === selectedModelId) {
-            console.log('✅ 一致:', { key, keyYear, keyMonth });
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ 一致:', { key, keyYear, keyMonth });
+            }
             
-            if (Array.isArray(item)) return item;
-            if (typeof item === 'object' && item !== null && 'data' in item) {
-              const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
-                ? (item as { data: FanClubRevenueData[] }).data 
-                : [];
+      if (Array.isArray(item)) return item;
+      if (typeof item === 'object' && item !== null && 'data' in item) {
+        const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
+          ? (item as { data: FanClubRevenueData[] }).data 
+          : [];
               console.log('📊 データ取得:', data.length, '件');
               return data;
             }
@@ -736,9 +785,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
               }
             }
           }
-        }
-        return [];
-      }) as FanClubRevenueData[];
+      }
+      return [];
+    }) as FanClubRevenueData[];
     } else {
       // 全体データモード: 選択されたモデルの全データ
       filteredData = Object.entries(modelData).flatMap(([key, item]) => {
@@ -766,7 +815,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       }) as FanClubRevenueData[];
     }
     
-    console.log('📊 フィルタリング後のデータ数:', filteredData.length);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📊 フィルタリング後のデータ数:', filteredData.length);
+    }
     
     // 統計を計算
     const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.金額) || 0), 0);
@@ -790,16 +841,22 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       repeatCustomers // リピーター数を追加
     };
     
-    console.log('📊 計算された統計:', calculatedStats);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📊 計算された統計:', calculatedStats);
+    }
     return calculatedStats;
   }, [modelData, selectedModelId, customerViewMode, selectedYear, selectedMonth]);
   
-  console.log('📊 modelData詳細:', JSON.stringify(modelData, null, 2));
-  console.log('📊 selectedModelId:', selectedModelId);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('📊 modelData詳細:', JSON.stringify(modelData, null, 2));
+    console.log('📊 selectedModelId:', selectedModelId);
+  }
 
   // 🔥 useMemoでモデル別統計を計算（modelDataまたはmodelsが変更されたら自動再計算）
   const individualModelStats = useMemo(() => {
-    console.log('📊 モデル別統計再計算トリガー');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📊 モデル別統計再計算トリガー');
+    }
     const modelMap = new Map<string, IndividualModelStats>();
     
     Object.values(modelData).forEach(item => {
@@ -1198,8 +1255,8 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">データ管理</h3>
                 <ModelDataManagement />
-              </div>
-            </div>
+                </div>
+                            </div>
           ) : null}
           {activeTab === 'csv' ? (
             <div className="space-y-4 lg:space-y-6">
@@ -1224,8 +1281,8 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                     )}
                   </div>
                 </div>
-
-                {/* モデル選択と表示モード切り替え */}
+                
+                {/* モデル選択とデータ期間切り替え */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
                   {/* モデル選択 */}
                   <div className="flex items-center space-x-3">
@@ -1259,9 +1316,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                     </select>
                   </div>
                   
-                  {/* 表示モード切り替え */}
+                  {/* データ期間切り替え */}
                   <div className="flex items-center space-x-4">
-                    {/* データ期間切り替え */}
+                    {/* 全体データ / 月毎データ */}
                     <div className="flex bg-gray-100 rounded-lg p-1">
                       <button
                         onClick={() => setCustomerViewMode('all')}
@@ -1282,34 +1339,6 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                         }`}
                       >
                         月毎データ
-                      </button>
-                    </div>
-                    
-                    {/* 表示形式切り替え */}
-                    <div className="flex bg-gray-100 rounded-lg p-1">
-                      <button
-                        onClick={() => setCustomerDisplayMode('cards')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${
-                          customerDisplayMode === 'cards'
-                            ? 'bg-blue-500 text-white shadow'
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                        title="カード表示"
-                      >
-                        <Grid3x3 className="w-5 h-5" />
-                        <span>カード</span>
-                      </button>
-                      <button
-                        onClick={() => setCustomerDisplayMode('table')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${
-                          customerDisplayMode === 'table'
-                            ? 'bg-blue-500 text-white shadow'
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                        title="テーブル表示"
-                      >
-                        <List className="w-5 h-5" />
-                        <span>リスト</span>
                       </button>
                     </div>
                     
@@ -1383,220 +1412,16 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                     </div>
                   </div>
                   
-                  {/* リピーター顧客リスト */}
+                  {/* リピーター顧客ランキング */}
                   <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                      リピーター顧客{customerDisplayMode === 'table' ? 'ランキング' : 'リスト'}
+                      リピーター顧客ランキング
                     </h3>
                     
-                    {customerDisplayMode === 'cards' ? (
-                      /* カード表示 */
-                      <div className="space-y-4">
-                      {(() => {
-                        // 表示モードに応じてデータを取得
-                        const allModelData = customerViewMode === 'all' 
-                          ? Object.values(modelData).flatMap(item => {
-                              if (Array.isArray(item)) return item;
-                              if (typeof item === 'object' && item !== null && 'data' in item) {
-                                const itemData = item as { data: FanClubRevenueData[]; modelId?: string };
-                                const data = Array.isArray(itemData.data) ? itemData.data : [];
-                                
-                                // モデルフィルタリング
-                                if (selectedModelId && itemData.modelId !== selectedModelId) {
-                                  return [];
-                                }
-                                
-                                // 既存データの日付も正規化
-                                return data.map(record => {
-                                  if (record.日付 && typeof record.日付 === 'string') {
-                                    const dateStr = record.日付;
-                                    const match = dateStr.match(/(\d+)月(\d+)日\s+(\d+):(\d+):(\d+)/);
-                                    if (match) {
-                                      const month = parseInt(match[1]);
-                                      const day = parseInt(match[2]);
-                                      const hour = parseInt(match[3]);
-                                      const minute = parseInt(match[4]);
-                                      const second = parseInt(match[5]);
-                                      
-                                      const currentDate = new Date();
-                                      const currentYear = currentDate.getFullYear();
-                                      const currentMonth = currentDate.getMonth() + 1;
-                                      
-                                      let year = currentYear;
-                                      if (month > currentMonth) {
-                                        year = currentYear - 1;
-                                      }
-                                      
-                                      const date = new Date(year, month - 1, day, hour, minute, second);
-                                      record.日付 = date.toISOString();
-                                    }
-                                  }
-                                  return record;
-                                });
-                              }
-                              return [];
-                            }) as FanClubRevenueData[]
-                          : getMonthlyData(selectedYear, selectedMonth);
-                        
-                        // 選択されたモデルでフィルタリング
-                        const data = selectedModelId && customerViewMode === 'monthly'
-                          ? allModelData.filter(record => {
-                              // monthly_dataのキーからmodelIdを確認
-                              const matchingKey = Object.keys(modelData).find(key => 
-                                key.startsWith(`${selectedModelId}_`)
-                              );
-                              return matchingKey !== undefined;
-                            })
-                          : allModelData;
-                        
-                        console.log('📊 ファン管理: 分析対象データ:', data.length, '件');
-                        const repeaters = getCustomerDetailInfo(data);
-                        console.log('📊 ファン管理: リピーター数:', repeaters.length, '人');
-                        
-                        if (repeaters.length === 0) {
-                          return (
-                            <div className="text-center py-8 text-gray-500">
-                              <Users className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                              <p>リピーター顧客のデータがありません</p>
-                              <p className="text-sm">CSVデータをアップロードしてください</p>
-                            </div>
-                          );
-                        }
-                        
-                        return (
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-                            {repeaters.map((customer, index) => {
-                              // 日付の安全な表示（年月日のみ）
-                              const formatDate = (dateString: string) => {
-                                if (!dateString) return '不明';
-                                const date = new Date(dateString);
-                                if (isNaN(date.getTime())) return '不明';
-                                const year = date.getFullYear();
-                                const month = date.getMonth() + 1;
-                                const day = date.getDate();
-                                return `${year}年${month}月${day}日`;
-                              };
-
-                              // メダル表示
-                              const getMedal = (index: number) => {
-                                if (index === 0) return '🥇';
-                                if (index === 1) return '🥈';
-                                if (index === 2) return '🥉';
-                                return '';
-                              };
-                          
-                              return (
-                                <div key={index} className="bg-white rounded-xl shadow-lg p-4 lg:p-6">
-                            {/* ヘッダーセクション */}
-                            <div className="mb-4 border-b border-gray-100 pb-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <h1 className="text-lg lg:text-xl font-bold text-gray-900">
-                                  {getMedal(index)}{customer.buyerName}
-                                </h1>
-                                <div className="text-right">
-                                  <p className="text-xs lg:text-sm text-gray-600 mb-1">合計利用金額</p>
-                                  <span className="text-2xl lg:text-3xl font-extrabold text-pink-600 block leading-none">
-                                    {formatCurrency(customer.totalSpent)}
-                                  </span>
-                                </div>
-                              </div>
-                              <p className="text-xs lg:text-sm text-gray-600">
-                                利用開始: {formatDate(customer.firstPurchaseDate)} | 最終: {formatDate(customer.lastPurchaseDate)}
-                              </p>
-                            </div>
-
-                            {/* 統計情報グリッド */}
-                            <div className="grid grid-cols-2 gap-2 lg:gap-4 mb-4">
-                              {/* 合計購入回数 */}
-                              <div className="bg-blue-50 p-3 lg:p-4 rounded-lg text-center">
-                                <p className="text-xs lg:text-sm font-semibold text-gray-700 mb-1">購入回数</p>
-                                <span className="text-lg lg:text-xl font-extrabold text-pink-600 block leading-tight">
-                                  {customer.totalTransactions}回
-                                </span>
-                              </div>
-
-                              {/* 平均単価 */}
-                              <div className="bg-orange-50 p-3 lg:p-4 rounded-lg text-center">
-                                <p className="text-xs lg:text-sm font-semibold text-gray-700 mb-1">平均単価</p>
-                                <span className="text-lg lg:text-xl font-extrabold text-orange-600 block leading-tight">
-                                  {formatCurrency(customer.averageTransactionValue)}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* 内訳セクション */}
-                            <div className="grid grid-cols-1 gap-2 lg:gap-3 mt-4 pt-4 border-t border-dashed border-gray-200">
-                              {/* 単品アイテム */}
-                              <div className="bg-gray-50 p-3 lg:p-4 rounded-lg">
-                                <h3 className="text-xs lg:text-sm font-semibold text-gray-700 mb-2">単品アイテム</h3>
-                                <div className="flex justify-between items-end">
-                                  <span className="text-sm lg:text-base font-bold text-gray-900">{formatCurrency(customer.singleTotal)}</span>
-                                  <span className="text-xs text-gray-600">{customer.singlePurchaseCount}個</span>
-                                </div>
-                              </div>
-
-                              {/* 定期プラン */}
-                              <div className="bg-gray-50 p-3 lg:p-4 rounded-lg">
-                                <h3 className="text-xs lg:text-sm font-semibold text-gray-700 mb-2">プラン</h3>
-                                <div className="flex justify-between items-end">
-                                  <span className="text-sm lg:text-base font-bold text-gray-900">{formatCurrency(customer.planTotal)}</span>
-                                  <span className="text-xs text-gray-600">{customer.planPurchaseCount}回</span>
-                                </div>
-                              </div>
-
-                              {/* チップ */}
-                              <div className="bg-gray-50 p-3 lg:p-4 rounded-lg">
-                                <h3 className="text-xs lg:text-sm font-semibold text-gray-700 mb-2">チップ</h3>
-                                <div className="flex justify-between items-end">
-                                  <span className="text-sm lg:text-base font-bold text-gray-900">{formatCurrency(customer.tipTotal)}</span>
-                                  <span className="text-xs text-gray-600">{customer.tipCount}回</span>
-                                </div>
-                              </div>
-
-                              {/* スーパーコメント */}
-                              <div className="bg-gray-50 p-3 lg:p-4 rounded-lg">
-                                <h3 className="text-xs lg:text-sm font-semibold text-gray-700 mb-2">スーパーコメント</h3>
-                                <div className="flex justify-between items-end">
-                                  <span className="text-sm lg:text-base font-bold text-gray-900">{formatCurrency(customer.superCommentTotal)}</span>
-                                  <span className="text-xs text-gray-600">{customer.superCommentCount}回</span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* 月別購入履歴 */}
-                            {customer.monthlySpending.length > 0 && (
-                              <details className="mt-4">
-                                <summary className="cursor-pointer text-center text-xs lg:text-sm text-gray-600 hover:text-gray-900 bg-gray-50 py-2 px-3 lg:px-4 rounded-lg">
-                                  購入履歴を詳しく見る ({customer.monthlySpending.length}ヶ月)
-                                </summary>
-                                <div className="mt-3 grid grid-cols-2 lg:grid-cols-3 gap-2 lg:gap-3">
-                                  {customer.monthlySpending.map((month, idx) => {
-                                    const displayYear = month.year && !isNaN(month.year) ? month.year : '不明';
-                                    const displayMonth = month.month && !isNaN(month.month) ? month.month : '不明';
-                                    
-                                    return (
-                                      <div key={idx} className="bg-gray-50 rounded-lg p-2 lg:p-3 text-xs">
-                                        <p className="font-semibold text-gray-900 mb-1">{displayYear}年{displayMonth}月</p>
-                                        <p className="text-gray-700 font-medium">{formatCurrency(month.amount)}</p>
-                                        <p className="text-gray-500">{month.transactions}回</p>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </details>
-                            )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                    ) : (
-                      /* テーブル表示 */
-                      <div className="overflow-x-auto">
+                    {/* リスト表示 */}
+                    <div className="overflow-x-auto">
                         {(() => {
-                          // 表示モードに応じてデータを取得（カード表示と同じロジック）
+                          // データを取得
                           const allModelData = customerViewMode === 'all' 
                             ? Object.values(modelData).flatMap(item => {
                                 if (Array.isArray(item)) return item;
@@ -1631,7 +1456,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                                 <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                                 <p className="text-lg">リピーター顧客のデータがありません</p>
                                 <p className="text-sm mt-2">CSVデータをアップロードしてください</p>
-                              </div>
+                  </div>
                             );
                           }
                           
@@ -1681,7 +1506,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                                           {index === 0 && <span className="ml-2 text-xl">🥇</span>}
                                           {index === 1 && <span className="ml-2 text-xl">🥈</span>}
                                           {index === 2 && <span className="ml-2 text-xl">🥉</span>}
-                                        </div>
+                </div>
                                       </td>
                                       <td className="px-4 py-4 whitespace-nowrap">
                                         <div className="text-sm font-semibold text-gray-900">{customer.buyerName}</div>
@@ -1724,8 +1549,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                             </table>
                           );
                         })()}
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1895,9 +1719,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                       </>
                     )}
                   </button>
-                </div>
-              </div>
-              
+                    </div>
+                  </div>
+                  
               {/* 分析結果 */}
               {aiAnalysisGenerated ? (
                 <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
@@ -1949,32 +1773,150 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
           ) : null}
           {activeTab === 'settings' ? (
             <div className="space-y-4 lg:space-y-6">
-              <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">設定</h3>
-                <div className="space-y-4">
-                  <div className="border-b border-gray-200 pb-4">
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">アカウント情報</h4>
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">名前:</span> {authSession.user.name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        <span className="font-medium">メールアドレス:</span> {authSession.user.email}
+              {/* アカウント情報カード */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-pink-500 to-pink-600 px-6 py-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
+                  <div>
+                      <h3 className="text-xl font-semibold text-white">アカウント情報</h3>
+                      <p className="text-sm text-pink-100">ログイン中のアカウント情報</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="h-6 w-6 text-pink-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-500 mb-1">名前</p>
+                      <p className="text-base font-semibold text-gray-900 truncate">
+                        {authSession.user.name || '未設定'}
                       </p>
                     </div>
                   </div>
                   
-                  <div>
-                    <h4 className="text-lg font-medium text-gray-900 mb-2">アプリケーション情報</h4>
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">
-                        バージョン: 1.0.0
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        最終更新: {new Date().toLocaleDateString('ja-JP')}
+                  <div className="flex items-start space-x-4">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-500 mb-1">メールアドレス</p>
+                      <p className="text-base font-semibold text-gray-900 truncate">
+                        {authSession.user.email}
                       </p>
                     </div>
                   </div>
+                  
+                  {authSession.user.createdAt && (
+                    <div className="flex items-start space-x-4">
+                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Calendar className="h-6 w-6 text-green-600" />
+                </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-500 mb-1">アカウント作成日</p>
+                        <p className="text-base font-semibold text-gray-900">
+                          {new Date(authSession.user.createdAt).toLocaleDateString('ja-JP', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </p>
+              </div>
+            </div>
+          )}
+                </div>
+              </div>
+
+              {/* アプリケーション情報カード */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                      <Info className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-white">アプリケーション情報</h3>
+                      <p className="text-sm text-blue-100">システム情報とバージョン</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <div className="flex items-center space-x-3">
+                      <SettingsIcon className="h-5 w-5 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-600">バージョン</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">1.0.0</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <div className="flex items-center space-x-3">
+                      <Calendar className="h-5 w-5 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-600">最終更新</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {new Date().toLocaleDateString('ja-JP', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-3">
+                    <div className="flex items-center space-x-3">
+                      <Shield className="h-5 w-5 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-600">セキュリティ</span>
+                    </div>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      有効
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ログアウトセクション */}
+              <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                      <LogOut className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-white">セッション管理</h3>
+                      <p className="text-sm text-red-100">アカウントからログアウトします</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-red-800 mb-2">
+                      <strong>ログアウトすると：</strong>
+                    </p>
+                    <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+                      <li>現在のセッションが終了します</li>
+                      <li>再度ログインが必要になります</li>
+                      <li>保存されていない変更は失われる可能性があります</li>
+                    </ul>
+                  </div>
+                  
+                  <button
+                    onClick={async () => {
+                      if (confirm('ログアウトしますか？')) {
+                        await onLogout();
+                      }
+                    }}
+                    className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span>ログアウト</span>
+                  </button>
                 </div>
               </div>
             </div>
