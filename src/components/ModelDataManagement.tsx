@@ -304,11 +304,11 @@ export default function ModelDataManagement() {
         
         // ローカルストレージから削除
         const localSuccess = deleteModelMonthlyData(
-          deletingData.modelId,
-          deletingData.year,
-          deletingData.month
-        );
-        
+            deletingData.modelId,
+            deletingData.year,
+            deletingData.month
+          );
+          
         if (localSuccess) {
           console.log('✅ ローカルデータ削除成功');
         } else {
@@ -329,9 +329,9 @@ export default function ModelDataManagement() {
             
             if (error) {
               console.error('Supabase削除エラー:', error);
-            } else {
+          } else {
               console.log('✅ Supabase削除成功');
-            }
+          }
           }
         } catch (supabaseError) {
           console.error('Supabase削除エラー:', supabaseError);

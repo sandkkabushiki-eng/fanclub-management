@@ -64,9 +64,9 @@ export const useGlobalModelSelection = (): GlobalModelSelection => {
       localStorage.setItem(GLOBAL_MODEL_SELECTION_KEY, JSON.stringify({ selectedModelId: newSelectedId }));
       
       // イベントは一度だけ発火
-      window.dispatchEvent(new CustomEvent('globalModelSelectionChanged', { 
+        window.dispatchEvent(new CustomEvent('globalModelSelectionChanged', { 
         detail: { selectedModelId: newSelectedId } 
-      }));
+        }));
     } else {
       console.log('🌍 グローバル状態: 現在の選択を維持:', selectedModelId);
     }

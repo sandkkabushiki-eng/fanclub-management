@@ -19,10 +19,14 @@ export class UserDataManager {
   async saveUserModel(_model: Model): Promise<boolean> {
     try {
       // 現在はSupabaseのトリガーで処理されるため、この部分は使用していない
-      console.log('Model save requested but handled by Supabase trigger');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Model save requested but handled by Supabase trigger');
+      }
       return true;
     } catch (error) {
-      console.error('User model save error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('User model save error:', error);
+      }
       return false;
     }
   }
@@ -36,10 +40,14 @@ export class UserDataManager {
   ): Promise<boolean> {
     try {
       // 現在はSupabaseのトリガーで処理されるため、この部分は使用していない
-      console.log('Monthly data save requested but handled by Supabase trigger');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Monthly data save requested but handled by Supabase trigger');
+      }
       return true;
     } catch (error) {
-      console.error('User monthly data save error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('User monthly data save error:', error);
+      }
       return false;
     }
   }
@@ -47,25 +55,47 @@ export class UserDataManager {
   // ユーザー専用のモデル一覧を取得
   async getUserModels(): Promise<Model[]> {
     try {
+      // supabaseAdminがnullの場合は空配列を返す
+      if (!supabaseAdmin || supabaseAdmin === null) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔒 supabaseAdminが初期化されていません。SUPABASE_SERVICE_ROLE_KEYを確認してください。');
+        }
+        return [];
+      }
+
       // ユーザー固有のモデルのみを取得（他のユーザーのデータは絶対に取得しない）
-      const { data, error } = await supabaseAdmin
+      const adminClient = supabaseAdmin;
+      if (!adminClient) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔒 supabaseAdminクライアントが利用できません。');
+        }
+        return [];
+      }
+
+      const { data, error } = await adminClient
         .from('models')
         .select('*')
         .eq('user_id', this.userId)
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('🔒 User models fetch error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔒 User models fetch error:', error);
+        }
         return [];
       }
 
       // データが見つからない場合も空配列を返す（セキュリティ上、他のユーザーのデータは返さない）
       if (!data || data.length === 0) {
-        console.log('🔒 このユーザーにはモデルがありません:', this.userId);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔒 このユーザーにはモデルがありません:', this.userId);
+        }
         return [];
       }
 
-      console.log('🔒 ユーザー固有のモデルを取得:', data.length, '件 (user_id:', this.userId, ')');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔒 ユーザー固有のモデルを取得:', data.length, '件 (user_id:', this.userId, ')');
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return data.map((row: any) => ({
@@ -78,7 +108,9 @@ export class UserDataManager {
         updatedAt: row.updated_at
       }));
     } catch (error) {
-      console.error('User models fetch error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('User models fetch error:', error);
+      }
       return [];
     }
   }
@@ -95,8 +127,24 @@ export class UserDataManager {
     updated_at: string;
   }[]> {
     try {
+      // supabaseAdminがnullの場合は空配列を返す
+      if (!supabaseAdmin || supabaseAdmin === null) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔒 supabaseAdminが初期化されていません。SUPABASE_SERVICE_ROLE_KEYを確認してください。');
+        }
+        return [];
+      }
+
+      const adminClient = supabaseAdmin;
+      if (!adminClient) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔒 supabaseAdminクライアントが利用できません。');
+        }
+        return [];
+      }
+
       // まずuser_idでフィルタリングを試行
-      let query = supabaseAdmin
+      let query = adminClient
         .from('monthly_data')
         .select('*')
         .eq('user_id', this.userId);
@@ -111,21 +159,29 @@ export class UserDataManager {
 
       // エラーがある場合は空配列を返す（セキュリティ上、他のユーザーのデータは絶対に返さない）
       if (error) {
-        console.error('🔒 User monthly data fetch error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔒 User monthly data fetch error:', error);
+        }
         return [];
       }
 
       // データが見つからない場合も空配列を返す
       if (!data || data.length === 0) {
-        console.log('🔒 このユーザーには月別データがありません:', this.userId);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔒 このユーザーには月別データがありません:', this.userId);
+        }
         return [];
       }
 
-      console.log('🔒 ユーザー固有の月別データを取得:', data.length, '件 (user_id:', this.userId, ')');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔒 ユーザー固有の月別データを取得:', data.length, '件 (user_id:', this.userId, ')');
+      }
 
       return data;
     } catch (error) {
-      console.error('User monthly data fetch error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('User monthly data fetch error:', error);
+      }
       return [];
     }
   }
@@ -134,19 +190,37 @@ export class UserDataManager {
   // ユーザー専用のデータを削除
   async deleteUserModel(modelId: string): Promise<boolean> {
     try {
-      const { error } = await supabaseAdmin
+      // supabaseAdminがnullの場合はfalseを返す
+      if (!supabaseAdmin || supabaseAdmin === null) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔒 supabaseAdminが初期化されていません。SUPABASE_SERVICE_ROLE_KEYを確認してください。');
+        }
+        return false;
+      }
+
+      const adminClient = supabaseAdmin;
+      if (!adminClient) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔒 supabaseAdminクライアントが利用できません。');
+        }
+        return false;
+      }
+
+      const { error } = await adminClient
         .from('models')
         .delete()
         .eq('user_id', this.userId)
         .eq('id', modelId);
 
       if (error) {
-        console.error('User model delete error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('User model delete error:', error);
+        }
         return false;
       }
 
       // 関連する月別データも削除
-      await supabaseAdmin
+      await adminClient
         .from('monthly_data')
         .delete()
         .eq('user_id', this.userId)
@@ -154,7 +228,9 @@ export class UserDataManager {
 
       return true;
     } catch (error) {
-      console.error('User model delete error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('User model delete error:', error);
+      }
       return false;
     }
   }
@@ -162,7 +238,23 @@ export class UserDataManager {
   // ユーザー専用の月別データを削除
   async deleteUserMonthlyData(modelId: string, year: number, month: number): Promise<boolean> {
     try {
-      const { error } = await supabaseAdmin
+      // supabaseAdminがnullの場合はfalseを返す
+      if (!supabaseAdmin || supabaseAdmin === null) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔒 supabaseAdminが初期化されていません。SUPABASE_SERVICE_ROLE_KEYを確認してください。');
+        }
+        return false;
+      }
+
+      const adminClient = supabaseAdmin;
+      if (!adminClient) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('🔒 supabaseAdminクライアントが利用できません。');
+        }
+        return false;
+      }
+
+      const { error } = await adminClient
         .from('monthly_data')
         .delete()
         .eq('user_id', this.userId)
@@ -171,12 +263,16 @@ export class UserDataManager {
         .eq('month', month);
 
       if (error) {
-        console.error('User monthly data delete error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('User monthly data delete error:', error);
+        }
         return false;
       }
       return true;
     } catch (error) {
-      console.error('User monthly data delete error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('User monthly data delete error:', error);
+      }
       return false;
     }
   }

@@ -196,10 +196,7 @@ export default function ModelManagement() {
       {/* ヘッダー */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-pink-500 bg-clip-text text-transparent">
-            モデル一覧
-          </h2>
-          <p className="text-gray-600 mt-1">モデルの追加・編集・削除を行います</p>
+          <p className="text-gray-600">モデルの追加・編集・削除を行います</p>
         </div>
         <button
           onClick={() => setShowForm(true)}

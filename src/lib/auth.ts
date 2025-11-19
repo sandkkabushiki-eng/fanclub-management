@@ -2,10 +2,19 @@ import { createClient } from '@supabase/supabase-js';
 import { User, AuthSession, LoginCredentials, RegisterData } from '@/types/auth';
 import { clearAllUserData } from '@/utils/userDataIsolation';
 
-// Supabase設定
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://aksptiaptxogdipuysut.supabase.co';
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrc3B0aWFwdHhvZ2RpcHV5c3V0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MTIzMjMsImV4cCI6MjA3NDE4ODMyM30.56TBLIIvYIk5R4Moyhe2PluQMTq7gZ51suXFesrkULA';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrc3B0aWFwdHhvZ2RpcHV5c3V0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODYxMjMyMywiZXhwIjoyMDc0MTg4MzIzfQ.EpJsXq17uDoqlr7rP0HY4yv0zSEhS9OiCGgHTHFHHmI';
+// Supabase設定（環境変数から取得、フォールバックなしでセキュリティを確保）
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// 環境変数の検証
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error('Supabase環境変数が設定されていません。NEXT_PUBLIC_SUPABASE_URLとNEXT_PUBLIC_SUPABASE_ANON_KEYを設定してください。');
+}
+
+if (!SUPABASE_SERVICE_ROLE_KEY && typeof window === 'undefined') {
+  console.warn('SUPABASE_SERVICE_ROLE_KEYが設定されていません。サーバーサイド機能が制限される可能性があります。');
+}
 
 // OAuth設定
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
@@ -29,8 +38,8 @@ export const supabase = (() => {
   return _supabase;
 })();
 
-export const supabaseAdmin = (() => {
-  if (!_supabaseAdmin) {
+export const supabaseAdmin: ReturnType<typeof createClient> | null = (() => {
+  if (!_supabaseAdmin && SUPABASE_SERVICE_ROLE_KEY) {
     _supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   }
   return _supabaseAdmin;
@@ -39,22 +48,32 @@ export const supabaseAdmin = (() => {
 // Supabase接続テスト
 export const testSupabaseConnection = async () => {
   try {
-    console.log('Testing Supabase connection...');
-    console.log('URL:', SUPABASE_URL);
-    console.log('Anon Key:', SUPABASE_ANON_KEY.substring(0, 20) + '...');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Testing Supabase connection...');
+      console.log('URL:', SUPABASE_URL);
+      if (SUPABASE_ANON_KEY) {
+        console.log('Anon Key:', SUPABASE_ANON_KEY.substring(0, 20) + '...');
+      }
+    }
     
     // 基本的な接続テスト
     const { data, error } = await supabase.from('users').select('count').limit(1);
     
     if (error) {
-      console.error('Supabase connection test failed:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Supabase connection test failed:', error);
+      }
       return { success: false, error: error.message };
     }
     
-    console.log('Supabase connection test successful');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Supabase connection test successful');
+    }
     return { success: true, data };
   } catch (error) {
-    console.error('Supabase connection test error:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Supabase connection test error:', error);
+    }
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 };
@@ -104,8 +123,17 @@ class AuthManager {
   // 管理者認証
   async adminLogin(adminPassword: string): Promise<AuthSession | null> {
     try {
-      // 管理者の認証（実際の実装ではSupabase Authを使用）
-      if (adminPassword === 'admin123') {
+      // 管理者の認証（環境変数から取得）
+      const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
+      
+      if (!ADMIN_PASSWORD) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('管理者パスワードが環境変数に設定されていません。');
+        }
+        return null;
+      }
+      
+      if (adminPassword === ADMIN_PASSWORD) {
         const user: User = {
           id: 'admin',
           email: 'admin@fanclub.com',
@@ -135,7 +163,9 @@ class AuthManager {
       }
       return null;
     } catch (error) {
-      console.error('Admin login error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Admin login error:', error);
+      }
       return null;
     }
   }
@@ -143,7 +173,9 @@ class AuthManager {
   // ユーザー認証（Supabase Auth使用）
   async userLogin(credentials: LoginCredentials): Promise<AuthSession | null> {
     try {
-      console.log('🔐 ログイン試行:', credentials.email);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔐 ログイン試行:', credentials.email);
+      }
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: credentials.email,
@@ -151,19 +183,23 @@ class AuthManager {
       });
 
       if (error) {
-        console.error('Login error details:', {
-          message: error.message,
-          status: error.status,
-          code: error.code
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Login error details:', {
+            message: error.message,
+            status: error.status,
+            code: error.code
+          });
+        }
         return null;
       }
 
-      console.log('Login successful, user data:', {
-        userId: data.user?.id,
-        email: data.user?.email,
-        emailConfirmed: data.user?.email_confirmed_at
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Login successful, user data:', {
+          userId: data.user?.id,
+          email: data.user?.email,
+          emailConfirmed: data.user?.email_confirmed_at
+        });
+      }
 
       if (data.user && data.session) {
         // ユーザー情報はトリガーで自動的に作成される
@@ -195,7 +231,9 @@ class AuthManager {
         this.session = session;
         this.saveSession(session);
         
-        console.log('✅ ログイン成功:', user.email);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ ログイン成功:', user.email);
+        }
         
         // ログイン後、Supabaseからユーザーデータを同期
         await this.syncUserDataFromSupabase(user.id);
@@ -205,7 +243,9 @@ class AuthManager {
 
       return null;
     } catch (error) {
-      console.error('User login error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('User login error:', error);
+      }
       return null;
     }
   }
@@ -213,7 +253,9 @@ class AuthManager {
   // Supabaseからユーザーデータを同期
   private async syncUserDataFromSupabase(userId: string): Promise<void> {
     try {
-      console.log('🔄 Supabaseからユーザーデータを同期開始:', userId);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 Supabaseからユーザーデータを同期開始:', userId);
+      }
       
       // モデルを同期
       const { data: modelsData, error: modelsError } = await supabase
@@ -222,13 +264,19 @@ class AuthManager {
         .eq('user_id', userId);
       
       if (modelsError) {
-        console.error('モデル同期エラー:', modelsError);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('モデル同期エラー:', modelsError);
+        }
       } else if (modelsData && modelsData.length > 0) {
         const userStorageKey = `fanclub-models-${userId}`;
         localStorage.setItem(userStorageKey, JSON.stringify(modelsData));
-        console.log('✅ モデルを同期しました:', modelsData.length, '件');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ モデルを同期しました:', modelsData.length, '件');
+        }
       } else {
-        console.log('📭 Supabaseにモデルデータがありません');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📭 Supabaseにモデルデータがありません');
+        }
       }
       
       // 月次データを同期
@@ -238,7 +286,9 @@ class AuthManager {
         .eq('user_id', userId);
       
       if (monthlyError) {
-        console.error('月次データ同期エラー:', monthlyError);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('月次データ同期エラー:', monthlyError);
+        }
       } else if (monthlyData && monthlyData.length > 0) {
         const userDataKey = `fanclub-model-data-${userId}`;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -258,14 +308,22 @@ class AuthManager {
           };
         });
         localStorage.setItem(userDataKey, JSON.stringify(formattedData));
-        console.log('✅ 月次データを同期しました:', monthlyData.length, '件');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ 月次データを同期しました:', monthlyData.length, '件');
+        }
       } else {
-        console.log('📭 Supabaseに月次データがありません');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📭 Supabaseに月次データがありません');
+        }
       }
       
-      console.log('✅ データ同期完了');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ データ同期完了');
+      }
     } catch (error) {
-      console.error('🚨 データ同期エラー:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('🚨 データ同期エラー:', error);
+      }
     }
   }
 
@@ -285,13 +343,15 @@ class AuthManager {
       });
 
       if (error) {
-        console.error('Registration error:', error);
-        // より詳細なエラー情報を提供
-        console.log('Supabase registration error details:', {
-          message: error.message,
-          status: error.status,
-          code: error.code
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Registration error:', error);
+          // より詳細なエラー情報を提供
+          console.log('Supabase registration error details:', {
+            message: error.message,
+            status: error.status,
+            code: error.code
+          });
+        }
         // より具体的なエラーメッセージ
         if (error.message.includes('already registered')) {
           throw new Error('このメールアドレスは既に登録されています');
@@ -304,7 +364,9 @@ class AuthManager {
 
       if (authData.user) {
         // ユーザー情報はSupabaseのトリガーで自動的に作成される
-        console.log('User created successfully, trigger will handle user data insertion');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('User created successfully, trigger will handle user data insertion');
+        }
 
         // 確認メール送信後の処理
         if (authData.session) {
@@ -343,7 +405,9 @@ class AuthManager {
 
       return null;
     } catch (error) {
-      console.error('User registration error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('User registration error:', error);
+      }
       
       // Supabaseが使えない場合（オフライン時）は、メール送信完了として扱う
       if (error instanceof Error && (
@@ -351,7 +415,9 @@ class AuthManager {
         error.message.includes('NetworkError') ||
         error.message.includes('fetch')
       )) {
-        console.log('Supabase is offline, treating as email sent successfully');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Supabase is offline, treating as email sent successfully');
+        }
         // オフライン時は成功として扱う（メール送信完了メッセージを表示）
         return null;
       }
@@ -377,7 +443,9 @@ class AuthManager {
     if (typeof window === 'undefined') return null;
 
     try {
-      console.log('🔍 Supabaseセッション確認中...');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Supabaseセッション確認中...');
+      }
       
       // まずSupabaseのセッションを確認（タイムアウト付き）
       const sessionPromise = supabase.auth.getSession();
@@ -389,13 +457,17 @@ class AuthManager {
       const { data: { session: supabaseSession }, error } = result;
       
       if (error) {
-        console.warn('Supabase session error:', error.message);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('Supabase session error:', error.message);
+        }
         
         // リフレッシュトークンエラーの場合はセッションをクリア
         if (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token') || 
             error.message?.includes('refresh_token_not_found') || error.message?.includes('JWTExpired') ||
             error.message?.includes('Token refresh failed')) {
-          console.log('🔄 リフレッシュトークンエラーを検出、セッションをクリアします...');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🔄 リフレッシュトークンエラーを検出、セッションをクリアします...');
+          }
           // 即座にlocalStorageとsessionStorageをクリア
           if (typeof window !== 'undefined') {
             // Supabase関連のすべてのキーをクリア
@@ -408,7 +480,9 @@ class AuthManager {
             }
             keysToRemove.forEach(key => {
               localStorage.removeItem(key);
-              console.log('🗑️ Supabaseキーを削除:', key);
+              if (process.env.NODE_ENV === 'development') {
+                console.log('🗑️ Supabaseキーを削除:', key);
+              }
             });
             sessionStorage.removeItem('fanclub-session');
           }
@@ -422,7 +496,9 @@ class AuthManager {
       }
 
       if (supabaseSession) {
-        console.log('✅ Supabaseセッションが見つかりました');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ Supabaseセッションが見つかりました');
+        }
         // Supabaseセッションが有効な場合
         const authSession: AuthSession = {
           user: {
@@ -448,11 +524,15 @@ class AuthManager {
         return authSession;
       }
 
-      console.log('❌ Supabaseセッションが見つかりませんでした');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('❌ Supabaseセッションが見つかりませんでした');
+      }
       // Supabaseセッションがない場合はローカルセッションを確認
       const sessionData = sessionStorage.getItem('fanclub-session');
       if (!sessionData) {
-        console.log('❌ ローカルセッションも見つかりませんでした');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('❌ ローカルセッションも見つかりませんでした');
+        }
         return null;
       }
 
@@ -460,23 +540,31 @@ class AuthManager {
       
       // セッションの有効期限チェック
       if (new Date(session.expiresAt) < new Date()) {
-        console.log('⏰ セッションの有効期限が切れています');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('⏰ セッションの有効期限が切れています');
+        }
         this.logout();
         return null;
       }
 
-      console.log('✅ ローカルセッションが見つかりました');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ ローカルセッションが見つかりました');
+      }
       this.currentUser = session.user;
       this.session = session;
       return session;
     } catch (error) {
-      console.error('Session load error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Session load error:', error);
+      }
       
       // リフレッシュトークンエラーの場合はセッションをクリア
       if (error instanceof Error && (error.message?.includes('Refresh Token') || error.message?.includes('Invalid Refresh Token') ||
           error.message?.includes('refresh_token_not_found') || error.message?.includes('JWTExpired') ||
           error.message?.includes('Token refresh failed'))) {
-        console.log('🔄 リフレッシュトークンエラーを検出、セッションをクリアします...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔄 リフレッシュトークンエラーを検出、セッションをクリアします...');
+        }
         // 即座にlocalStorageとsessionStorageをクリア
         if (typeof window !== 'undefined') {
           // Supabase関連のすべてのキーをクリア
@@ -489,7 +577,9 @@ class AuthManager {
           }
           keysToRemove.forEach(key => {
             localStorage.removeItem(key);
-            console.log('🗑️ Supabaseキーを削除:', key);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('🗑️ Supabaseキーを削除:', key);
+            }
           });
           sessionStorage.removeItem('fanclub-session');
         }
@@ -502,23 +592,33 @@ class AuthManager {
 
   // ログアウト
   async logout(): Promise<void> {
-    console.log('🔓 ログアウト処理開始');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔓 ログアウト処理開始');
+    }
     
     try {
       // Supabaseからもログアウト
       await supabase.auth.signOut();
-      console.log('✅ Supabaseログアウト完了');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Supabaseログアウト完了');
+      }
     } catch (error) {
-      console.warn('⚠️ Supabase logout error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Supabase logout error:', error);
+      }
     }
     
     // ユーザーデータを完全にクリア
     clearAllUserData();
-    console.log('✅ ユーザーデータクリア完了');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ ユーザーデータクリア完了');
+    }
     
     // すべてのfanclub関連データを削除（念のため）
     if (typeof window !== 'undefined') {
-      console.log('🧹 全fanclub関連データをクリア');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🧹 全fanclub関連データをクリア');
+      }
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -528,9 +628,13 @@ class AuthManager {
       }
       keysToRemove.forEach(key => {
         localStorage.removeItem(key);
-        console.log('🗑️ 削除:', key);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🗑️ 削除:', key);
+        }
       });
-      console.log('✅ ローカルストレージクリア完了:', keysToRemove.length, '件');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ ローカルストレージクリア完了:', keysToRemove.length, '件');
+      }
       
       sessionStorage.removeItem('fanclub-session');
       localStorage.removeItem('fanclub-session');
@@ -539,7 +643,9 @@ class AuthManager {
     this.currentUser = null;
     this.session = null;
     
-    console.log('✅ ログアウト完了: 全ユーザーデータをクリアしました');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ ログアウト完了: 全ユーザーデータをクリアしました');
+    }
   }
 
   // 現在のユーザー取得
@@ -594,7 +700,9 @@ class AuthManager {
       
       return null; // リダイレクトするため
     } catch (error) {
-      console.error('Google login error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Google login error:', error);
+      }
       return null;
     }
   }
@@ -608,12 +716,16 @@ class AuthManager {
       // const redirectUri = `${window.location.origin}/auth/x/callback`;
       
       // 簡易的な実装（実際にはX APIの認証フローを使用）
-      console.log('X login not yet implemented');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('X login not yet implemented');
+      }
       alert('X認証は現在開発中です。しばらくお待ちください。');
       
       return null;
     } catch (error) {
-      console.error('X login error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('X login error:', error);
+      }
       return null;
     }
   }
@@ -670,7 +782,9 @@ class AuthManager {
 
       return session;
     } catch (error) {
-      console.error('OAuth callback error:', error);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('OAuth callback error:', error);
+      }
       return null;
     }
   }

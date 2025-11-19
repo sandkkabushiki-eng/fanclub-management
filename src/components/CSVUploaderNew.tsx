@@ -140,14 +140,6 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
 
   return (
     <div className="space-y-6">
-      {/* ヘッダー */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-xl font-semibold text-gray-900">CSVデータアップロード</h3>
-          <p className="text-sm text-gray-600 mt-1">ファンクラブの売上データをCSVファイルでアップロードできます</p>
-        </div>
-      </div>
-
       {/* ファイルアップロード */}
       <div className="text-center">
         <div

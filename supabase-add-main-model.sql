@@ -9,4 +9,3 @@ COMMENT ON COLUMN models.is_main_model IS 'メインモデルフラグ（1つの
 
 -- インデックスを追加（パフォーマンス向上）
 CREATE INDEX IF NOT EXISTS idx_models_is_main_model ON models(user_id, is_main_model) WHERE is_main_model = TRUE;
-

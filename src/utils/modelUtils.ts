@@ -16,7 +16,7 @@ const MODEL_DATA_STORAGE_KEY = 'fanclub-model-data';
 // 🔥 Supabaseから直接モデルを取得（推奨）
 export const getModelsFromSupabase = async (): Promise<Model[]> => {
   try {
-    const currentUser = authManager.getCurrentUser();
+  const currentUser = authManager.getCurrentUser();
     if (!currentUser?.id) {
       console.warn('⚠️ 認証されていないユーザー - LocalStorageキャッシュを確認');
       // 認証されていない場合はキャッシュを返す

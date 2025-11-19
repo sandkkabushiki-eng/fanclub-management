@@ -235,12 +235,12 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
   // 色の濃淡を計算（文字の可読性を考慮）
   const getColorIntensity = (value: number, max: number) => {
     const intensity = Math.min(value / max, 1);
-    if (intensity === 0) return { bg: 'bg-gray-50', text: 'text-gray-600' };
-    if (intensity < 0.2) return { bg: 'bg-pink-100', text: 'text-gray-800' };
-    if (intensity < 0.4) return { bg: 'bg-pink-200', text: 'text-gray-800' };
-    if (intensity < 0.6) return { bg: 'bg-pink-300', text: 'text-white' };
-    if (intensity < 0.8) return { bg: 'bg-pink-400', text: 'text-white' };
-    return { bg: 'bg-pink-500', text: 'text-white' };
+    if (intensity === 0) return { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' };
+    if (intensity < 0.2) return { bg: 'bg-pink-100', text: 'text-gray-900', border: 'border-pink-200' };
+    if (intensity < 0.4) return { bg: 'bg-pink-200', text: 'text-gray-900', border: 'border-pink-300' };
+    if (intensity < 0.6) return { bg: 'bg-pink-300', text: 'text-white', border: 'border-pink-400' };
+    if (intensity < 0.8) return { bg: 'bg-pink-400', text: 'text-white', border: 'border-pink-500' };
+    return { bg: 'bg-pink-600', text: 'text-white', border: 'border-pink-700' };
   };
 
   // カレンダーのグリッドを生成
@@ -293,10 +293,8 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
     <div className="space-y-6">
       {/* ヘッダー */}
       <div className="bg-white rounded-lg p-6 border border-gray-200">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-2">カレンダー分析</h1>
-        <p className="text-gray-600">購入タイミングとパターンを可視化</p>
-        <div className="mt-2 text-sm text-gray-500">
-          モデル数: {models.length} | 選択中: {selectedModelId}
+        <div className="text-sm text-gray-500">
+          モデル数: {models.length} | 選択中: {selectedModelId === 'all' ? '全体' : models.find(m => m.id === selectedModelId)?.displayName || selectedModelId}
         </div>
       </div>
 
@@ -362,11 +360,7 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
 
       {/* 月別カレンダーヒートマップ */}
       <div className="bg-white border border-pink-200 rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-            <Calendar className="w-5 h-5 text-pink-600" />
-            <span>月別カレンダーヒートマップ</span>
-          </h3>
+        <div className="flex items-center justify-end mb-4">
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <Cloud className="w-4 h-4" />
             <span>東京・大阪の天気を表示</span>
@@ -379,9 +373,9 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
         <div className="overflow-x-auto">
           <div className="min-w-full">
             {/* 曜日ヘッダー */}
-            <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
+            <div className="grid grid-cols-7 gap-2 mb-3">
               {weekdays.map(day => (
-                <div key={day} className="text-center text-xs sm:text-sm font-semibold text-gray-700 py-1 sm:py-2">
+                <div key={day} className="text-center text-sm font-bold text-gray-700 py-2 bg-gray-50 rounded-lg">
                   {day}
                 </div>
               ))}
@@ -389,7 +383,7 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
             
             {/* カレンダーグリッド */}
             {weeks.map((week, weekIndex) => (
-              <div key={`week-${weekIndex}`} className="grid grid-cols-7 gap-1 sm:gap-2 mb-1 sm:mb-2">
+              <div key={`week-${weekIndex}`} className="grid grid-cols-7 gap-2 mb-2">
                 {week.map((day, dayIndex) => {
                   if (day === null) {
                     return <div key={`week-${weekIndex}-empty-${dayIndex}`} className="aspect-square" />;
@@ -403,79 +397,75 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
                   
                   // デバッグ: 1日目のみログ出力
                   if (day === 1) {
-                    console.log('🔍 カレンダー表示デバッグ (1日目):');
-                    console.log('  dayData:', dayData);
-                    console.log('  weather:', weather);
-                    console.log('  weatherData全体:', weatherData);
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('🔍 カレンダー表示デバッグ (1日目):');
+                      console.log('  dayData:', dayData);
+                      console.log('  weather:', weather);
+                      console.log('  weatherData全体:', weatherData);
+                    }
                   }
+                  
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const cellDate = new Date(selectedYear, selectedMonth - 1, day);
+                  cellDate.setHours(0, 0, 0, 0);
+                  const isToday = cellDate.getTime() === today.getTime();
+                  const isFuture = cellDate > today;
                   
                   return (
                     <div
                       key={`week-${weekIndex}-day-${day}`}
-                      className={`aspect-square ${colorInfo.bg} rounded-md sm:rounded-lg p-2 cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative flex flex-col items-center justify-center`}
+                      className={`aspect-square ${colorInfo.bg} rounded-lg p-3 cursor-pointer hover:ring-2 hover:ring-pink-500 hover:shadow-lg transition-all group relative flex flex-col border-2 ${isToday ? 'border-blue-500 ring-2 ring-blue-300' : 'border-transparent'}`}
                       title={`${day}日: ${formatCurrency(revenue)} (${transactions}件)${weather ? `\n東京: ${weather.tokyo.text} 大阪: ${weather.osaka.text}` : ''}`}
                     >
                       {/* 日付 */}
-                      <div className={`text-sm font-bold ${colorInfo.text} mb-1`}>{day}</div>
-                      
-                      {/* 天気アイコン - 大きく表示 */}
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        {(() => {
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          const cellDate = new Date(selectedYear, selectedMonth - 1, day);
-                          cellDate.setHours(0, 0, 0, 0);
-                          const isFuture = cellDate > today;
-                          
-                          if (weather) {
-                            return (
-                              <>
-                                <span className="text-lg" title={`東京: ${weather.tokyo.text}`}>
-                                  {weather.tokyo.emoji}
-                                </span>
-                                <span className="text-lg" title={`大阪: ${weather.osaka.text}`}>
-                                  {weather.osaka.emoji}
-                                </span>
-                              </>
-                            );
-                          } else if (isFuture) {
-                            return (
-                              <>
-                                <span className="text-lg opacity-50" title="未来のデータ">⏳</span>
-                                <span className="text-lg opacity-50" title="未来のデータ">⏳</span>
-                              </>
-                            );
-                          } else {
-                            return (
-                              <>
-                                <span className="text-lg text-red-500" title="データ取得失敗">❌</span>
-                                <span className="text-lg text-red-500" title="データ取得失敗">❌</span>
-                              </>
-                            );
-                          }
-                        })()}
+                      <div className={`text-base font-bold ${colorInfo.text} mb-2 ${isToday ? 'text-blue-700' : ''}`}>
+                        {day}
+                        {isToday && <span className="ml-1 text-xs">今日</span>}
                       </div>
                       
+                      {/* 天気アイコン - 大きく表示 */}
+                      {weather && (
+                        <div className="flex items-center justify-center gap-1.5 mb-2">
+                          <span className="text-xl" title={`東京: ${weather.tokyo.text}`}>
+                            {weather.tokyo.emoji}
+                          </span>
+                          <span className="text-xl" title={`大阪: ${weather.osaka.text}`}>
+                            {weather.osaka.emoji}
+                          </span>
+                        </div>
+                      )}
+                      
                       {/* 売上・件数 */}
-                      {transactions > 0 && (
-                        <div className={`text-xs ${colorInfo.text} text-center leading-tight`}>
-                          <div className="font-bold">{formatCurrency(revenue)}</div>
-                          <div className="text-[10px]">{transactions}件</div>
+                      {transactions > 0 ? (
+                        <div className={`text-xs ${colorInfo.text} text-center leading-tight mt-auto`}>
+                          <div className="font-bold text-sm">{formatCurrency(revenue)}</div>
+                          <div className="text-[11px] mt-0.5">{transactions}件</div>
+                        </div>
+                      ) : (
+                        <div className={`text-xs ${colorInfo.text} text-center mt-auto opacity-50`}>
+                          取引なし
                         </div>
                       )}
                       
                       {/* ホバー時の詳細 */}
                       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                        <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap shadow-xl">
+                        <div className="bg-gray-900 text-white text-sm rounded-lg py-2 px-4 whitespace-nowrap shadow-xl">
                           <div className="font-bold mb-1">{selectedYear}年{selectedMonth}月{day}日</div>
                           {weather && (
-                            <div className="mb-1 pb-1 border-b border-gray-700">
-                              <div>東京: {weather.tokyo.emoji} {weather.tokyo.text}</div>
-                              <div>大阪: {weather.osaka.emoji} {weather.osaka.text}</div>
+                            <div className="mb-2 pb-2 border-b border-gray-700">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">{weather.tokyo.emoji}</span>
+                                <span>東京: {weather.tokyo.text}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-lg">{weather.osaka.emoji}</span>
+                                <span>大阪: {weather.osaka.text}</span>
+                              </div>
                             </div>
                           )}
-                          <div>売上: {formatCurrency(revenue)}</div>
-                          <div>件数: {transactions}件</div>
+                          <div className="font-semibold">売上: {formatCurrency(revenue)}</div>
+                          <div className="font-semibold">件数: {transactions}件</div>
                         </div>
                       </div>
                     </div>
@@ -487,32 +477,32 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
         </div>
         
         {/* 色の凡例 */}
-        <div className="mt-6 bg-gray-50 rounded-lg p-4">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3 text-center">色の凡例</h4>
-          <div className="flex items-center justify-center space-x-6 text-xs">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-gray-50 border border-gray-300 rounded"></div>
-              <span className="text-gray-600">売上なし</span>
+        <div className="mt-6 bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <h4 className="text-sm font-bold text-gray-900 mb-4 text-center">色の凡例</h4>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
+            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-200">
+              <div className="w-5 h-5 bg-gray-50 border-2 border-gray-300 rounded"></div>
+              <span className="text-gray-700 font-medium">売上なし</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-pink-100 border border-gray-300 rounded"></div>
-              <span className="text-gray-600">低</span>
+            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-200">
+              <div className="w-5 h-5 bg-pink-100 border-2 border-pink-200 rounded"></div>
+              <span className="text-gray-700 font-medium">低</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-pink-200 border border-gray-300 rounded"></div>
-              <span className="text-gray-600">中低</span>
+            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-200">
+              <div className="w-5 h-5 bg-pink-200 border-2 border-pink-300 rounded"></div>
+              <span className="text-gray-700 font-medium">中低</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-pink-300 border border-gray-300 rounded"></div>
-              <span className="text-gray-600">中</span>
+            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-200">
+              <div className="w-5 h-5 bg-pink-300 border-2 border-pink-400 rounded"></div>
+              <span className="text-gray-700 font-medium">中</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-pink-400 border border-gray-300 rounded"></div>
-              <span className="text-gray-600">高</span>
+            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-200">
+              <div className="w-5 h-5 bg-pink-400 border-2 border-pink-500 rounded"></div>
+              <span className="text-gray-700 font-medium">高</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-pink-500 border border-gray-300 rounded"></div>
-              <span className="text-gray-600">最高</span>
+            <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-gray-200">
+              <div className="w-5 h-5 bg-pink-600 border-2 border-pink-700 rounded"></div>
+              <span className="text-gray-700 font-medium">最高</span>
             </div>
           </div>
         </div>
@@ -520,30 +510,32 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
 
       {/* 時間帯別購入分析 */}
       <div className="bg-white border border-pink-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-          <Clock className="w-5 h-5 text-pink-600" />
-          <span>時間帯別購入分析</span>
-        </h3>
-        
-        <div className="grid grid-cols-6 sm:grid-cols-12 gap-2">
+        <div className="grid grid-cols-6 sm:grid-cols-12 gap-3">
           {hourlyData.map(({ hour, revenue, transactions }) => {
             const colorInfo = getColorIntensity(revenue, maxHourRevenue);
             
             return (
               <div
                 key={hour}
-                className={`${colorInfo.bg} rounded-lg p-3 text-center cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative`}
+                className={`${colorInfo.bg} ${colorInfo.border} border-2 rounded-lg p-4 text-center cursor-pointer hover:ring-2 hover:ring-pink-500 hover:shadow-lg transition-all group relative`}
                 title={`${hour}時: ${formatCurrency(revenue)} (${transactions}件)`}
               >
-                <div className={`text-xs font-bold ${colorInfo.text}`}>{hour}時</div>
-                <div className={`text-xs ${colorInfo.text} mt-1`}>{transactions}件</div>
+                <div className={`text-sm font-bold ${colorInfo.text} mb-1`}>{hour}時</div>
+                {transactions > 0 ? (
+                  <>
+                    <div className={`text-xs font-semibold ${colorInfo.text} mb-1`}>{formatCurrency(revenue)}</div>
+                    <div className={`text-xs ${colorInfo.text}`}>{transactions}件</div>
+                  </>
+                ) : (
+                  <div className={`text-xs ${colorInfo.text} opacity-50`}>取引なし</div>
+                )}
                 
                 {/* ホバー時の詳細 */}
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                  <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap">
-                    <div className="font-bold">{hour}:00 - {hour}:59</div>
-                    <div>売上: {formatCurrency(revenue)}</div>
-                    <div>件数: {transactions}件</div>
+                  <div className="bg-gray-900 text-white text-sm rounded-lg py-2 px-4 whitespace-nowrap shadow-xl">
+                    <div className="font-bold mb-1">{hour}:00 - {hour}:59</div>
+                    <div className="font-semibold">売上: {formatCurrency(revenue)}</div>
+                    <div className="font-semibold">件数: {transactions}件</div>
                   </div>
                 </div>
               </div>
@@ -554,11 +546,6 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
 
       {/* 曜日×時間帯ヒートマップ */}
       <div className="bg-white border border-pink-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-          <TrendingUp className="w-5 h-5 text-pink-600" />
-          <span>曜日×時間帯ヒートマップ</span>
-        </h3>
-        
         <div className="overflow-x-auto">
           <div className="min-w-full">
             {/* 時間ヘッダー */}
@@ -590,15 +577,15 @@ export default function CalendarAnalysis({ allData, modelData, models }: Calenda
                     return (
                       <div
                         key={`weekday-${weekdayIndex}-hour-${hour}`}
-                        className={`${colorInfo.bg} aspect-square rounded cursor-pointer hover:ring-2 hover:ring-pink-500 transition-all group relative`}
+                        className={`${colorInfo.bg} ${colorInfo.border} border aspect-square rounded-lg cursor-pointer hover:ring-2 hover:ring-pink-500 hover:shadow-lg transition-all group relative`}
                         title={`${weekday} ${hour}時: ${formatCurrency(data.revenue)} (${data.transactions}件)`}
                       >
                         {/* ホバー時の詳細 - 日曜日は下に、それ以外は上に表示 */}
                         <div className={`absolute ${weekdayIndex === 0 ? 'top-full mt-2' : 'bottom-full mb-2'} left-1/2 transform -translate-x-1/2 hidden group-hover:block z-50`}>
-                          <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap shadow-xl">
-                            <div className="font-bold">{weekday}曜日 {hour}:00</div>
-                            <div>売上: {formatCurrency(data.revenue)}</div>
-                            <div>件数: {data.transactions}件</div>
+                          <div className="bg-gray-900 text-white text-sm rounded-lg py-2 px-4 whitespace-nowrap shadow-xl">
+                            <div className="font-bold mb-1">{weekday}曜日 {hour}:00</div>
+                            <div className="font-semibold">売上: {formatCurrency(data.revenue)}</div>
+                            <div className="font-semibold">件数: {data.transactions}件</div>
                           </div>
                         </div>
                       </div>

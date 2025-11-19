@@ -201,7 +201,7 @@ export default function RevenueOptimizationSuggestions({
     }
 
     // 6. エンゲージメント強化
-    newSuggestions.push({
+      newSuggestions.push({
       id: 'engagement-boost',
       title: '💝 ファンエンゲージメント強化',
       description: '継続的なコミュニケーションでファンとの絆を深める',
@@ -217,7 +217,7 @@ export default function RevenueOptimizationSuggestions({
       businessInsight: 'エンゲージメントの高いファンは、通常のファンより3倍の金額を使い、5倍のロイヤルティを示します。一方的な発信ではなく、双方向のコミュニケーションを心がけましょう。',
       icon: <Heart className="w-6 h-6" />,
       priority: priority++
-    });
+      });
 
     // 優先度順にソート
     newSuggestions.sort((a, b) => a.priority - b.priority);
@@ -327,7 +327,7 @@ export default function RevenueOptimizationSuggestions({
         <div className="flex items-center space-x-3 mb-3">
           <Lightbulb className="w-8 h-8 text-purple-600" />
           <h3 className="text-2xl font-bold text-gray-900">AI戦略提案</h3>
-        </div>
+      </div>
         <p className="text-gray-700">
           {selectedModelName ? `${selectedModelName}の` : ''}データ分析に基づく、優先度順の改善提案です
         </p>
@@ -341,8 +341,8 @@ export default function RevenueOptimizationSuggestions({
       {/* 提案カード */}
       <div className="space-y-4">
         {suggestions.map((suggestion, index) => (
-          <div
-            key={suggestion.id}
+            <div
+              key={suggestion.id}
             className={`bg-white rounded-xl border-2 ${getCardBorderColor(suggestion.impact)} shadow-lg hover:shadow-xl transition-all duration-200`}
           >
             {/* カードヘッダー */}
@@ -350,7 +350,7 @@ export default function RevenueOptimizationSuggestions({
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-start space-x-4 flex-1">
                   <div className={`p-3 rounded-xl bg-gradient-to-br ${getCategoryColor(suggestion.category)} text-white shadow-md`}>
-                    {suggestion.icon}
+                  {suggestion.icon}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
@@ -415,8 +415,8 @@ export default function RevenueOptimizationSuggestions({
                     ))}
                   </ol>
                 </div>
-              </div>
-            )}
+        </div>
+      )}
           </div>
         ))}
       </div>

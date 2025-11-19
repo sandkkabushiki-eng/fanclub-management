@@ -70,13 +70,140 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   
-  // AI分析用のstate
-  const [aiSelectedModelId, setAiSelectedModelId] = useState<string>('all');
-  const [aiAnalysisGenerated, setAiAnalysisGenerated] = useState(false);
+  // AI分析用のstate（チャット形式）
+  const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string; modelId?: string }>>([]);
   const [isGeneratingAiAnalysis, setIsGeneratingAiAnalysis] = useState(false);
   
   // グローバルなモデル選択状態を使用
   const { selectedModelId, setSelectedModelId, models, setModels, mainModel } = useGlobalModelSelection();
+
+  // AI分析タブが開かれたときに初期メッセージを追加
+  useEffect(() => {
+    if (activeTab === 'ai' && aiMessages.length === 0) {
+      setAiMessages([{
+        role: 'assistant',
+        content: 'こんにちは！AI分析アシスタントです。どのモデルのデータを分析しますか？'
+      }]);
+    }
+  }, [activeTab]);
+
+  // モデル分析を実行する関数
+  const handleModelAnalysis = useCallback(async (modelId: string) => {
+    setIsGeneratingAiAnalysis(true);
+    
+    try {
+      // 選択されたモデルのデータを取得
+      const allData = Object.entries(modelData).flatMap(([key, item]) => {
+        if (modelId !== 'all') {
+          // 特定のモデルのデータのみ
+          if (!key.startsWith(`${modelId}_`)) {
+            return [];
+          }
+        }
+        
+        if (Array.isArray(item)) return item;
+        if (typeof item === 'object' && item !== null && 'data' in item) {
+          const monthData = item as { data: FanClubRevenueData[] };
+          return Array.isArray(monthData.data) ? monthData.data : [];
+        }
+        return [];
+      }) as FanClubRevenueData[];
+
+      if (allData.length === 0) {
+        setAiMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '⚠️ 選択されたモデルのデータが見つかりませんでした。CSVデータをアップロードしてください。'
+        }]);
+        setIsGeneratingAiAnalysis(false);
+        return;
+      }
+
+      // 分析データを取得
+      const analysis = analyzeFanClubRevenue(allData);
+      const selectedModelName = modelId !== 'all' 
+        ? models.find(m => m.id === modelId)?.displayName 
+        : 'すべてのモデル';
+
+      // 分析結果を生成
+      let analysisResult = `📊 **${selectedModelName}の分析結果**\n\n`;
+      
+      analysisResult += `## 📈 基本統計\n`;
+      analysisResult += `- **総売上**: ${formatCurrency(analysis.totalRevenue)}\n`;
+      analysisResult += `- **総顧客数**: ${analysis.totalCustomers}人\n`;
+      analysisResult += `- **平均購入額**: ${formatCurrency(analysis.averageTransactionValue)}\n`;
+      analysisResult += `- **リピート率**: ${analysis.repeatRate.toFixed(1)}%\n`;
+      analysisResult += `- **総取引数**: ${analysis.totalTransactions}件\n\n`;
+
+      analysisResult += `## 💡 戦略的アドバイス\n\n`;
+
+      // リピート率に基づくアドバイス
+      if (analysis.repeatRate < 70) {
+        analysisResult += `### 🚨 優先度: 最高\n`;
+        analysisResult += `**リピート率の大幅改善が必要です**\n\n`;
+        analysisResult += `現在のリピート率${analysis.repeatRate.toFixed(1)}%は業界平均を大きく下回っています。以下の施策を実施してください：\n\n`;
+        analysisResult += `1. **初回購入後24時間以内にパーソナライズされたフォローアップメッセージを送信**\n`;
+        analysisResult += `2. **2回目購入者限定の特別割引（15-20%OFF）を提供**\n`;
+        analysisResult += `3. **購入回数に応じたロイヤリティポイントプログラムを導入**\n`;
+        analysisResult += `4. **月次で限定コンテンツやライブ配信を実施して継続的なエンゲージメントを維持**\n\n`;
+        analysisResult += `**期待される効果**: 売上20-35%向上が期待できます。\n\n`;
+      } else if (analysis.repeatRate < 85) {
+        analysisResult += `### ⚡ 優先度: 高\n`;
+        analysisResult += `**リピート率をさらに向上させましょう**\n\n`;
+        analysisResult += `現在のリピート率${analysis.repeatRate.toFixed(1)}%は良好ですが、さらに向上させることで顧客生涯価値を最大化できます。\n\n`;
+        analysisResult += `1. **リピーター限定の特典やボーナスコンテンツを提供**\n`;
+        analysisResult += `2. **定期的なコミュニケーション（メール、SNS）を強化**\n`;
+        analysisResult += `3. **会員ランク制度を導入して継続的なインセンティブを提供**\n\n`;
+        analysisResult += `**期待される効果**: 売上15-25%向上が期待できます。\n\n`;
+      } else {
+        analysisResult += `### ✅ 優先度: 中\n`;
+        analysisResult += `**リピート率は優秀です！**\n\n`;
+        analysisResult += `現在のリピート率${analysis.repeatRate.toFixed(1)}%は業界平均を上回っています。既存顧客の維持に加えて、新規顧客獲得にも注力しましょう。\n\n`;
+      }
+
+      // 平均購入額に基づくアドバイス
+      if (analysis.averageTransactionValue < 5000) {
+        analysisResult += `### 💰 平均購入額の向上\n\n`;
+        analysisResult += `現在の平均購入額${formatCurrency(analysis.averageTransactionValue)}を向上させる施策：\n\n`;
+        analysisResult += `1. **バンドル商品やセット商品の提案**\n`;
+        analysisResult += `2. **アップセル・クロスセルの強化**\n`;
+        analysisResult += `3. **限定商品やプレミアム商品の導入**\n\n`;
+      }
+
+      // 顧客数に基づくアドバイス
+      if (analysis.totalCustomers < 100) {
+        analysisResult += `### 👥 顧客基盤の拡大\n\n`;
+        analysisResult += `現在の顧客数${analysis.totalCustomers}人を増やす施策：\n\n`;
+        analysisResult += `1. **SNSマーケティングの強化**\n`;
+        analysisResult += `2. **インフルエンサーとのコラボレーション**\n`;
+        analysisResult += `3. **紹介プログラムの導入**\n`;
+        analysisResult += `4. **無料トライアルや体験版の提供**\n\n`;
+      }
+
+      analysisResult += `## 🎯 次のステップ\n\n`;
+      analysisResult += `1. 上記の施策を優先順位順に実施してください\n`;
+      analysisResult += `2. 各施策の効果を定期的に測定し、改善を続けましょう\n`;
+      analysisResult += `3. 顧客フィードバックを収集し、サービスを継続的に改善してください\n\n`;
+      analysisResult += `何か他に知りたいことがあれば、お気軽にお聞きください！`;
+
+      // 少し遅延を入れて自然な感じにする
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setAiMessages(prev => [...prev, {
+        role: 'assistant',
+        content: analysisResult
+      }]);
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('AI分析エラー:', error);
+      }
+      setAiMessages(prev => [...prev, {
+        role: 'assistant',
+        content: '⚠️ 分析中にエラーが発生しました。もう一度お試しください。'
+      }]);
+    } finally {
+      setIsGeneratingAiAnalysis(false);
+    }
+  }, [modelData, models]);
 
   // グローバル状態の初期化を確認
   useEffect(() => {
@@ -752,48 +879,30 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
     return allData;
   };
 
-  // 🔥 useMemoで統計を計算（modelDataまたはselectedModelIdが変更されたら自動再計算）
+  // 🔥 useMemoで統計を計算（全モデルのデータを使用）
   const stats = useMemo(() => {
-    console.log('📊 統計再計算トリガー:', { 
-      modelDataKeys: Object.keys(modelData).length, 
-      selectedModelId,
-      customerViewMode,
-      selectedYear,
-      selectedMonth
-    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📊 統計再計算トリガー（全モデル）:', { 
+        modelDataKeys: Object.keys(modelData).length, 
+        customerViewMode,
+        selectedYear,
+        selectedMonth
+      });
+    }
     
-    // ファン管理の表示モードに応じてデータをフィルタリング
+    // 全モデルのデータを取得（selectedModelIdによるフィルタリングなし）
     let filteredData: FanClubRevenueData[] = [];
     
     if (customerViewMode === 'monthly') {
-      // 月別データモード: 選択された年月のデータのみ
+      // 月別データモード: 選択された年月の全モデルのデータ
       filteredData = Object.entries(modelData).flatMap(([key, item]) => {
         const keyParts = key.split('_');
         if (keyParts.length >= 3) {
-          const keyModelId = keyParts[0];
           const keyYear = parseInt(keyParts[1]);
           const keyMonth = parseInt(keyParts[2]);
           
-          // 年月が一致し、かつモデルが選択されていない or モデルIDが一致する場合
+          // 年月が一致する全モデルのデータを取得
           if (keyYear === selectedYear && keyMonth === selectedMonth) {
-            if (!selectedModelId || keyModelId === selectedModelId) {
-              if (typeof item === 'object' && item !== null && 'data' in item) {
-                const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
-                  ? (item as { data: FanClubRevenueData[] }).data 
-                  : [];
-                return data;
-              }
-            }
-          }
-      }
-      return [];
-    }) as FanClubRevenueData[];
-    } else {
-      // 全体データモード: 選択されたモデルの全データ
-      filteredData = Object.entries(modelData).flatMap(([key, item]) => {
-        if (selectedModelId) {
-          // モデルが選択されている場合、そのモデルのデータのみ
-          if (key.startsWith(`${selectedModelId}_`)) {
             if (typeof item === 'object' && item !== null && 'data' in item) {
               const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
                 ? (item as { data: FanClubRevenueData[] }).data 
@@ -801,30 +910,33 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
               return data;
             }
           }
-          return [];
-        } else {
-          // モデルが選択されていない場合、全データ
-          if (typeof item === 'object' && item !== null && 'data' in item) {
-            const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
-              ? (item as { data: FanClubRevenueData[] }).data 
-              : [];
-            return data;
-          }
-          return [];
         }
+        return [];
+      }) as FanClubRevenueData[];
+    } else {
+      // 全体データモード: 全モデルの全データ
+      filteredData = Object.entries(modelData).flatMap(([key, item]) => {
+        // 全モデルのデータを取得（selectedModelIdによるフィルタリングなし）
+        if (typeof item === 'object' && item !== null && 'data' in item) {
+          const data = Array.isArray((item as { data: FanClubRevenueData[] }).data) 
+            ? (item as { data: FanClubRevenueData[] }).data 
+            : [];
+          return data;
+        }
+        return [];
       }) as FanClubRevenueData[];
     }
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('📊 フィルタリング後のデータ数:', filteredData.length);
+      console.log('📊 フィルタリング後のデータ数（全モデル）:', filteredData.length);
     }
     
-    // 統計を計算
+    // 統計を計算（全モデル）
     const totalRevenue = filteredData.reduce((sum, item) => sum + (Number(item.金額) || 0), 0);
     const totalCustomers = new Set(filteredData.map(item => item.購入者 || item.顧客名)).size;
     const averageTransactionValue = filteredData.length > 0 ? totalRevenue / filteredData.length : 0;
     
-    // リピート率の計算
+    // リピート率の計算（全モデル）
     const customerPurchaseCounts = new Map<string, number>();
     filteredData.forEach(item => {
       const customer = item.購入者 || item.顧客名 || '不明';
@@ -842,10 +954,10 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
     };
     
     if (process.env.NODE_ENV === 'development') {
-      console.log('📊 計算された統計:', calculatedStats);
+      console.log('📊 計算された統計（全モデル）:', calculatedStats);
     }
     return calculatedStats;
-  }, [modelData, selectedModelId, customerViewMode, selectedYear, selectedMonth]);
+  }, [modelData, customerViewMode, selectedYear, selectedMonth]);
   
   if (process.env.NODE_ENV === 'development') {
     console.log('📊 modelData詳細:', JSON.stringify(modelData, null, 2));
@@ -967,51 +1079,55 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       {/* Sidebar */}
       <div className={`
         ${sidebarCollapsed ? 'w-16' : 'w-64'} 
-        bg-pink-400 transition-all duration-300 flex flex-col
+        bg-white transition-all duration-300 flex flex-col shadow-sm
         fixed lg:relative inset-y-0 left-0 z-50
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="p-6">
+        <div className="p-5 border-b border-gray-100">
           <div className="flex items-center justify-between">
             {!sidebarCollapsed && (
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
                 <img 
                   src="/logo.png" 
                   alt="ファンリピ" 
-                  className="w-8 h-8 object-contain"
+                  className="w-7 h-7 object-contain"
                   onError={(e) => {
-                    console.log('ロゴ読み込みエラー:', e);
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('ロゴ読み込みエラー:', e);
+                    }
                     e.currentTarget.style.display = 'none';
                   }}
-                  onLoad={() => console.log('ロゴ読み込み成功')}
+                  onLoad={() => {
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('ロゴ読み込み成功');
+                    }
+                  }}
                 />
-                <div className="flex flex-col">
-                  <span className="text-lg font-bold bg-gradient-to-r from-pink-200 to-yellow-200 bg-clip-text text-transparent leading-tight">
-                    ファンリピ
-                  </span>
-                </div>
+                <span className="text-base font-bold text-pink-600">
+                  ファンリピ
+                </span>
               </div>
             )}
             <div className="flex items-center space-x-2">
               {/* Mobile close button */}
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-white hover:bg-pink-700 p-2 rounded-lg transition-colors lg:hidden"
+                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors lg:hidden"
               >
                 <X className="w-5 h-5" />
               </button>
               {/* Desktop collapse button */}
               <button
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="text-white hover:bg-pink-700 p-2 rounded-lg transition-colors hidden lg:block"
+                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors hidden lg:block"
               >
-                <ChevronRight className={`w-5 h-5 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
+                <ChevronRight className={`w-4 h-4 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
               </button>
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 px-4">
+        <nav className="flex-1 px-3 py-4">
           {sidebarItems.map((item, index) => (
             <button
               key={index}
@@ -1026,14 +1142,14 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                 // モバイルメニューを閉じる
                 setMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center px-4 py-3 mb-2 rounded-lg transition-colors ${
+              className={`w-full flex items-center px-4 py-3 mb-1 rounded-xl transition-all duration-200 ${
                 item.active
-                  ? 'bg-pink-700 text-white'
-                  : 'text-pink-100 hover:bg-pink-700 hover:text-white'
+                  ? 'bg-pink-600 text-white shadow-md'
+                  : 'text-gray-900 hover:bg-pink-50 hover:text-pink-600'
               }`}
             >
-              <item.icon className="w-5 h-5 mr-3" />
-              {!sidebarCollapsed && <span className="font-bold text-base">{item.label}</span>}
+              <item.icon className={`w-5 h-5 mr-3 flex-shrink-0 ${item.active ? 'text-white' : 'text-gray-900'}`} />
+              {!sidebarCollapsed && <span className={`text-sm ${item.active ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>}
             </button>
           ))}
         </nav>
@@ -1041,32 +1157,39 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
 
         {/* User Info - Simplified */}
         {!sidebarCollapsed && (
-          <div className="p-3 border-t border-gray-600">
+          <div className="p-4 border-t border-gray-100 bg-gray-50">
             {/* ユーザー名のみ表示 */}
-            <div className="mb-3">
-              <p className="text-gray-200 text-sm font-medium truncate" title={authSession.user.name}>
+            <div className="mb-4">
+              <p className="text-xs text-gray-500 mb-1">ログイン中</p>
+              <p className="text-sm font-semibold text-gray-900 truncate" title={authSession.user.name}>
                 {authSession.user.name}
               </p>
             </div>
             
-            {/* シンプルなボタン */}
-            <div className="flex space-x-1">
+            {/* 設定・ログアウトボタン */}
+            <div className="space-y-2">
               <button
                 onClick={() => {
                   setActiveTab('settings');
                   setMobileMenuOpen(false);
                 }}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 px-2 py-1.5 rounded text-xs transition-colors"
+                className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
+                  activeTab === 'settings'
+                    ? 'bg-pink-600 text-white shadow-md'
+                    : 'bg-white text-gray-900 hover:bg-pink-50 hover:text-pink-600 border border-gray-200'
+                }`}
                 title="設定"
               >
-                設定
+                <SettingsIcon className={`h-4 w-4 flex-shrink-0 ${activeTab === 'settings' ? 'text-white' : 'text-gray-900'}`} />
+                <span className={`text-sm ${activeTab === 'settings' ? 'font-semibold' : 'font-medium'}`}>設定</span>
               </button>
               <button
                 onClick={handleLogout}
-                className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 px-2 py-1.5 rounded text-xs transition-colors"
+                className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl bg-white text-gray-900 hover:bg-gray-100 transition-all duration-200 border border-gray-200"
                 title="ログアウト"
               >
-                ログアウト
+                <LogOut className="h-4 w-4 flex-shrink-0 text-gray-900" />
+                <span className="text-sm font-medium">ログアウト</span>
               </button>
             </div>
           </div>
@@ -1247,16 +1370,14 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
           {activeTab === 'models' ? (
             <div className="space-y-6">
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">モデル管理</h3>
                 <ModelManagement />
               </div>
               
               {/* CSVデータ編集セクション - 常時表示 */}
               <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">データ管理</h3>
                 <ModelDataManagement />
-                </div>
-                            </div>
+              </div>
+            </div>
           ) : null}
           {activeTab === 'csv' ? (
             <div className="space-y-4 lg:space-y-6">
@@ -1270,9 +1391,8 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
             <div className="space-y-6">
               <div className="bg-white rounded-lg p-6 border border-gray-200">
                 <div className="mb-4">
-                  <h1 className="text-2xl font-semibold text-gray-900 mb-2">ファン管理</h1>
-                  <p className="text-gray-600">リピーターファンの詳細分析</p>
-                  <div className="mt-2 text-sm text-gray-500">
+                  <p className="text-gray-600 mb-2">リピーターファンの詳細分析</p>
+                  <div className="text-sm text-gray-500">
                     モデル数: {models.length} | 選択中: {selectedModelId || 'なし'}
                     {models.length > 0 && (
                       <div className="text-xs text-gray-400 mt-1">
@@ -1557,10 +1677,6 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
           ) : null}
           {activeTab === 'calendar' ? (
             <div className="space-y-4 lg:space-y-6">
-              <div className="bg-white rounded-lg p-4 lg:p-6 border border-gray-200">
-                <h1 className="text-xl lg:text-2xl font-semibold text-gray-900 mb-2">カレンダー分析</h1>
-                <p className="text-sm lg:text-base text-gray-600">購入パターンの時間的・季節的分析</p>
-              </div>
               <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
                 <CalendarAnalysis 
               allData={(() => {
@@ -1653,214 +1769,205 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
             </div>
           ) : null}
           {activeTab === 'ai' ? (
-            <div className="space-y-4 lg:space-y-6">
+            <div className="flex flex-col h-full">
               {/* ヘッダー */}
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg p-6 text-white">
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg p-4 lg:p-6 text-white mb-4">
                 <div className="flex items-center space-x-3 mb-2">
-                  <Sparkles className="w-10 h-10" />
-                  <h1 className="text-2xl lg:text-3xl font-bold">AI分析</h1>
+                  <Sparkles className="w-8 h-8 lg:w-10 lg:h-10" />
+                  <h1 className="text-xl lg:text-2xl font-bold">AI分析チャット</h1>
                 </div>
-                <p className="text-purple-100">AIがあなたのビジネスを分析し、収益最大化のための戦略的アドバイスを提供します</p>
+                <p className="text-purple-100 text-sm lg:text-base">AIがあなたのビジネスを分析し、収益最大化のための戦略的アドバイスを提供します</p>
               </div>
               
-              {/* 分析設定 */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">分析設定</h3>
-                <div className="flex flex-col lg:flex-row gap-4 items-end">
-                  {/* モデル選択 */}
-                  <div className="flex-1 w-full">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      分析対象モデル
-                    </label>
-                    <select
-                      value={aiSelectedModelId}
-                      onChange={(e) => setAiSelectedModelId(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white text-gray-900"
+              {/* チャットエリア */}
+              <div className="flex-1 bg-white rounded-lg border border-gray-200 flex flex-col overflow-hidden">
+                {/* メッセージ表示エリア */}
+                <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4">
+                  {aiMessages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      <option value="all">すべてのモデル</option>
-                      {models.length > 0 ? (
-                        models.map(model => (
-                          <option key={model.id} value={model.id}>
-                            {model.isMainModel ? '⭐ ' : ''}{model.displayName}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="" disabled>モデルが見つかりません</option>
-                      )}
-                    </select>
-                  </div>
-                  
-                  {/* 分析生成ボタン */}
-                  <button
-                    onClick={() => {
-                      setIsGeneratingAiAnalysis(true);
-                      // アニメーション効果
-                      setTimeout(() => {
-                        setAiAnalysisGenerated(true);
-                        setIsGeneratingAiAnalysis(false);
-                      }, 1500);
-                    }}
-                    disabled={isGeneratingAiAnalysis}
-                    className={`px-8 py-3 rounded-lg font-semibold text-white transition-all duration-200 flex items-center space-x-2 ${
-                      isGeneratingAiAnalysis
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shadow-lg hover:shadow-xl'
-                    }`}
-                  >
-                    {isGeneratingAiAnalysis ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>分析中...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-5 h-5" />
-                        <span>AI分析を生成</span>
-                      </>
-                    )}
-                  </button>
+                      <div
+                        className={`max-w-[85%] lg:max-w-[70%] rounded-lg p-4 ${
+                          message.role === 'user'
+                            ? 'bg-pink-500 text-white'
+                            : 'bg-gray-100 text-gray-900'
+                        }`}
+                      >
+                        {message.role === 'assistant' && index === 0 && (
+                          <div className="mb-3">
+                            <p className="text-sm font-medium mb-3">以下のモデルから選択してください：</p>
+                            <div className="space-y-2">
+                              <button
+                                onClick={() => {
+                                  const userMessage = { role: 'user' as const, content: 'すべてのモデルを分析してください', modelId: 'all' };
+                                  setAiMessages(prev => [...prev, userMessage]);
+                                  handleModelAnalysis('all');
+                                }}
+                                className="w-full text-left px-4 py-2 bg-white border-2 border-pink-300 rounded-lg hover:bg-pink-50 hover:border-pink-500 transition-colors text-sm font-medium text-gray-900"
+                              >
+                                📊 すべてのモデル
+                              </button>
+                              {models.map(model => (
+                                <button
+                                  key={model.id}
+                                  onClick={() => {
+                                    const userMessage = { role: 'user' as const, content: `${model.displayName}を分析してください`, modelId: model.id };
+                                    setAiMessages(prev => [...prev, userMessage]);
+                                    handleModelAnalysis(model.id);
+                                  }}
+                                  className="w-full text-left px-4 py-2 bg-white border-2 border-pink-300 rounded-lg hover:bg-pink-50 hover:border-pink-500 transition-colors text-sm font-medium text-gray-900"
+                                >
+                                  {model.isMainModel ? '⭐ ' : ''}{model.displayName}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {message.role === 'assistant' && index > 0 && (
+                          <div className="prose prose-sm max-w-none">
+                            <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                              {message.content.split('\n').map((line, lineIndex) => {
+                                // 見出しの処理
+                                if (line.startsWith('## ')) {
+                                  return <h2 key={lineIndex} className="text-lg font-bold mt-4 mb-2 text-gray-900">{line.replace('## ', '')}</h2>;
+                                }
+                                if (line.startsWith('### ')) {
+                                  return <h3 key={lineIndex} className="text-base font-semibold mt-3 mb-2 text-gray-800">{line.replace('### ', '')}</h3>;
+                                }
+                                // 太字の処理
+                                if (line.includes('**')) {
+                                  const parts = line.split(/(\*\*.*?\*\*)/g);
+                                  return (
+                                    <p key={lineIndex} className="mb-2">
+                                      {parts.map((part, partIndex) => {
+                                        if (part.startsWith('**') && part.endsWith('**')) {
+                                          return <strong key={partIndex} className="font-semibold">{part.slice(2, -2)}</strong>;
+                                        }
+                                        return <span key={partIndex}>{part}</span>;
+                                      })}
+                                    </p>
+                                  );
+                                }
+                                // リストアイテムの処理
+                                if (line.trim().startsWith('- ')) {
+                                  return <li key={lineIndex} className="ml-4 mb-1">{line.replace('- ', '')}</li>;
+                                }
+                                const numberedListMatch = line.trim().match(/^\d+\.\s/);
+                                if (numberedListMatch) {
+                                  return <li key={lineIndex} className="ml-4 mb-1 list-decimal">{line.replace(/^\d+\.\s*/, '')}</li>;
+                                }
+                                // 空行
+                                if (line.trim() === '') {
+                                  return <br key={lineIndex} />;
+                                }
+                                // 通常のテキスト
+                                return <p key={lineIndex} className="mb-2">{line}</p>;
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        {message.role === 'user' && (
+                          <p className="text-sm font-medium">{message.content}</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  
-              {/* 分析結果 */}
-              {aiAnalysisGenerated ? (
-                <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
-                  {(() => {
-                    // 選択されたモデルのデータを取得
-                    const allData = Object.entries(modelData).flatMap(([key, item]) => {
-                      if (aiSelectedModelId !== 'all') {
-                        // 特定のモデルのデータのみ
-                        if (!key.startsWith(`${aiSelectedModelId}_`)) {
-                          return [];
-                        }
-                      }
-                      
-                      if (Array.isArray(item)) return item;
-                      if (typeof item === 'object' && item !== null && 'data' in item) {
-                        const monthData = item as { data: FanClubRevenueData[] };
-                        return Array.isArray(monthData.data) ? monthData.data : [];
-                      }
-                      return [];
-                    }) as FanClubRevenueData[];
-                    
-                    // 分析データを取得
-                    const analysis = analyzeFanClubRevenue(allData);
-                    
-                    return (
-                      <RevenueOptimizationSuggestions
-                        analysis={analysis}
-                        modelData={allData}
-                        selectedModelName={aiSelectedModelId && aiSelectedModelId !== 'all' 
-                          ? models.find(m => m.id === aiSelectedModelId)?.displayName 
-                          : undefined}
-                      />
-                    );
-                  })()}
+                  ))}
+                  {isGeneratingAiAnalysis && (
+                    <div className="flex justify-start">
+                      <div className="bg-gray-100 rounded-lg p-4">
+                        <div className="flex items-center space-x-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-500"></div>
+                          <span className="text-sm text-gray-600">分析中...</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border-2 border-dashed border-purple-300 p-12 text-center">
-                  <Sparkles className="w-16 h-16 text-purple-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">AI分析を開始してください</h3>
-                  <p className="text-gray-600 mb-4">
-                    分析対象のモデルを選択し、「AI分析を生成」ボタンをクリックしてください
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    AIがあなたのデータを分析し、優先度の高い改善提案を提示します
-                  </p>
-                </div>
-              )}
+              </div>
             </div>
           ) : null}
           {activeTab === 'settings' ? (
             <div className="space-y-4 lg:space-y-6">
               {/* アカウント情報カード */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-pink-500 to-pink-600 px-6 py-4">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                      <User className="h-5 w-5 text-white" />
-                    </div>
-                  <div>
-                      <h3 className="text-xl font-semibold text-white">アカウント情報</h3>
-                      <p className="text-sm text-pink-100">ログイン中のアカウント情報</p>
-                    </div>
+                    <User className="h-5 w-5 text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">アカウント情報</h3>
                   </div>
                 </div>
                 <div className="p-6 space-y-4">
-                  <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <User className="h-6 w-6 text-pink-600" />
+                  <div className="flex items-start space-x-4 py-3 border-b border-gray-100 last:border-0">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <User className="h-5 w-5 text-gray-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-500 mb-1">名前</p>
-                      <p className="text-base font-semibold text-gray-900 truncate">
+                      <p className="text-sm text-gray-500 mb-1">名前</p>
+                      <p className="text-base font-medium text-gray-900 truncate">
                         {authSession.user.name || '未設定'}
                       </p>
                     </div>
                   </div>
                   
-                  <div className="flex items-start space-x-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="flex items-start space-x-4 py-3 border-b border-gray-100 last:border-0">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-500 mb-1">メールアドレス</p>
-                      <p className="text-base font-semibold text-gray-900 truncate">
+                      <p className="text-sm text-gray-500 mb-1">メールアドレス</p>
+                      <p className="text-base font-medium text-gray-900 truncate">
                         {authSession.user.email}
                       </p>
                     </div>
                   </div>
                   
                   {authSession.user.createdAt && (
-                    <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Calendar className="h-6 w-6 text-green-600" />
-                </div>
+                    <div className="flex items-start space-x-4 py-3">
+                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Calendar className="h-5 w-5 text-gray-600" />
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-500 mb-1">アカウント作成日</p>
-                        <p className="text-base font-semibold text-gray-900">
+                        <p className="text-sm text-gray-500 mb-1">アカウント作成日</p>
+                        <p className="text-base font-medium text-gray-900">
                           {new Date(authSession.user.createdAt).toLocaleDateString('ja-JP', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric'
                           })}
                         </p>
-              </div>
-            </div>
-          )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* アプリケーション情報カード */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                      <Info className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-semibold text-white">アプリケーション情報</h3>
-                      <p className="text-sm text-blue-100">システム情報とバージョン</p>
-                    </div>
+                    <Info className="h-5 w-5 text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">アプリケーション情報</h3>
                   </div>
                 </div>
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-3">
                   <div className="flex items-center justify-between py-3 border-b border-gray-100">
                     <div className="flex items-center space-x-3">
                       <SettingsIcon className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-600">バージョン</span>
+                      <span className="text-sm text-gray-600">バージョン</span>
                     </div>
-                    <span className="text-sm font-semibold text-gray-900">1.0.0</span>
+                    <span className="text-sm font-medium text-gray-900">1.0.0</span>
                   </div>
                   
                   <div className="flex items-center justify-between py-3 border-b border-gray-100">
                     <div className="flex items-center space-x-3">
                       <Calendar className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-600">最終更新</span>
+                      <span className="text-sm text-gray-600">最終更新</span>
                     </div>
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm font-medium text-gray-900">
                       {new Date().toLocaleDateString('ja-JP', {
                         year: 'numeric',
                         month: 'long',
@@ -1872,9 +1979,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                   <div className="flex items-center justify-between py-3">
                     <div className="flex items-center space-x-3">
                       <Shield className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-600">セキュリティ</span>
+                      <span className="text-sm text-gray-600">セキュリティ</span>
                     </div>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                       有効
                     </span>
                   </div>
@@ -1882,24 +1989,19 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
               </div>
 
               {/* ログアウトセクション */}
-              <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                      <LogOut className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-semibold text-white">セッション管理</h3>
-                      <p className="text-sm text-red-100">アカウントからログアウトします</p>
-                    </div>
+                    <LogOut className="h-5 w-5 text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">セッション管理</h3>
                   </div>
                 </div>
-                <div className="p-6">
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                    <p className="text-sm text-red-800 mb-2">
-                      <strong>ログアウトすると：</strong>
+                <div className="p-6 space-y-4">
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-900 mb-2">
+                      ログアウトすると：
                     </p>
-                    <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+                    <ul className="text-sm text-gray-600 space-y-1.5 list-disc list-inside">
                       <li>現在のセッションが終了します</li>
                       <li>再度ログインが必要になります</li>
                       <li>保存されていない変更は失われる可能性があります</li>
@@ -1908,11 +2010,11 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                   
                   <button
                     onClick={async () => {
-                      if (confirm('ログアウトしますか？')) {
+                      if (window.confirm('ログアウトしますか？\n\n現在のセッションが終了し、再度ログインが必要になります。')) {
                         await onLogout();
                       }
                     }}
-                    className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md"
+                    className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200"
                   >
                     <LogOut className="h-5 w-5" />
                     <span>ログアウト</span>
@@ -1928,3 +2030,4 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
 };
 
 export default FanClubDashboard;
+
