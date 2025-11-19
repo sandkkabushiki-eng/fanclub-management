@@ -1149,7 +1149,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
               }`}
             >
               <item.icon className={`w-5 h-5 mr-3 flex-shrink-0 ${item.active ? 'text-white' : 'text-gray-900'}`} />
-              {!sidebarCollapsed && <span className={`text-sm ${item.active ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>}
+              {!sidebarCollapsed && <span className={`text-sm text-gray-900 ${item.active ? 'font-semibold text-white' : 'font-medium'}`}>{item.label}</span>}
             </button>
           ))}
         </nav>
