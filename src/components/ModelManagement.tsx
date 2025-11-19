@@ -322,16 +322,16 @@ export default function ModelManagement() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleEdit(model)}
-                  className="flex-1 border border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center space-x-2"
+                  className="flex-1 border border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center space-x-2"
                 >
-                  <Edit className="h-4 w-4" />
+                  <Edit className="h-4 w-4 text-gray-900" />
                   <span>編集</span>
                 </button>
                 <button
                   onClick={() => handleDelete(model.id)}
-                  className="flex-1 border border-gray-300 hover:border-red-300 hover:bg-red-50 text-gray-700 hover:text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center space-x-2"
+                  className="flex-1 border border-gray-300 hover:border-red-300 hover:bg-red-50 text-gray-900 hover:text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center justify-center space-x-2"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4 text-gray-900" />
                   <span>削除</span>
                 </button>
               </div>
