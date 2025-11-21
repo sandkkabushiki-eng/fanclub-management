@@ -9,7 +9,7 @@ interface SecureAuthProps {
   onAuthenticated: (session: AuthSession) => void;
 }
 
-type AuthMode = 'login' | 'register' | 'forgot-password' | 'admin';
+type AuthMode = 'login' | 'register' | 'forgot-password' | 'admin' | 'otp-login';
 
 export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
   const [mode, setMode] = useState<AuthMode>('login');
@@ -173,12 +173,25 @@ export default function SecureAuth({ onAuthenticated }: SecureAuthProps) {
     setError('');
 
     try {
-      // 簡易的なパスワードリセット処理
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setShowForgotSuccess(true);
-      setError('');
-    } catch {
-      setError('パスワードリセットメールの送信に失敗しました。');
+      // 入力値の検証
+      if (!forgotEmail.trim() || !forgotEmail.includes('@')) {
+        setError('有効なメールアドレスを入力してください。');
+        setIsLoading(false);
+        return;
+      }
+
+      // Supabaseのパスワードリセットメール送信
+      const result = await authManager.resetPassword(forgotEmail);
+      
+      if (result.success) {
+        setShowForgotSuccess(true);
+        setError('');
+      } else {
+        setError(result.error || 'パスワードリセットメールの送信に失敗しました。');
+      }
+    } catch (error) {
+      console.error('パスワードリセットエラー:', error);
+      setError('パスワードリセットメールの送信中にエラーが発生しました。');
     } finally {
       setIsLoading(false);
     }

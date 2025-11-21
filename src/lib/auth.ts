@@ -426,6 +426,302 @@ class AuthManager {
     }
   }
 
+  // メール確認コード送信（Email OTP）
+  async sendEmailOTP(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📧 メール確認コード送信開始:', email);
+      }
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: typeof window !== 'undefined' 
+            ? `${window.location.origin}/auth/verify-otp`
+            : process.env.NEXT_PUBLIC_APP_URL 
+              ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/verify-otp`
+              : undefined,
+        }
+      });
+
+      if (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('メール確認コード送信エラー:', error);
+        }
+        return { 
+          success: false, 
+          error: error.message.includes('not found') 
+            ? 'このメールアドレスは登録されていません。'
+            : '確認コードの送信に失敗しました。'
+        };
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ メール確認コード送信成功');
+      }
+
+      return { success: true };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('メール確認コード送信エラー:', error);
+      }
+      return { 
+        success: false, 
+        error: '確認コードの送信中にエラーが発生しました。'
+      };
+    }
+  }
+
+  // メール確認コード検証（Email OTP）
+  async verifyEmailOTP(email: string, token: string): Promise<AuthSession | null> {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔐 メール確認コード検証開始:', email);
+      }
+
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email'
+      });
+
+      if (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('確認コード検証エラー:', error);
+        }
+        return null;
+      }
+
+      if (data.user && data.session) {
+        const user: User = {
+          id: data.user.id,
+          email: data.user.email!,
+          name: data.user.user_metadata?.name || 'ユーザー',
+          role: 'user' as 'admin' | 'user',
+          createdAt: data.user.created_at,
+          lastLoginAt: new Date().toISOString(),
+          isActive: true,
+          subscription: {
+            plan: 'basic' as const,
+            status: 'active' as const,
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        };
+
+        const session: AuthSession = {
+          user,
+          token: data.session.access_token,
+          expiresAt: new Date((data.session.expires_at || Date.now() / 1000 + 24 * 60 * 60) * 1000).toISOString()
+        };
+
+        this.currentUser = user;
+        this.session = session;
+        this.saveSession(session);
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ 確認コード検証成功、ログイン完了');
+        }
+
+        await this.syncUserDataFromSupabase(user.id);
+
+        return session;
+      }
+
+      return null;
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('確認コード検証エラー:', error);
+      }
+      return null;
+    }
+  }
+
+  // SMS確認コード送信（Phone OTP）
+  async sendSMSOTP(phone: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📱 SMS確認コード送信開始:', phone);
+      }
+
+      const { error } = await supabase.auth.signInWithOtp({
+        phone,
+      });
+
+      if (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('SMS確認コード送信エラー:', error);
+        }
+        return { 
+          success: false, 
+          error: '確認コードの送信に失敗しました。電話番号の形式を確認してください。'
+        };
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ SMS確認コード送信成功');
+      }
+
+      return { success: true };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('SMS確認コード送信エラー:', error);
+      }
+      return { 
+        success: false, 
+        error: '確認コードの送信中にエラーが発生しました。'
+      };
+    }
+  }
+
+  // SMS確認コード検証（Phone OTP）
+  async verifySMSOTP(phone: string, token: string): Promise<AuthSession | null> {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔐 SMS確認コード検証開始:', phone);
+      }
+
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone,
+        token,
+        type: 'sms'
+      });
+
+      if (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('確認コード検証エラー:', error);
+        }
+        return null;
+      }
+
+      if (data.user && data.session) {
+        const user: User = {
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata?.name || data.user.phone || 'ユーザー',
+          role: 'user' as 'admin' | 'user',
+          createdAt: data.user.created_at,
+          lastLoginAt: new Date().toISOString(),
+          isActive: true,
+          subscription: {
+            plan: 'basic' as const,
+            status: 'active' as const,
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        };
+
+        const session: AuthSession = {
+          user,
+          token: data.session.access_token,
+          expiresAt: new Date((data.session.expires_at || Date.now() / 1000 + 24 * 60 * 60) * 1000).toISOString()
+        };
+
+        this.currentUser = user;
+        this.session = session;
+        this.saveSession(session);
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ 確認コード検証成功、ログイン完了');
+        }
+
+        await this.syncUserDataFromSupabase(user.id);
+
+        return session;
+      }
+
+      return null;
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('確認コード検証エラー:', error);
+      }
+      return null;
+    }
+  }
+
+  // パスワードリセットメール送信
+  async resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔐 パスワードリセットメール送信開始:', email);
+      }
+
+      // リダイレクトURLを設定（パスワードリセット後のコールバック）
+      const redirectUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/auth/reset-password`
+        : process.env.NEXT_PUBLIC_APP_URL 
+          ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password`
+          : undefined;
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
+
+      if (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('パスワードリセットエラー:', error);
+        }
+        return { 
+          success: false, 
+          error: error.message.includes('not found') 
+            ? 'このメールアドレスは登録されていません。'
+            : 'パスワードリセットメールの送信に失敗しました。'
+        };
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ パスワードリセットメール送信成功');
+      }
+
+      return { success: true };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('パスワードリセットエラー:', error);
+      }
+      return { 
+        success: false, 
+        error: 'パスワードリセットメールの送信中にエラーが発生しました。'
+      };
+    }
+  }
+
+  // パスワード更新
+  async updatePassword(newPassword: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔐 パスワード更新開始');
+      }
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('パスワード更新エラー:', error);
+        }
+        return { 
+          success: false, 
+          error: error.message.includes('password') 
+            ? 'パスワードの要件を満たしていません。'
+            : 'パスワードの更新に失敗しました。'
+        };
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ パスワード更新成功');
+      }
+
+      return { success: true };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('パスワード更新エラー:', error);
+      }
+      return { 
+        success: false, 
+        error: 'パスワードの更新中にエラーが発生しました。'
+      };
+    }
+  }
+
   // ユーザー専用スキーマ作成（現在は使用していない）
   // private async createUserSchema(userId: string): Promise<void> {
   //   // この関数は現在使用していない
