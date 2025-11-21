@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import { BarChart3, TrendingUp, Users, DollarSign, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
+// 動的レンダリングを強制（cookiesを使用するため）
+export const dynamic = 'force-dynamic';
+
 // 環境変数の検証
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
