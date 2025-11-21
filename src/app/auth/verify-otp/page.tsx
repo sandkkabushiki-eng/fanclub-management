@@ -2,15 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Mail, Phone, Key, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Mail, Phone, Key, AlertCircle, ArrowLeft } from 'lucide-react';
 import { authManager } from '@/lib/auth';
-import { AuthSession } from '@/types/auth';
 
-interface VerifyOTPProps {
-  onAuthenticated?: (session: AuthSession) => void;
-}
-
-export default function VerifyOTPPage({ onAuthenticated }: VerifyOTPProps) {
+export default function VerifyOTPPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
@@ -113,12 +108,8 @@ export default function VerifyOTPPage({ onAuthenticated }: VerifyOTPProps) {
       }
 
       if (session) {
-        if (onAuthenticated) {
-          onAuthenticated(session);
-        } else {
-          // ログインページにリダイレクト
-          router.push('/app');
-        }
+        // ログインページにリダイレクト
+        router.push('/app');
       } else {
         setError('確認コードが正しくありません。もう一度お試しください。');
       }
