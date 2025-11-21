@@ -34,7 +34,8 @@ export function middleware(request: NextRequest) {
 
     // APIレート制限の追加チェック（IPベース）
     // 注意: Cloudflareを使用している場合、Cloudflareのレート制限を使用することを推奨
-    const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+    // IPアドレスはCloudflareやVercelのヘッダーから取得可能
+    // const ip = request.headers.get('x-forwarded-for') || request.headers.get('cf-connecting-ip') || 'unknown';
     
     // ここでIPベースのレート制限を実装することも可能
     // ただし、Cloudflareを使用している場合は不要
