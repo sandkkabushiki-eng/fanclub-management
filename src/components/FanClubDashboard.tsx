@@ -1074,60 +1074,63 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-white to-rose-50/30">
+      {/* Mobile Overlay */}
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
 
       {/* Sidebar */}
       <div className={`
-        ${sidebarCollapsed ? 'w-16' : 'w-64'} 
-        bg-white transition-all duration-300 flex flex-col shadow-sm
+        ${sidebarCollapsed ? 'w-20' : 'w-72'} 
+        bg-white/80 backdrop-blur-xl transition-all duration-300 flex flex-col
+        border-r border-gray-100/80
         fixed lg:relative inset-y-0 left-0 z-50
-        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${mobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="p-5 border-b border-gray-100">
+        {/* Logo Section */}
+        <div className="p-5 border-b border-gray-100/80">
           <div className="flex items-center justify-between">
             {!sidebarCollapsed && (
-              <div className="flex items-center space-x-2">
-                <img 
-                  src="/logo.png" 
-                  alt="ファンリピ" 
-                  className="w-7 h-7 object-contain"
-                  onError={(e) => {
-                    if (process.env.NODE_ENV === 'development') {
-                      console.log('ロゴ読み込みエラー:', e);
-                    }
-                    e.currentTarget.style.display = 'none';
-                  }}
-                  onLoad={() => {
-                    if (process.env.NODE_ENV === 'development') {
-                      console.log('ロゴ読み込み成功');
-                    }
-                  }}
-                />
-                <span className="text-base font-bold text-pink-600">
-                  ファンリピ
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center shadow-lg shadow-rose-500/20">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <span className="text-lg font-bold bg-gradient-to-r from-rose-500 to-orange-500 bg-clip-text text-transparent">
+                    ファンリピ
+                  </span>
+                  <p className="text-[10px] text-gray-400 font-medium -mt-0.5">売上管理システム</p>
+                </div>
               </div>
             )}
-            <div className="flex items-center space-x-2">
-              {/* Mobile close button */}
+            {sidebarCollapsed && (
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center shadow-lg shadow-rose-500/20 mx-auto">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+            )}
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors lg:hidden"
+                className="text-gray-400 hover:text-gray-600 p-2 rounded-xl hover:bg-gray-100 transition-all lg:hidden"
               >
                 <X className="w-5 h-5" />
               </button>
-              {/* Desktop collapse button */}
               <button
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors hidden lg:block"
+                className="text-gray-400 hover:text-gray-600 p-2 rounded-xl hover:bg-gray-100 transition-all hidden lg:block"
               >
-                <ChevronRight className={`w-4 h-4 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
+                <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${sidebarCollapsed ? '' : 'rotate-180'}`} />
               </button>
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4">
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
           {sidebarItems.map((item, index) => (
             <button
               key={index}
@@ -1139,56 +1142,62 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                             item.label === 'ファン管理' ? 'customers' :
                             item.label === 'カレンダー分析' ? 'calendar' :
                             item.label === 'AI分析' ? 'ai' : 'overview');
-                // モバイルメニューを閉じる
                 setMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center px-4 py-3 mb-1 rounded-xl transition-all duration-200 ${
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
                 item.active
-                  ? 'bg-pink-600 text-white shadow-md'
-                  : 'text-gray-900 hover:bg-pink-50 hover:text-pink-600'
+                  ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-lg shadow-rose-500/25'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
               }`}
             >
-              <item.icon className={`w-5 h-5 mr-3 flex-shrink-0 ${item.active ? 'text-white' : 'text-gray-900'}`} />
-              {!sidebarCollapsed && <span className={`text-sm text-gray-900 ${item.active ? 'font-semibold text-white' : 'font-medium'}`}>{item.label}</span>}
+              <item.icon className={`w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110 ${
+                item.active ? 'text-white' : 'text-gray-500 group-hover:text-rose-500'
+              }`} />
+              {!sidebarCollapsed && (
+                <span className={`text-sm font-medium ${item.active ? 'text-white' : ''}`}>
+                  {item.label}
+                </span>
+              )}
+              {item.active && !sidebarCollapsed && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white/80" />
+              )}
             </button>
           ))}
         </nav>
 
-
-        {/* User Info - Simplified */}
+        {/* User Section */}
         {!sidebarCollapsed && (
-          <div className="p-4 border-t border-gray-100 bg-gray-50">
-            {/* ユーザー名のみ表示 */}
-            <div className="mb-4">
-              <p className="text-xs text-gray-500 mb-1">ログイン中</p>
-              <p className="text-sm font-semibold text-gray-900 truncate" title={authSession.user.name}>
-                {authSession.user.name}
-              </p>
+          <div className="p-4 border-t border-gray-100/80 bg-gray-50/50">
+            <div className="flex items-center gap-3 mb-4 px-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold text-sm">
+                {authSession.user.name?.charAt(0) || 'U'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{authSession.user.name}</p>
+                <p className="text-xs text-gray-500 truncate">{authSession.user.email}</p>
+              </div>
             </div>
             
-            {/* 設定・ログアウトボタン */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <button
                 onClick={() => {
                   setActiveTab('settings');
                   setMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
                   activeTab === 'settings'
-                    ? 'bg-pink-600 text-white shadow-md'
-                    : 'bg-white text-gray-900 hover:bg-pink-50 hover:text-pink-600 border border-gray-200'
+                    ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-md'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200/80'
                 }`}
-                title="設定"
               >
-                <SettingsIcon className={`h-4 w-4 flex-shrink-0 ${activeTab === 'settings' ? 'text-white' : 'text-gray-900'}`} />
-                <span className={`text-sm ${activeTab === 'settings' ? 'font-semibold' : 'font-medium'}`}>設定</span>
+                <SettingsIcon className="h-4 w-4" />
+                <span className="text-sm font-medium">設定</span>
               </button>
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl bg-white text-gray-900 hover:bg-gray-100 transition-all duration-200 border border-gray-200"
-                title="ログアウト"
+                className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white text-gray-700 hover:bg-rose-50 hover:text-rose-600 transition-all duration-200 border border-gray-200/80"
               >
-                <LogOut className="h-4 w-4 flex-shrink-0 text-gray-900" />
+                <LogOut className="h-4 w-4" />
                 <span className="text-sm font-medium">ログアウト</span>
               </button>
             </div>
@@ -1197,166 +1206,214 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
       </div>
 
       {/* Main Content */}
-      <div 
-        className="flex-1 flex flex-col overflow-hidden lg:ml-0"
-        onClick={() => {
-          if (mobileMenuOpen) {
-            setMobileMenuOpen(false);
-          }
-        }}
-      >
+      <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-4 lg:px-6 py-4">
+        <header className="bg-white/80 backdrop-blur-xl border-b border-gray-100/80 px-4 lg:px-8 py-4 sticky top-0 z-30">
           <div className="flex items-center justify-between">
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="text-gray-600 hover:text-gray-900 p-2 rounded-lg transition-colors lg:hidden"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-            <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
-              {activeTab === 'overview' && 'ダッシュボード'}
-              {activeTab === 'models' && 'モデル管理'}
-              {activeTab === 'csv' && 'CSVデータ'}
-              {activeTab === 'revenue' && '売上分析'}
-              {activeTab === 'customers' && 'ファン管理'}
-              {activeTab === 'calendar' && 'カレンダー分析'}
-              {activeTab === 'ai' && 'AI分析'}
-              {activeTab === 'settings' && '設定'}
-            </h2>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="text-gray-500 hover:text-gray-700 p-2 rounded-xl hover:bg-gray-100 transition-all lg:hidden"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              <div>
+                <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
+                  {activeTab === 'overview' && 'ダッシュボード'}
+                  {activeTab === 'models' && 'モデル管理'}
+                  {activeTab === 'csv' && 'CSVデータ'}
+                  {activeTab === 'revenue' && '売上分析'}
+                  {activeTab === 'customers' && 'ファン管理'}
+                  {activeTab === 'calendar' && 'カレンダー分析'}
+                  {activeTab === 'ai' && 'AI分析'}
+                  {activeTab === 'settings' && '設定'}
+                </h2>
+                <p className="text-sm text-gray-500 hidden sm:block">
+                  {new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                オンライン
+              </div>
+            </div>
           </div>
         </header>
 
-        {/* Message */}
+        {/* Message Toast */}
         {message && (
-          <div className={`mx-6 mt-4 p-4 rounded-lg ${
-            message.includes('✨') ? 'bg-green-100 text-green-800 border border-green-200' :
-            message.includes('❌') ? 'bg-red-100 text-red-800 border border-red-200' :
-            'bg-pink-100 text-pink-800 border border-pink-200'
+          <div className={`mx-4 lg:mx-8 mt-4 p-4 rounded-2xl flex items-center gap-3 animate-scale-in shadow-lg ${
+            message.includes('✨') ? 'bg-emerald-500 text-white' :
+            message.includes('❌') ? 'bg-rose-500 text-white' :
+            'bg-gradient-to-r from-rose-500 to-orange-500 text-white'
           }`}>
-            {message}
+            {message.includes('✨') ? (
+              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">✓</div>
+            ) : message.includes('❌') ? (
+              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">✕</div>
+            ) : null}
+            <span className="font-medium">{message}</span>
           </div>
         )}
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
           {activeTab === 'overview' ? (
-            <div className="space-y-6">
+            <div className="space-y-8 animate-fade-in">
 
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white border border-pink-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
-                    <DollarSign className="h-8 w-8 text-green-600 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-500">総売上</p>
-                      <p className="text-2xl font-bold text-gray-900 truncate" title={`¥${stats.totalRevenue.toLocaleString()}`}>
-                        ¥{stats.totalRevenue.toLocaleString()}
-                      </p>
-                      <p className="text-xs text-gray-400">データ: {Object.keys(modelData).length}件</p>
+              {/* Stats Cards - Modern Design */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                {/* Total Revenue Card */}
+                <div className="group relative bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                      <DollarSign className="h-6 w-6 text-white" />
                     </div>
+                    <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                      {Object.keys(modelData).length}件
+                    </span>
                   </div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">総売上</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">
+                    ¥{stats.totalRevenue.toLocaleString()}
+                  </p>
                 </div>
                 
-                <div className="bg-white border border-pink-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
-                    <Users className="h-8 w-8 text-pink-600 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-500">総顧客数</p>
-                      <p className="text-2xl font-bold text-gray-900 truncate">
-                        {stats.totalCustomers}
-                      </p>
+                {/* Total Customers Card */}
+                <div className="group relative bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-400 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center shadow-lg shadow-rose-500/25">
+                      <Users className="h-6 w-6 text-white" />
                     </div>
                   </div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">総顧客数</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">
+                    {stats.totalCustomers.toLocaleString()}<span className="text-lg ml-1 font-normal text-gray-400">人</span>
+                  </p>
                 </div>
                 
-                <div className="bg-white border border-pink-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
-                    <TrendingUp className="h-8 w-8 text-orange-600 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-500">平均購入額</p>
-                      <p className="text-2xl font-bold text-gray-900 truncate" title={`¥${Math.round(stats.averageTransactionValue).toLocaleString()}`}>
-                        ¥{Math.round(stats.averageTransactionValue).toLocaleString()}
-                      </p>
+                {/* Average Transaction Card */}
+                <div className="group relative bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/25">
+                      <TrendingUp className="h-6 w-6 text-white" />
                     </div>
                   </div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">平均購入額</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">
+                    ¥{Math.round(stats.averageTransactionValue).toLocaleString()}
+                  </p>
                 </div>
                 
-                <div className="bg-white border border-pink-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
-                    <BarChart3 className="h-8 w-8 text-pink-600 flex-shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-500">リピート率</p>
-                      <p className="text-2xl font-bold text-gray-900 truncate">
-                        {stats.repeatRate.toFixed(1)}%
-                      </p>
+                {/* Repeat Rate Card */}
+                <div className="group relative bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-400 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center shadow-lg shadow-violet-500/25">
+                      <BarChart3 className="h-6 w-6 text-white" />
                     </div>
+                    {stats.repeatRate >= 70 && (
+                      <span className="text-xs font-medium text-violet-600 bg-violet-50 px-2.5 py-1 rounded-full">
+                        優秀
+                      </span>
+                    )}
                   </div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">リピート率</p>
+                  <p className="text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">
+                    {stats.repeatRate.toFixed(1)}<span className="text-lg ml-0.5 font-normal text-gray-400">%</span>
+                  </p>
                 </div>
               </div>
 
-              {/* Quick Actions */}
-              <div className="bg-white rounded-lg p-6 border border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">クイックアクション</h3>
+              {/* Quick Actions - Modern Design */}
+              <div className="bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-gray-900">クイックアクション</h3>
+                  <span className="text-xs text-gray-400 font-medium">よく使う機能</span>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <button 
                     onClick={() => setActiveTab('csv')}
-                    className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="group flex items-center gap-4 p-5 rounded-xl border-2 border-gray-100 hover:border-rose-200 hover:bg-rose-50/50 transition-all duration-200"
                   >
-                    <Upload className="w-5 h-5 text-gray-600" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-100 to-orange-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Upload className="w-5 h-5 text-rose-500" />
+                    </div>
                     <div className="text-left">
-                      <h4 className="font-medium text-gray-900">CSVアップロード</h4>
-                      <p className="text-sm text-gray-600">新しいデータを追加</p>
+                      <h4 className="font-semibold text-gray-900">CSVアップロード</h4>
+                      <p className="text-sm text-gray-500">新しいデータを追加</p>
                     </div>
                   </button>
                   
                   <button 
                     onClick={() => setActiveTab('models')}
-                    className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="group flex items-center gap-4 p-5 rounded-xl border-2 border-gray-100 hover:border-violet-200 hover:bg-violet-50/50 transition-all duration-200"
                   >
-                    <Users className="w-5 h-5 text-gray-600" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Users className="w-5 h-5 text-violet-500" />
+                    </div>
                     <div className="text-left">
-                      <h4 className="font-medium text-gray-900">モデル管理</h4>
-                      <p className="text-sm text-gray-600">モデルを追加・編集</p>
+                      <h4 className="font-semibold text-gray-900">モデル管理</h4>
+                      <p className="text-sm text-gray-500">モデルを追加・編集</p>
                     </div>
                   </button>
                   
                   <button 
                     onClick={() => setActiveTab('revenue')}
-                    className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="group flex items-center gap-4 p-5 rounded-xl border-2 border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/50 transition-all duration-200"
                   >
-                    <TrendingUp className="w-5 h-5 text-gray-600" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <TrendingUp className="w-5 h-5 text-emerald-500" />
+                    </div>
                     <div className="text-left">
-                      <h4 className="font-medium text-gray-900">売上分析</h4>
-                      <p className="text-sm text-gray-600">詳細な分析を表示</p>
+                      <h4 className="font-semibold text-gray-900">売上分析</h4>
+                      <p className="text-sm text-gray-500">詳細な分析を表示</p>
                     </div>
                   </button>
                 </div>
               </div>
 
-              {/* モデル別売上ランキング */}
+              {/* Model Ranking - Modern Design */}
               {individualModelStats.length > 0 && (
-                <div className="bg-white border border-pink-200 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    モデル別売上ランキング
-                  </h3>
+                <div className="bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">モデル別売上ランキング</h3>
+                      <p className="text-sm text-gray-500 mt-0.5">売上順に表示</p>
+                    </div>
+                    <span className="text-xs font-medium text-rose-600 bg-rose-50 px-3 py-1.5 rounded-full">
+                      {individualModelStats.length}モデル
+                    </span>
+                  </div>
                   <div className="space-y-3">
                     {individualModelStats.map((model, index) => (
-                      <div key={model.modelId} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-4">
-                          <span className="w-8 h-8 bg-pink-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                      <div 
+                        key={model.modelId} 
+                        className="group flex items-center justify-between p-4 rounded-xl bg-gray-50/50 hover:bg-gray-100/80 transition-all duration-200 border border-transparent hover:border-gray-200"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shadow-sm ${
+                            index === 0 ? 'bg-gradient-to-br from-amber-400 to-yellow-500 text-white' :
+                            index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white' :
+                            index === 2 ? 'bg-gradient-to-br from-amber-600 to-orange-600 text-white' :
+                            'bg-white text-gray-700 border border-gray-200'
+                          }`}>
                             {index + 1}
-                          </span>
+                          </div>
                           <div>
                             <p className="font-semibold text-gray-900">{model.modelName}</p>
                             <p className="text-sm text-gray-500">
-                              {model.customers}名の顧客 • {model.transactions}件の取引
+                              {model.customers}名 • {model.transactions}件の取引
                             </p>
                           </div>
                         </div>
-                        <div className="text-right min-w-0 flex-shrink-0">
-                          <p className="text-xl font-bold text-gray-900 truncate" title={formatCurrency(model.revenue)}>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-gray-900">
                             {formatCurrency(model.revenue)}
                           </p>
                         </div>
@@ -1368,107 +1425,95 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
             </div>
           ) : null}
           {activeTab === 'models' ? (
-            <div className="space-y-6">
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 lg:p-8 shadow-sm">
                 <ModelManagement />
               </div>
               
               {/* CSVデータ編集セクション - 常時表示 */}
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 lg:p-8 shadow-sm">
                 <ModelDataManagement />
               </div>
             </div>
           ) : null}
           {activeTab === 'csv' ? (
-            <div className="space-y-4 lg:space-y-6">
-              <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 lg:p-8 shadow-sm">
                 <CSVUploader onDataLoaded={handleDataLoaded} />
               </div>
             </div>
           ) : null}
-          {activeTab === 'revenue' ? <div className="space-y-4 lg:space-y-6"><div className="bg-white rounded-lg border border-gray-200 p-6"><RevenueDashboard selectedModelId={selectedModelId} /></div></div> : null}
+          {activeTab === 'revenue' ? (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 lg:p-8 shadow-sm">
+                <RevenueDashboard selectedModelId={selectedModelId} />
+              </div>
+            </div>
+          ) : null}
           {activeTab === 'customers' ? (
-            <div className="space-y-6">
-              <div className="bg-white rounded-lg p-6 border border-gray-200">
-                <div className="mb-4">
-                  <p className="text-gray-600 mb-2">リピーターファンの詳細分析</p>
-                  <div className="text-sm text-gray-500">
-                    モデル数: {models.length} | 選択中: {selectedModelId || 'なし'}
-                    {models.length > 0 && (
-                      <div className="text-xs text-gray-400 mt-1">
-                        メインモデル: {models.find(m => m.isMainModel)?.displayName || 'なし'}
-                      </div>
-                    )}
+            <div className="space-y-6 animate-fade-in">
+              {/* Header Card */}
+              <div className="bg-white rounded-2xl p-6 lg:p-8 border border-gray-100 shadow-sm">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">リピーターファン分析</h3>
+                    <p className="text-sm text-gray-500">
+                      モデル数: {models.length} | メインモデル: {models.find(m => m.isMainModel)?.displayName || '未設定'}
+                    </p>
                   </div>
-                </div>
-                
-                {/* モデル選択とデータ期間切り替え */}
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
-                  {/* モデル選択 */}
-                  <div className="flex items-center space-x-3">
-                    <label htmlFor="customer-model-select" className="text-sm font-medium text-gray-700">
-                      モデル選択:
-                    </label>
+                  
+                  <div className="flex flex-wrap items-center gap-4">
+                    {/* モデル選択 */}
                     <select
                       id="customer-model-select"
                       value={selectedModelId}
                       onChange={(e) => {
-                        console.log('ファン管理: モデル選択変更:', e.target.value);
                         setSelectedModelId(e.target.value);
-                        // グローバル状態も更新
                         localStorage.setItem('fanclub-global-model-selection', JSON.stringify({ selectedModelId: e.target.value }));
                         window.dispatchEvent(new CustomEvent('globalModelSelectionChanged', { 
                           detail: { selectedModelId: e.target.value } 
                         }));
                       }}
-                      className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white text-gray-900 min-w-[200px]"
+                      className="px-4 py-2.5 border-2 border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 bg-white text-gray-900 font-medium min-w-[180px] transition-all"
                     >
                       <option value="">全モデル</option>
-                      {models.length > 0 ? (
-                        models.map((model) => (
-                          <option key={model.id} value={model.id}>
-                            {model.isMainModel ? '⭐ ' : ''}{model.displayName}
-                          </option>
-                        ))
-                      ) : (
-                        <option value="" disabled>モデルが見つかりません</option>
-                      )}
+                      {models.map((model) => (
+                        <option key={model.id} value={model.id}>
+                          {model.isMainModel ? '⭐ ' : ''}{model.displayName}
+                        </option>
+                      ))}
                     </select>
-                  </div>
-                  
-                  {/* データ期間切り替え */}
-                  <div className="flex items-center space-x-4">
-                    {/* 全体データ / 月毎データ */}
-                    <div className="flex bg-gray-100 rounded-lg p-1">
+                    
+                    {/* データ期間切り替え */}
+                    <div className="flex bg-gray-100 rounded-xl p-1">
                       <button
                         onClick={() => setCustomerViewMode('all')}
-                        className={`px-6 py-3 rounded-lg font-semibold text-lg transition-colors ${
+                        className={`px-5 py-2.5 rounded-lg font-semibold text-sm transition-all ${
                           customerViewMode === 'all'
-                            ? 'bg-pink-500 text-white shadow-lg'
-                            : 'bg-white text-gray-800 border-2 border-gray-300 hover:bg-gray-50 hover:border-pink-300'
+                            ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-md'
+                            : 'text-gray-600 hover:text-gray-900'
                         }`}
                       >
                         全体データ
                       </button>
                       <button
                         onClick={() => setCustomerViewMode('monthly')}
-                        className={`px-6 py-3 rounded-lg font-semibold text-lg transition-colors ${
+                        className={`px-5 py-2.5 rounded-lg font-semibold text-sm transition-all ${
                           customerViewMode === 'monthly'
-                            ? 'bg-pink-500 text-white shadow-lg'
-                            : 'bg-white text-gray-800 border-2 border-gray-300 hover:bg-gray-50 hover:border-pink-300'
+                            ? 'bg-gradient-to-r from-rose-500 to-orange-500 text-white shadow-md'
+                            : 'text-gray-600 hover:text-gray-900'
                         }`}
                       >
                         月毎データ
                       </button>
                     </div>
                     
-                    {/* 年月選択（月ごとデータの場合のみ表示） */}
                     {customerViewMode === 'monthly' && (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-2">
                         <select
                           value={selectedYear}
                           onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white text-gray-900"
+                          className="px-3 py-2.5 border-2 border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 bg-white text-gray-900 font-medium transition-all"
                         >
                           {Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - i).map(year => (
                             <option key={year} value={year}>{year}年</option>
@@ -1477,7 +1522,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                         <select
                           value={selectedMonth}
                           onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                          className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white text-gray-900"
+                          className="px-3 py-2.5 border-2 border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 bg-white text-gray-900 font-medium transition-all"
                         >
                           {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                             <option key={month} value={month}>{month}月</option>
@@ -1488,49 +1533,61 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-600">総顧客数</p>
-                          <p className="text-2xl font-semibold text-gray-900">{stats.totalCustomers}</p>
-                        </div>
-                        <Users className="w-8 h-8 text-gray-400" />
-                      </div>
+              
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 mb-1">総顧客数</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.totalCustomers}<span className="text-sm font-normal text-gray-400 ml-1">人</span></p>
                     </div>
-                    
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-600">リピーター数</p>
-                          <p className="text-2xl font-semibold text-gray-900">{stats.repeatCustomers}</p>
-                        </div>
-                        <TrendingUp className="w-8 h-8 text-gray-400" />
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-600">平均購入額</p>
-                          <p className="text-2xl font-semibold text-gray-900">¥{Math.round(stats.averageTransactionValue).toLocaleString()}</p>
-                        </div>
-                        <Star className="w-8 h-8 text-gray-400" />
-                      </div>
-                    </div>
-                    
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-gray-600">リピート率</p>
-                          <p className="text-2xl font-semibold text-gray-900">{stats.repeatRate.toFixed(1)}%</p>
-                        </div>
-                        <TrendingUp className="w-8 h-8 text-gray-400" />
-                      </div>
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-rose-500" />
                     </div>
                   </div>
+                </div>
+                
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 mb-1">リピーター数</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.repeatCustomers}<span className="text-sm font-normal text-gray-400 ml-1">人</span></p>
+                    </div>
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 text-violet-500" />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 mb-1">平均購入額</p>
+                      <p className="text-2xl font-bold text-gray-900">¥{Math.round(stats.averageTransactionValue).toLocaleString()}</p>
+                    </div>
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center">
+                      <Star className="w-5 h-5 text-amber-500" />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 mb-1">リピート率</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats.repeatRate.toFixed(1)}<span className="text-sm font-normal text-gray-400 ml-0.5">%</span></p>
+                    </div>
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 text-emerald-500" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Customer Ranking */}
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 lg:p-8 shadow-sm">
+                <div className="space-y-6">
                   
                   {/* リピーター顧客ランキング */}
                   <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
@@ -1676,8 +1733,8 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
             </div>
           ) : null}
           {activeTab === 'calendar' ? (
-            <div className="space-y-4 lg:space-y-6">
-              <div className="bg-white rounded-lg border border-gray-200 p-4 lg:p-6">
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 lg:p-8 shadow-sm">
                 <CalendarAnalysis 
               allData={(() => {
                 // 全てのモデルデータを統合
@@ -1769,35 +1826,39 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
             </div>
           ) : null}
           {activeTab === 'ai' ? (
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full animate-fade-in">
               {/* ヘッダー */}
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg p-4 lg:p-6 text-white mb-4">
-                <div className="flex items-center space-x-3 mb-2">
-                  <Sparkles className="w-8 h-8 lg:w-10 lg:h-10" />
-                  <h1 className="text-xl lg:text-2xl font-bold">AI分析チャット</h1>
+              <div className="bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 rounded-2xl p-6 lg:p-8 text-white mb-6 shadow-lg shadow-purple-500/25">
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center">
+                    <Sparkles className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl lg:text-3xl font-bold">AI分析アシスタント</h1>
+                    <p className="text-purple-100 text-sm lg:text-base mt-1">ビジネスデータを分析し、収益最大化のアドバイスを提供</p>
+                  </div>
                 </div>
-                <p className="text-purple-100 text-sm lg:text-base">AIがあなたのビジネスを分析し、収益最大化のための戦略的アドバイスを提供します</p>
               </div>
               
               {/* チャットエリア */}
-              <div className="flex-1 bg-white rounded-lg border border-gray-200 flex flex-col overflow-hidden">
+              <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
                 {/* メッセージ表示エリア */}
-                <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4">
+                <div className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-5">
                   {aiMessages.map((message, index) => (
                     <div
                       key={index}
                       className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[85%] lg:max-w-[70%] rounded-lg p-4 ${
+                        className={`max-w-[85%] lg:max-w-[70%] rounded-2xl p-5 ${
                           message.role === 'user'
-                            ? 'bg-pink-500 text-white'
-                            : 'bg-gray-100 text-gray-900'
+                            ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-lg shadow-purple-500/25'
+                            : 'bg-gray-50 text-gray-900 border border-gray-100'
                         }`}
                       >
                         {message.role === 'assistant' && index === 0 && (
-                          <div className="mb-3">
-                            <p className="text-sm font-medium mb-3">以下のモデルから選択してください：</p>
+                          <div className="mb-4">
+                            <p className="text-sm font-semibold mb-4 text-gray-700">分析するモデルを選択してください</p>
                             <div className="space-y-2">
                               <button
                                 onClick={() => {
@@ -1805,9 +1866,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                                   setAiMessages(prev => [...prev, userMessage]);
                                   handleModelAnalysis('all');
                                 }}
-                                className="w-full text-left px-4 py-2 bg-white border-2 border-pink-300 rounded-lg hover:bg-pink-50 hover:border-pink-500 transition-colors text-sm font-medium text-gray-900"
+                                className="w-full text-left px-5 py-3 bg-white border-2 border-violet-200 rounded-xl hover:bg-violet-50 hover:border-violet-400 transition-all text-sm font-semibold text-gray-900 flex items-center gap-3"
                               >
-                                📊 すべてのモデル
+                                <span className="text-lg">📊</span> すべてのモデル
                               </button>
                               {models.map(model => (
                                 <button
@@ -1817,7 +1878,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                                     setAiMessages(prev => [...prev, userMessage]);
                                     handleModelAnalysis(model.id);
                                   }}
-                                  className="w-full text-left px-4 py-2 bg-white border-2 border-pink-300 rounded-lg hover:bg-pink-50 hover:border-pink-500 transition-colors text-sm font-medium text-gray-900"
+                                  className="w-full text-left px-5 py-3 bg-white border-2 border-violet-200 rounded-xl hover:bg-violet-50 hover:border-violet-400 transition-all text-sm font-semibold text-gray-900"
                                 >
                                   {model.isMainModel ? '⭐ ' : ''}{model.displayName}
                                 </button>
@@ -1889,56 +1950,63 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
             </div>
           ) : null}
           {activeTab === 'settings' ? (
-            <div className="space-y-4 lg:space-y-6">
+            <div className="space-y-6 animate-fade-in max-w-3xl">
               {/* アカウント情報カード */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
-                  <div className="flex items-center space-x-3">
-                    <User className="h-5 w-5 text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">アカウント情報</h3>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-100 px-6 py-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-white font-bold">
+                      {authSession.user.name?.charAt(0) || 'U'}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">アカウント情報</h3>
+                      <p className="text-sm text-gray-500">プロフィールとアカウント設定</p>
+                    </div>
                   </div>
                 </div>
-                <div className="p-6 space-y-4">
-                  <div className="flex items-start space-x-4 py-3 border-b border-gray-100 last:border-0">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <User className="h-5 w-5 text-gray-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-500 mb-1">名前</p>
-                      <p className="text-base font-medium text-gray-900 truncate">
-                        {authSession.user.name || '未設定'}
-                      </p>
+                <div className="p-6 space-y-0 divide-y divide-gray-100">
+                  <div className="flex items-center justify-between py-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
+                        <User className="h-5 w-5 text-rose-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">名前</p>
+                        <p className="font-semibold text-gray-900">{authSession.user.name || '未設定'}</p>
+                      </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-start space-x-4 py-3 border-b border-gray-100 last:border-0">
-                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-500 mb-1">メールアドレス</p>
-                      <p className="text-base font-medium text-gray-900 truncate">
-                        {authSession.user.email}
-                      </p>
+                  <div className="flex items-center justify-between py-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
+                        <svg className="h-5 w-5 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">メールアドレス</p>
+                        <p className="font-semibold text-gray-900">{authSession.user.email}</p>
+                      </div>
                     </div>
                   </div>
                   
                   {authSession.user.createdAt && (
-                    <div className="flex items-start space-x-4 py-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Calendar className="h-5 w-5 text-gray-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-500 mb-1">アカウント作成日</p>
-                        <p className="text-base font-medium text-gray-900">
-                          {new Date(authSession.user.createdAt).toLocaleDateString('ja-JP', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </p>
+                    <div className="flex items-center justify-between py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                          <Calendar className="h-5 w-5 text-emerald-500" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">アカウント作成日</p>
+                          <p className="font-semibold text-gray-900">
+                            {new Date(authSession.user.createdAt).toLocaleDateString('ja-JP', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1946,42 +2014,35 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
               </div>
 
               {/* アプリケーション情報カード */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
-                  <div className="flex items-center space-x-3">
-                    <Info className="h-5 w-5 text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">アプリケーション情報</h3>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-100 px-6 py-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center shadow-md shadow-rose-500/20">
+                      <Info className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">アプリケーション情報</h3>
+                      <p className="text-sm text-gray-500">バージョンとシステム状態</p>
+                    </div>
                   </div>
                 </div>
-                <div className="p-6 space-y-3">
-                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                    <div className="flex items-center space-x-3">
-                      <SettingsIcon className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm text-gray-600">バージョン</span>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">1.0.0</span>
+                <div className="p-6 space-y-0 divide-y divide-gray-100">
+                  <div className="flex items-center justify-between py-4">
+                    <span className="text-sm text-gray-600">バージョン</span>
+                    <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-3 py-1 rounded-full">v1.0.0</span>
                   </div>
                   
-                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                    <div className="flex items-center space-x-3">
-                      <Calendar className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm text-gray-600">最終更新</span>
-                    </div>
+                  <div className="flex items-center justify-between py-4">
+                    <span className="text-sm text-gray-600">最終更新</span>
                     <span className="text-sm font-medium text-gray-900">
-                      {new Date().toLocaleDateString('ja-JP', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
+                      {new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </span>
                   </div>
                   
-                  <div className="flex items-center justify-between py-3">
-                    <div className="flex items-center space-x-3">
-                      <Shield className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm text-gray-600">セキュリティ</span>
-                    </div>
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                  <div className="flex items-center justify-between py-4">
+                    <span className="text-sm text-gray-600">セキュリティ</span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       有効
                     </span>
                   </div>
@@ -1989,32 +2050,35 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
               </div>
 
               {/* ログアウトセクション */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
-                  <div className="flex items-center space-x-3">
-                    <LogOut className="h-5 w-5 text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">セッション管理</h3>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-100 px-6 py-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                      <LogOut className="h-5 w-5 text-gray-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">セッション管理</h3>
+                      <p className="text-sm text-gray-500">ログアウトとセッション終了</p>
+                    </div>
                   </div>
                 </div>
-                <div className="p-6 space-y-4">
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm font-medium text-gray-900 mb-2">
-                      ログアウトすると：
-                    </p>
-                    <ul className="text-sm text-gray-600 space-y-1.5 list-disc list-inside">
-                      <li>現在のセッションが終了します</li>
-                      <li>再度ログインが必要になります</li>
-                      <li>保存されていない変更は失われる可能性があります</li>
+                <div className="p-6 space-y-5">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <p className="text-sm font-semibold text-amber-800 mb-2">ログアウトすると</p>
+                    <ul className="text-sm text-amber-700 space-y-1">
+                      <li>• 現在のセッションが終了します</li>
+                      <li>• 再度ログインが必要になります</li>
+                      <li>• データはクラウドに安全に保存されます</li>
                     </ul>
                   </div>
                   
                   <button
                     onClick={async () => {
-                      if (window.confirm('ログアウトしますか？\n\n現在のセッションが終了し、再度ログインが必要になります。')) {
+                      if (window.confirm('ログアウトしますか？')) {
                         await onLogout();
                       }
                     }}
-                    className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200"
+                    className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-rose-500/25 hover:shadow-xl hover:shadow-rose-500/30"
                   >
                     <LogOut className="h-5 w-5" />
                     <span>ログアウト</span>

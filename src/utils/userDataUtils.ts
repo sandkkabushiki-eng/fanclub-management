@@ -1,6 +1,12 @@
 import { supabaseAdmin } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { authManager } from '@/lib/auth';
 import { Model, FanClubRevenueData } from '@/types/csv';
+
+// supabaseAdminがない場合は通常のsupabaseクライアントを使用
+const getSupabaseClient = () => {
+  return supabaseAdmin || supabase;
+};
 
 // ユーザー毎のデータ分離を実現するユーティリティ
 
@@ -55,24 +61,16 @@ export class UserDataManager {
   // ユーザー専用のモデル一覧を取得
   async getUserModels(): Promise<Model[]> {
     try {
-      // supabaseAdminがnullの場合は空配列を返す
-      if (!supabaseAdmin || supabaseAdmin === null) {
+      // Supabaseクライアントを取得（adminがなければ通常クライアントを使用）
+      const client = getSupabaseClient();
+      if (!client) {
         if (process.env.NODE_ENV === 'development') {
-          console.error('🔒 supabaseAdminが初期化されていません。SUPABASE_SERVICE_ROLE_KEYを確認してください。');
+          console.warn('⚠️ Supabaseクライアントが利用できません。ローカルストレージを使用します。');
         }
         return [];
       }
 
-      // ユーザー固有のモデルのみを取得（他のユーザーのデータは絶対に取得しない）
-      const adminClient = supabaseAdmin;
-      if (!adminClient) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('🔒 supabaseAdminクライアントが利用できません。');
-        }
-        return [];
-      }
-
-      const { data, error } = await adminClient
+      const { data, error } = await client
         .from('models')
         .select('*')
         .eq('user_id', this.userId)
@@ -127,24 +125,16 @@ export class UserDataManager {
     updated_at: string;
   }[]> {
     try {
-      // supabaseAdminがnullの場合は空配列を返す
-      if (!supabaseAdmin || supabaseAdmin === null) {
+      const client = getSupabaseClient();
+      if (!client) {
         if (process.env.NODE_ENV === 'development') {
-          console.error('🔒 supabaseAdminが初期化されていません。SUPABASE_SERVICE_ROLE_KEYを確認してください。');
-        }
-        return [];
-      }
-
-      const adminClient = supabaseAdmin;
-      if (!adminClient) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('🔒 supabaseAdminクライアントが利用できません。');
+          console.warn('⚠️ Supabaseクライアントが利用できません。');
         }
         return [];
       }
 
       // まずuser_idでフィルタリングを試行
-      let query = adminClient
+      let query = client
         .from('monthly_data')
         .select('*')
         .eq('user_id', this.userId);
@@ -190,23 +180,15 @@ export class UserDataManager {
   // ユーザー専用のデータを削除
   async deleteUserModel(modelId: string): Promise<boolean> {
     try {
-      // supabaseAdminがnullの場合はfalseを返す
-      if (!supabaseAdmin || supabaseAdmin === null) {
+      const client = getSupabaseClient();
+      if (!client) {
         if (process.env.NODE_ENV === 'development') {
-          console.error('🔒 supabaseAdminが初期化されていません。SUPABASE_SERVICE_ROLE_KEYを確認してください。');
+          console.warn('⚠️ Supabaseクライアントが利用できません。');
         }
         return false;
       }
 
-      const adminClient = supabaseAdmin;
-      if (!adminClient) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('🔒 supabaseAdminクライアントが利用できません。');
-        }
-        return false;
-      }
-
-      const { error } = await adminClient
+      const { error } = await client
         .from('models')
         .delete()
         .eq('user_id', this.userId)
@@ -220,7 +202,7 @@ export class UserDataManager {
       }
 
       // 関連する月別データも削除
-      await adminClient
+      await client
         .from('monthly_data')
         .delete()
         .eq('user_id', this.userId)
@@ -238,23 +220,15 @@ export class UserDataManager {
   // ユーザー専用の月別データを削除
   async deleteUserMonthlyData(modelId: string, year: number, month: number): Promise<boolean> {
     try {
-      // supabaseAdminがnullの場合はfalseを返す
-      if (!supabaseAdmin || supabaseAdmin === null) {
+      const client = getSupabaseClient();
+      if (!client) {
         if (process.env.NODE_ENV === 'development') {
-          console.error('🔒 supabaseAdminが初期化されていません。SUPABASE_SERVICE_ROLE_KEYを確認してください。');
+          console.warn('⚠️ Supabaseクライアントが利用できません。');
         }
         return false;
       }
 
-      const adminClient = supabaseAdmin;
-      if (!adminClient) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('🔒 supabaseAdminクライアントが利用できません。');
-        }
-        return false;
-      }
-
-      const { error } = await adminClient
+      const { error } = await client
         .from('monthly_data')
         .delete()
         .eq('user_id', this.userId)
