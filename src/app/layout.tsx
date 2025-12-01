@@ -14,32 +14,37 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ファンクラ君 - 売上管理システム | ファンクラブ収益分析ツール",
+  title: "ファンリピ - ファンクラブ売上管理システム",
   description: "ファンクラブの売上データを効率的に管理・分析するシステム。CSVアップロード、リアルタイム分析、詳細レポート機能で収益を最大化。",
-  keywords: "ファンクラブ, 売上管理, 収益分析, CSV, データ分析, ダッシュボード, 売上レポート",
-  authors: [{ name: "ファンクラ君" }],
-  creator: "ファンクラ君",
-  publisher: "ファンクラ君",
+  keywords: "ファンクラブ, 売上管理, 収益分析, CSV, データ分析, ダッシュボード, 売上レポート, ファンリピ",
+  authors: [{ name: "ファンリピ" }],
+  creator: "ファンリピ",
+  publisher: "ファンリピ",
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
-  metadataBase: new URL('https://fanclub-management.vercel.app'),
+  metadataBase: new URL('https://fanripi.com'),
   alternates: {
     canonical: '/',
   },
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
   openGraph: {
-    title: "ファンクラ君 - 売上管理システム",
+    title: "ファンリピ - ファンクラブ売上管理システム",
     description: "ファンクラブの売上データを効率的に管理・分析するシステム",
-    url: 'https://fanclub-management.vercel.app',
-    siteName: 'ファンクラ君',
+    url: 'https://fanripi.com',
+    siteName: 'ファンリピ',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'ファンクラ君 - 売上管理システム',
+        alt: 'ファンリピ - ファンクラブ売上管理システム',
       },
     ],
     locale: 'ja_JP',
@@ -47,7 +52,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: "ファンクラ君 - 売上管理システム",
+    title: "ファンリピ - ファンクラブ売上管理システム",
     description: "ファンクラブの売上データを効率的に管理・分析するシステム",
     images: ['/og-image.png'],
   },
