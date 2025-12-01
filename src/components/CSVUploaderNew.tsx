@@ -1,14 +1,24 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, Calendar, Users } from 'lucide-react';
+import { Upload, FileText, CheckCircle, Calendar, Users, Crown } from 'lucide-react';
 import { CSVData, Model } from '@/types/csv';
 import { parseCSVFile } from '@/utils/csvUtils';
 import { getModelsFromSupabase } from '@/utils/modelUtils';
 import { parseYearMonthFromFileName } from '@/utils/fileNameUtils';
+import { UpgradePrompt, useUpgradePrompt } from './UpgradePrompt';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface CSVUploaderProps {
   onDataLoaded: (data: CSVData[], year: number, month: number, modelId: string) => void;
+}
+
+// 3ヶ月以上前かどうかをチェック
+function isOlderThanThreeMonths(year: number, month: number): boolean {
+  const now = new Date();
+  const selectedDate = new Date(year, month - 1, 1);
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  return selectedDate < threeMonthsAgo;
 }
 
 export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
@@ -21,6 +31,10 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
   const [parsedData, setParsedData] = useState<CSVData[] | null>(null);
   const [fileName, setFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // サブスクリプション状態とアップグレードプロンプト
+  const { isPro } = useSubscription();
+  const { isOpen, promptType, showPrompt, closePrompt } = useUpgradePrompt();
 
   // 🔥 Supabaseから直接モデルを読み込む
   useEffect(() => {
@@ -114,6 +128,12 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
       return;
     }
 
+    // 無料プランで3ヶ月以上前のデータをアップロードしようとした場合
+    if (!isPro && isOlderThanThreeMonths(selectedYear, selectedMonth)) {
+      showPrompt('data_limit');
+      return;
+    }
+
     onDataLoaded(parsedData, selectedYear, selectedMonth, selectedModelId);
     
     // リセット
@@ -140,6 +160,37 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
 
   return (
     <div className="space-y-6">
+      {/* アップグレードプロンプト */}
+      <UpgradePrompt 
+        type={promptType}
+        isOpen={isOpen}
+        onClose={closePrompt}
+      />
+      
+      {/* 無料プランの場合は制限表示 */}
+      {!isPro && (
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gray-200 rounded-lg">
+                <Calendar className="h-4 w-4 text-gray-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700">無料プラン: 直近3ヶ月のデータのみ保存可能</p>
+                <p className="text-xs text-gray-500">より長期のデータを保存するにはプロプランへ</p>
+              </div>
+            </div>
+            <button
+              onClick={() => showPrompt('data_limit')}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 transition-all"
+            >
+              <Crown className="h-3 w-3" />
+              制限解除
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* ファイルアップロード */}
       <div className="text-center">
         <div

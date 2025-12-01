@@ -19,7 +19,9 @@ import {
   LogOut,
   User,
   Info,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Crown,
+  Zap
 } from 'lucide-react';
 import { CSVData, FanClubRevenueData } from '@/types/csv';
 import { upsertModelMonthlyData, getModels, getModelsFromSupabase } from '@/utils/modelUtils';
@@ -37,6 +39,8 @@ import CalendarAnalysis from '@/components/CalendarAnalysis';
 import RevenueDashboard from '@/components/RevenueDashboard';
 import RevenueOptimizationSuggestions from '@/components/RevenueOptimizationSuggestions';
 import { useGlobalModelSelection, useGlobalModelSelectionListener } from '@/hooks/useGlobalModelSelection';
+import { useSubscription } from '@/hooks/useSubscription';
+import Link from 'next/link';
 
 
 interface ModelStats {
@@ -76,6 +80,9 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
   
   // グローバルなモデル選択状態を使用
   const { selectedModelId, setSelectedModelId, models, setModels, mainModel } = useGlobalModelSelection();
+  
+  // サブスクリプション状態
+  const { planType, isPro, currentPeriodEnd, isLoading: isSubLoading } = useSubscription();
 
   // AI分析タブが開かれたときに初期メッセージを追加
   useEffect(() => {
@@ -2046,6 +2053,78 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                       有効
                     </span>
                   </div>
+                </div>
+              </div>
+
+              {/* サブスクリプションプランセクション */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className={`bg-gradient-to-r ${isPro ? 'from-pink-50 to-purple-50' : 'from-gray-50 to-gray-100/50'} border-b border-gray-100 px-6 py-5`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl ${isPro ? 'bg-gradient-to-br from-pink-500 to-purple-500 shadow-md shadow-pink-500/20' : 'bg-gray-100'} flex items-center justify-center`}>
+                      <Crown className={`h-5 w-5 ${isPro ? 'text-white' : 'text-gray-600'}`} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">サブスクリプション</h3>
+                      <p className="text-sm text-gray-500">現在のプランと利用状況</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  {isSubLoading ? (
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                      <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  ) : isPro ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">現在のプラン</span>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold bg-gradient-to-r from-pink-500 to-purple-500 text-white">
+                          <Crown className="h-3.5 w-3.5" />
+                          プロプラン
+                        </span>
+                      </div>
+                      {currentPeriodEnd && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">次回更新日</span>
+                          <span className="text-sm font-medium text-gray-900">
+                            {currentPeriodEnd.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}
+                          </span>
+                        </div>
+                      )}
+                      <div className="bg-gradient-to-r from-pink-50 to-purple-50 border border-pink-200 rounded-xl p-4 mt-4">
+                        <div className="flex items-center gap-2 text-pink-700">
+                          <Sparkles className="h-4 w-4" />
+                          <span className="text-sm font-medium">すべての機能が利用可能です</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">現在のプラン</span>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-gray-100 text-gray-700">
+                          無料プラン
+                        </span>
+                      </div>
+                      <div className="space-y-2 text-sm text-gray-600">
+                        <div className="flex items-center justify-between">
+                          <span>モデル登録</span>
+                          <span className="font-medium">{models.length}/1人</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>データ保存</span>
+                          <span className="font-medium">直近3ヶ月</span>
+                        </div>
+                      </div>
+                      <Link href="/upgrade">
+                        <button className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-pink-500/25 hover:shadow-xl mt-4">
+                          <Zap className="h-4 w-4" />
+                          プロプランにアップグレード
+                        </button>
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
 

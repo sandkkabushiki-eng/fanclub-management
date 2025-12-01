@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, User, Star } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Star, Crown } from 'lucide-react';
 import { Model } from '@/types/csv';
 import { getModels, addModel, updateModel, deleteModel } from '@/utils/modelUtils';
 import { getCurrentUserDataManager } from '@/utils/userDataUtils';
+import { UpgradePrompt, useUpgradePrompt } from './UpgradePrompt';
+import { useSubscription } from '@/hooks/useSubscription';
 
 export default function ModelManagement() {
   const [models, setModels] = useState<Model[]>([]);
@@ -14,6 +16,10 @@ export default function ModelManagement() {
     name: '',
     displayName: ''
   });
+  
+  // サブスクリプション状態とアップグレードプロンプト
+  const { isPro, isLoading: isSubLoading } = useSubscription();
+  const { isOpen, promptType, showPrompt, closePrompt } = useUpgradePrompt();
 
   useEffect(() => {
     const loadModels = async () => {
@@ -191,15 +197,49 @@ export default function ModelManagement() {
     setFormData({ name: '', displayName: '' });
   };
 
+  // 新規追加ボタンのハンドラー
+  const handleAddClick = () => {
+    // 無料プランで既に1人以上登録している場合はアップグレード訴求
+    if (!isPro && models.length >= 1) {
+      showPrompt('model_limit');
+      return;
+    }
+    setShowForm(true);
+  };
+
   return (
     <div className="space-y-8">
+      {/* アップグレードプロンプト */}
+      <UpgradePrompt 
+        type={promptType}
+        isOpen={isOpen}
+        onClose={closePrompt}
+      />
+      
       {/* ヘッダー */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <p className="text-gray-600">モデルの追加・編集・削除を行います</p>
+          {/* 無料プランの場合は制限表示 */}
+          {!isPro && !isSubLoading && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                無料プラン: {models.length}/1人
+              </span>
+              {models.length >= 1 && (
+                <button
+                  onClick={() => showPrompt('model_limit')}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:from-pink-600 hover:to-purple-600 transition-all"
+                >
+                  <Crown className="h-3 w-3" />
+                  制限解除
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={handleAddClick}
           className="bg-gradient-to-r from-pink-500 to-pink-600 text-white px-6 py-3 rounded-xl hover:from-pink-600 hover:to-pink-700 transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
         >
           <Plus className="h-5 w-5" />
