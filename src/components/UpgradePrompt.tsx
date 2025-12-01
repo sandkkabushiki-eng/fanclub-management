@@ -24,7 +24,7 @@ const PROMPT_CONFIG = {
   data_limit: {
     icon: Database,
     title: '過去のデータも活用しませんか？',
-    description: '無料プランは3ヶ月分のデータ保存ですが、プロプランなら無制限に保存できます。',
+    description: '無料プランは2ヶ月分のデータ保存ですが、プロプランなら無制限に保存できます。',
     benefits: [
       'データ保存無制限',
       '長期トレンド分析',

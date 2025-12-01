@@ -13,12 +13,12 @@ interface CSVUploaderProps {
   onDataLoaded: (data: CSVData[], year: number, month: number, modelId: string) => void;
 }
 
-// 3ヶ月以上前かどうかをチェック
-function isOlderThanThreeMonths(year: number, month: number): boolean {
+// 2ヶ月以上前かどうかをチェック（無料プランは直近2ヶ月のみ）
+function isOlderThanTwoMonths(year: number, month: number): boolean {
   const now = new Date();
   const selectedDate = new Date(year, month - 1, 1);
-  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-  return selectedDate < threeMonthsAgo;
+  const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  return selectedDate < twoMonthsAgo;
 }
 
 export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
@@ -128,8 +128,8 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
       return;
     }
 
-    // 無料プランで3ヶ月以上前のデータをアップロードしようとした場合
-    if (!isPro && isOlderThanThreeMonths(selectedYear, selectedMonth)) {
+    // 無料プランで2ヶ月以上前のデータをアップロードしようとした場合
+    if (!isPro && isOlderThanTwoMonths(selectedYear, selectedMonth)) {
       showPrompt('data_limit');
       return;
     }
@@ -176,7 +176,7 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
                 <Calendar className="h-4 w-4 text-gray-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-700">無料プラン: 直近3ヶ月のデータのみ保存可能</p>
+                <p className="text-sm font-medium text-gray-700">無料プラン: 直近2ヶ月のデータのみ保存可能</p>
                 <p className="text-xs text-gray-500">より長期のデータを保存するにはプロプランへ</p>
               </div>
             </div>

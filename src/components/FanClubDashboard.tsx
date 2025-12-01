@@ -2114,7 +2114,7 @@ const FanClubDashboard: React.FC<FanClubDashboardProps> = ({ authSession: propAu
                         </div>
                         <div className="flex items-center justify-between">
                           <span>データ保存</span>
-                          <span className="font-medium">直近3ヶ月</span>
+                          <span className="font-medium">直近2ヶ月</span>
                         </div>
                       </div>
                       <Link href="/upgrade">

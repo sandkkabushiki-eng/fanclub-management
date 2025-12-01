@@ -29,7 +29,7 @@ export const SUBSCRIPTION_PLANS: Record<PlanType, Plan> = {
     price: 0,
     features: {
       maxModels: 1,
-      dataRetentionMonths: 3,
+      dataRetentionMonths: 2,
       basicAnalytics: true,
       advancedAnalytics: false,
       aiSuggestions: false,
@@ -93,7 +93,7 @@ export function getRemainingModels(currentModelCount: number, planType: PlanType
 // 機能一覧（表示用）
 export const FEATURE_LIST = [
   { key: 'maxModels', label: 'モデル登録', freeValue: '1人まで', proValue: '無制限' },
-  { key: 'dataRetentionMonths', label: 'データ保存', freeValue: '3ヶ月', proValue: '無制限' },
+  { key: 'dataRetentionMonths', label: 'データ保存', freeValue: '2ヶ月', proValue: '無制限' },
   { key: 'basicAnalytics', label: '基本分析', freeValue: true, proValue: true },
   { key: 'advancedAnalytics', label: '詳細分析', freeValue: false, proValue: true },
   { key: 'aiSuggestions', label: 'AI提案機能', freeValue: false, proValue: true },
