@@ -248,7 +248,7 @@ export default function ModelManagement() {
                   value={formData.displayName}
                   onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
                   className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 bg-white"
-                  placeholder="例: ののちゃん"
+                  placeholder="モデル名を入力"
                   required
                 />
               </div>
