@@ -1,23 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Crown, Check, X, CreditCard, ArrowRight, Sparkles, Users, Database, BarChart3, Zap, ArrowLeft } from 'lucide-react';
 import { PLANS } from '@/lib/stripe';
 import { FEATURE_LIST } from '@/types/subscription';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
 export default function UpgradePage() {
   const [loading, setLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<keyof typeof PLANS>('monthly');
+  const [user, setUser] = useState<{ id: string; email: string } | null>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser({ id: user.id, email: user.email || '' });
+      }
+    };
+    getUser();
+  }, []);
 
   const handleCheckout = async () => {
     setLoading(true);
     
     try {
-      // ユーザーIDを取得
-      const response = await fetch('/api/auth/user');
-      const user = await response.json();
-      
+      // ユーザー情報を確認
       if (!user?.id) {
         alert('ログインが必要です。ログインしてからお試しください。');
         window.location.href = '/';
