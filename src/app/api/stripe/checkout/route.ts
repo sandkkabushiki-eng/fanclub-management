@@ -4,25 +4,19 @@ import { PLANS } from '@/lib/stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://aksptiaptxogdipuysut.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrc3B0aWFwdHhvZ2RpcHV5c3V0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODYxMjMyMywiZXhwIjoyMDc0MTg4MzIzfQ.EpJsXq17uDoqlr7rP0HY4yv0zSEhS9OiCGgHTHFHHmI',
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
-    },
-    // リクエスト最適化
-    global: {
-      headers: {
-        'Cache-Control': 'no-cache',
-      },
     },
   }
 );
 
 export async function POST(request: NextRequest) {
   try {
-    const { plan, userId } = await request.json();
+    const { plan, userId, userEmail } = await request.json();
 
     if (!plan || !userId) {
       return NextResponse.json(
@@ -39,17 +33,25 @@ export async function POST(request: NextRequest) {
     }
 
     const selectedPlan = PLANS[plan as keyof typeof PLANS];
-
-    // ユーザー情報を取得
-    const { data: user, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('email, name')
-      .eq('id', userId)
-      .single();
-
-    if (userError || !user) {
+    
+    // 価格IDが設定されているか確認
+    if (!selectedPlan.priceId) {
+      console.error('Price ID not configured for plan:', plan);
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'Price ID not configured' },
+        { status: 500 }
+      );
+    }
+
+    // ユーザー情報を取得（auth.usersから）
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    
+    const email = authUser?.user?.email || userEmail;
+    const name = authUser?.user?.user_metadata?.name || email?.split('@')[0];
+
+    if (!email) {
+      return NextResponse.json(
+        { error: 'User email not found' },
         { status: 404 }
       );
     }
@@ -67,8 +69,8 @@ export async function POST(request: NextRequest) {
     } else {
       // 新しいStripe顧客を作成
       const customer = await stripe.customers.create({
-        email: user.email,
-        name: user.name,
+        email: email,
+        name: name,
         metadata: {
           userId: userId,
         },
@@ -86,6 +88,9 @@ export async function POST(request: NextRequest) {
         });
     }
 
+    // アプリURLを決定
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://fanripi.com';
+
     // Stripe Checkoutセッションを作成
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -97,8 +102,8 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'subscription',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?canceled=true`,
+      success_url: `${appUrl}/app?success=true`,
+      cancel_url: `${appUrl}/upgrade?canceled=true`,
       metadata: {
         userId: userId,
         plan: plan,

@@ -14,12 +14,13 @@ export default function UpgradePage() {
     setLoading(true);
     
     try {
-      // ユーザーIDを取得（実際の実装では認証から取得）
+      // ユーザーIDを取得
       const response = await fetch('/api/auth/user');
       const user = await response.json();
       
       if (!user?.id) {
-        alert('ログインが必要です');
+        alert('ログインが必要です。ログインしてからお試しください。');
+        window.location.href = '/';
         return;
       }
 
@@ -32,13 +33,20 @@ export default function UpgradePage() {
         body: JSON.stringify({
           plan: selectedPlan,
           userId: user.id,
+          userEmail: user.email,
         }),
       });
 
-      const { url } = await checkoutResponse.json();
+      const data = await checkoutResponse.json();
       
-      if (url) {
-        window.location.href = url;
+      if (!checkoutResponse.ok) {
+        console.error('Checkout error:', data);
+        alert(data.error || '決済ページの作成に失敗しました');
+        return;
+      }
+      
+      if (data.url) {
+        window.location.href = data.url;
       } else {
         alert('決済ページの作成に失敗しました');
       }
