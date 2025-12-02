@@ -90,26 +90,55 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const customerId = session.customer as string;
   const subscriptionId = session.subscription as string;
 
+  console.log('🔔 Checkout completed:', { userId, customerId, subscriptionId });
+
   if (!userId) {
     console.error('No userId in session metadata');
     return;
   }
 
+  // Stripeからサブスクリプション詳細を取得
+  let priceId = 'pro_monthly'; // デフォルト値
+  let periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  let periodStart = new Date();
+
+  if (subscriptionId) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      priceId = subscription.items.data[0]?.price.id || 'pro_monthly';
+      periodStart = new Date(subscription.current_period_start * 1000);
+      periodEnd = new Date(subscription.current_period_end * 1000);
+    } catch (e) {
+      console.error('Failed to retrieve subscription:', e);
+    }
+  }
+
   // サブスクリプション情報を更新
-  await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from('subscriptions')
     .upsert({
       user_id: userId,
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
+      price_id: priceId,
       status: 'active',
-      current_period_start: new Date().toISOString(),
-      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 仮の値、後でsubscription webhookで更新
+      current_period_start: periodStart.toISOString(),
+      current_period_end: periodEnd.toISOString(),
+    }, {
+      onConflict: 'user_id'
     });
+
+  if (error) {
+    console.error('❌ Failed to upsert subscription:', error);
+  } else {
+    console.log('✅ Subscription upserted successfully for user:', userId);
+  }
 }
 
 async function handleSubscriptionChange(subscription: Stripe.Subscription) {
   const customerId = subscription.customer as string;
+  
+  console.log('🔔 Subscription change:', { customerId, status: subscription.status });
   
   // ユーザーIDを取得
   const { data: subscriptionData } = await supabaseAdmin
@@ -128,6 +157,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
   const updateData: any = {
     stripe_subscription_id: subscription.id,
     status: subscription.status,
+    price_id: subscription.items.data[0]?.price.id || 'pro_monthly',
   };
 
   // 型安全にプロパティをチェック
@@ -139,10 +169,16 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
     updateData.current_period_end = new Date((subscription.current_period_end as number) * 1000).toISOString();
   }
 
-  await supabaseAdmin
+  const { error } = await supabaseAdmin
     .from('subscriptions')
     .update(updateData)
     .eq('stripe_customer_id', customerId);
+
+  if (error) {
+    console.error('❌ Failed to update subscription:', error);
+  } else {
+    console.log('✅ Subscription updated for customer:', customerId);
+  }
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
